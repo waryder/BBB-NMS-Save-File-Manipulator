@@ -312,9 +312,23 @@ class TextModel(QObject):
     # Define a signal to be emitted when text changes
     textChanged = pyqtSignal()
 
-    def __init__(self):
+    def __init__(self, ini_file_manager):
         super().__init__()
-        self.text_data = INIT_TEXT
+
+        # Check if a file exists in the ini manager's last saved path
+        last_file_path = ini_file_manager.get_last_working_file_path()
+        
+        if last_file_path and os.path.exists(last_file_path):
+            # If the file exists, load its contents
+            try:
+                with open(last_file_path, 'r') as file:
+                    self.text_data = file.read()
+            except Exception as e:
+                print(f"Failed to load text from {last_file_path}: {e}")
+                self.text_data = INIT_TEXT
+        else:
+            # Fall back to INIT_TEXT if no file path is found or the file doesn't exist
+            self.text_data = INIT_TEXT
 
     def get_text(self):
         return self.text_data
@@ -322,7 +336,8 @@ class TextModel(QObject):
     def set_text(self, text):
         if text != self.text_data:  # Emit signal only if text is actually changed
             self.text_data = text
-            self.textChanged.emit()  # Emit the textChanged signal
+            self.textChanged.emit()
+
 
 
 class BaseTabContent(QWidget):
@@ -703,117 +718,66 @@ class SecondTabContent(BaseTabContent):
         self.text_edit.blockSignals(False)
         self.model.blockSignals(False)           
         
-        
-class PreferencesManager:
-    def __init__(self, parent=None, config_file='app_preferences.ini'):
+
+class IniFileManager:
+    def __init__(self, ini_file='app_preferences.ini'):
         """
-        Initializes the PreferencesManager class.
-        :param parent: The parent widget (typically the QMainWindow or QWidget)
-        :param config_file: The path to the configuration file (default is 'app_preferences.ini')
+        Initializes the IniFileManager class.
+        :param ini_file: The path to the .ini file (default is 'app_preferences.ini').
         """
-        self.parent = parent
-        self.config_file = config_file
+        # Set the ini file path to be in the same directory as the script
+        self.ini_file = os.path.join(os.path.dirname(__file__), ini_file)
         self.config = configparser.ConfigParser()
-        self.default_save_path = os.getcwd()
-        self.preferences_dialog = PreferencesDialog(parent=self.parent)
 
-        # Load existing preferences from the ini file if it exists
-        self.load_preferences()
-
-    def load_preferences(self):
-        """Loads preferences from the config file if it exists."""
-        if os.path.exists(self.config_file):
-            self.config.read(self.config_file)
-            self.default_save_path = self.config.get('Preferences', 'save_path', fallback=os.getcwd())
+        # Check if ini file exists, if not create a new one
+        if os.path.exists(self.ini_file):
+            self.config.read(self.ini_file)
         else:
-            # Set default path if no ini file exists
-            self.default_save_path = os.getcwd()
+            self.create_empty_ini_file()
 
-    def save_preferences(self, save_path):
-        """Saves the user-defined save path to the config file."""
-        self.config['Preferences'] = {'save_path': save_path}
-        with open(self.config_file, 'w') as configfile:
+        # Initialize the working file path from the ini file if it exists
+        self.working_file_path = self.config.get('Preferences', 'working_file_path', fallback='')
+
+    def create_empty_ini_file(self):
+        """Creates an empty ini file if it doesn't exist."""
+        self.config['Preferences'] = {'working_file_path': ''}
+        with open(self.ini_file, 'w') as configfile:
             self.config.write(configfile)
 
-    def open_preferences_dialog(self):
-        
-        #self.preferences_dialog.set_save_path(self.preferences_manager.get_preferences())
-        #preferences_dialog.set_current_file(self.current_file_name)  # Replace with your actual file name variable
-        self.preferences_dialog.exec_()
-        
-        
-        
-        """Opens a folder selection dialog and saves the selected path as a preference.
-        folder = QFileDialog.getExistingDirectory(self.parent, 'Select Directory', self.default_save_path)
-        if folder:
-            self.save_preferences(folder)
-            QMessageBox.information(self.parent, 'Preferences Saved', f'Save path updated to: {folder}')
-            self.default_save_path = folder
-        """    
-
-    def get_preferences(self):
-        """Returns the currently set save path from the preferences."""
-        return self.default_save_path   
-        
-
-class PreferencesDialog(QDialog):
-    def __init__(self, parent=None, save_path='', current_file=''):
+    def store_current_working_file_path(self, file_path):
         """
-        Initializes the PreferencesDialog class.
-        :param parent: The parent widget (typically the QMainWindow or QWidget)
-        :param save_path: The currently saved save path
-        :param current_file: The current full path to the working file name
+        Stores the given file path in the ini file.
+        :param file_path: The full path of the working file to store.
         """
-        super().__init__(parent)
-        
-        self.setWindowTitle("Preferences")
-        self.setFixedSize(640, 150)  # Adjusted width to accommodate button
+        self.config['Preferences'] = {'working_file_path': file_path}
+        with open(self.ini_file, 'w') as configfile:
+            self.config.write(configfile)
+        self.working_file_path = file_path
 
-        # Initialize UI elements
-        self.save_path_label = QLabel("Current Save Path:")
-        self.save_path_edit = QLineEdit(save_path)
-        self.save_path_edit.setFixedWidth(500)
-        self.save_path_edit.setReadOnly(True)  # Make it read-only
+    def get_last_working_file_path(self):
+        """
+        Retrieves the last stored working file path from the ini file.
+        :return: The last working file path or an empty string if not found.
+        """
+        return self.working_file_path
 
-        self.select_folder_button = QPushButton("Select Save Folder")
-        self.select_folder_button.setStyleSheet("text-align: center;")
-        self.select_folder_button.setFixedWidth(110)  # Set specific width for the button
-        self.select_folder_button.clicked.connect(self.open_folder_dialog)
+    def get_last_working_file_directory(self):
+        """
+        Retrieves the directory of the last stored working file path.
+        :return: The directory of the working file, or an empty string if the path is not set.
+        """
+        if self.working_file_path:
+            return os.path.dirname(self.working_file_path)
+        return ''
 
-        # Create a horizontal layout for the save path and button
-        save_path_layout = QHBoxLayout()
-        save_path_layout.setAlignment(Qt.AlignLeft)
-        save_path_layout.addWidget(self.save_path_edit)
-        save_path_layout.addWidget(self.select_folder_button)
-
-        self.current_file_label = QLabel("Current Working File's Path ('File->Save As' to change):")
-        self.current_file_edit = QLineEdit(current_file)
-        self.current_file_edit.setFixedWidth(500)
-        self.current_file_edit.setReadOnly(True)  # Make it read-only
-
-        # Layout setup
-        layout = QVBoxLayout()
-        layout.addWidget(self.save_path_label)
-        layout.addLayout(save_path_layout)  # Add the horizontal layout for save path
-        layout.addWidget(self.current_file_label)
-        layout.addWidget(self.current_file_edit)
-
-        self.setLayout(layout)
-
-    def open_folder_dialog(self):
-        """Opens a folder selection dialog to set the save folder."""
-        folder = QFileDialog.getExistingDirectory(self, 'Select Directory', self.save_path_edit.text())
-        if folder:
-            self.save_path_edit.setText(folder)
-            # You can implement the logic to save this path as needed
-
-    def set_current_file(self, file_path):
-        """Sets the current file path in the dialog."""
-        self.current_file_edit.setText(file_path)
-
-    def set_save_path(self, save_path):
-        """Sets the save path in the dialog."""
-        self.save_path_edit.setText(save_path)
+    def get_last_working_file_name(self):
+        """
+        Retrieves the file name of the last stored working file path.
+        :return: The file name of the working file, or an empty string if the path is not set.
+        """
+        if self.working_file_path:
+            return os.path.basename(self.working_file_path)
+        return ''
 
 
 
@@ -822,10 +786,9 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         
-        # Initialize the preferences manager
-        self.preferences_manager = PreferencesManager(self)
-
-        self.model = TextModel()
+        self.ini_file_manager = IniFileManager()
+        
+        self.model = TextModel(self.ini_file_manager)
         self.tabs = QTabWidget()
 
         self.tab1 = FirstTabContent(self.model, 'Tab 1')
@@ -851,64 +814,86 @@ class MainWindow(QMainWindow):
         save_action = QAction('Save', self)
         save_as_action = QAction('Save As', self)
         copy_action = QAction('Copy to Clipboard', self)
-        preferences_action = QAction('Preferences', self)
 
         open_action.triggered.connect(self.open_file)
         save_action.triggered.connect(self.save_file)
         save_as_action.triggered.connect(self.save_file_as)
         copy_action.triggered.connect(lambda: copy_to_clipboard(model, self))
-        preferences_action.triggered.connect(self.open_preferences)
 
         file_menu.addAction(open_action)
         file_menu.addAction(save_action)
         file_menu.addAction(save_as_action)
         file_menu.addAction(copy_action)
-        file_menu.addAction(preferences_action)
 
     def open_file(self):
         options = QFileDialog.Options()
         
+        # Get the last working directory from the ini manager
+        initial_directory = self.ini_file_manager.get_last_working_file_directory() or os.getcwd()
         
+        # Open file dialog starting from the last working directory
         file_name, _ = QFileDialog.getOpenFileName(self, 
-           "Open File", 
-           "", 
-           "JSON Files (*.json);;All Files (*)", 
-           options=options)
-        
+                                                   "Open File", 
+                                                   initial_directory,  # Set the initial directory
+                                                   "JSON Files (*.json);;All Files (*)", 
+                                                   options=options)
         
         if file_name:
             try:
+                # Open the selected file and read its contents
                 with open(file_name, 'r') as file:
                     self.model.set_text(file.read())
                     self.update_tabs_from_model()
+
+                # Store the new file path in the ini manager
+                self.ini_file_manager.store_current_working_file_path(file_name)
+            
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to open file: {e}")
 
     def save_file(self):
-        """Triggers file save using the preference-set save path."""
-        save_file_name = QFileDialog.getSaveFileName(self, 'Save File', os.path.join(self.preferences_manager.get_preferences(), 'data.json'))
+        """Saves the file using the last saved path, or prompts if no path is set."""
+        # Get the last working file path from the ini manager
+        last_file_path = self.ini_file_manager.get_last_working_file_path()
+        
+        if last_file_path and os.path.exists(last_file_path):
+            # If there's a valid path, save directly
+            try:
+                with open(last_file_path, 'w') as f:
+                    f.write(self.model.get_text())
 
-        if save_file_name[0]:
-            # Example save logic (can be replaced with actual file save functionality)
-            with open(save_file_name[0], 'w') as f:
-                f.write(self.model.get_text())
+                # Show a confirmation message
+                QMessageBox.information(self, 'File Saved', f'File saved at: {last_file_path}')
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to save file: {e}")
+        else:
+            # If no path is set or the file doesn't exist, use "Save As" behavior
+            self.save_file_as()  # Fallback to "Save As" behavior if no previous file path
 
-            QMessageBox.information(self, 'File Saved', f'File saved at: {save_file_name[0]}')
 
     def save_file_as(self):
         """Implements the Save As functionality allowing the user to specify a file location."""
-        save_file_name = QFileDialog.getSaveFileName(self, 'Save As', os.path.join(self.preferences_manager.get_preferences(), 'data.json'))
+        # Get the preferences from the ini manager for the default save path
+        save_file_name = QFileDialog.getSaveFileName(
+            self, 'Save As', 
+            self.ini_file_manager.get_last_working_file_path()
+        )
 
         if save_file_name[0]:
-            # Example save logic for Save As (replace this with your actual data saving logic)
-            with open(save_file_name[0], 'w') as f:
-                f.write(self.model.get_text())
+            try:
+                # Save the file content
+                with open(save_file_name[0], 'w') as f:
+                    f.write(self.model.get_text())
 
-            QMessageBox.information(self, 'File Saved As', f'File saved at: {save_file_name[0]}')
+                # Show a confirmation message
+                QMessageBox.information(self, 'File Saved As', f'File saved at: {save_file_name[0]}')
 
-    def open_preferences(self):
-        """Triggers the PreferencesManager to open the preferences dialog."""
-        self.preferences_manager.open_preferences_dialog()
+                # Store the file path in the ini manager after saving
+                self.ini_file_manager.store_current_working_file_path(save_file_name[0])
+            
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Failed to save file: {e}")
+
 
     def tab_changed(self, index):
         logging.debug(f"tab_changed() enter, index: {index}")
