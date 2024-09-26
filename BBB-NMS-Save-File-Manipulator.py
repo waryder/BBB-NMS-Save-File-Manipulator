@@ -221,9 +221,11 @@ class CustomTreeWidget(QTreeWidget):
             
         return new_index    
         
+    """
     def fireMessageAfterXSeconds(self):
         logging.debug("It's been X seconds...")
-        self.log_tree_structure() 
+        self.log_tree_structure()
+    """        
 
     def refresh_view(self, item): 
         logging.debug("Refreshing view")
@@ -680,6 +682,64 @@ class FirstTabContent(BaseTabContent):
         
         parent_tree_node = self.tree_widget.invisibleRootItem()
         parse_item(json_data, parent_tree_node, 0)
+        
+        self.add_base_names_lables_in_tree(parent_tree_node)
+        
+        
+
+
+    def add_base_names_lables_in_tree(self, parent_tree_node):
+        logging.debug("#*#*#*#add_base_names_lables_in_tree() ENTER")
+        # Get the invisible root item (the root of the tree)
+        root = parent_tree_node
+        
+        # Function to traverse all nodes of the tree recursively
+        def traverse_nodes(node):
+            for i in range(node.childCount()):
+                child = node.child(i)
+                # Check if the node has data of type dict
+                node_data = child.data(0, Qt.UserRole)
+                if isinstance(node_data, dict):
+                    logging.debug(f"Got a dict {child.text(0)}")
+                    
+                    # Now traverse the immediate children of this node
+                    append_text = ""
+                    for j in range(child.childCount()):
+                        sub_child = child.child(j)
+                        sub_child_data = sub_child.data(0, Qt.UserRole)
+                        # Check if the child has a tuple and the first element is "Name"
+                        
+                        if isinstance(sub_child_data, tuple):
+                            logging.debug(f"Got a Tuple")
+                            
+                            label_node = sub_child.child(0).data(0, Qt.UserRole)
+                            data_node = sub_child.child(1).data(0, Qt.UserRole)
+                            
+                            logging.debug(f"label_node: {label_node}, data_node: {data_node}")
+                            
+                            if(label_node == "Name"):
+                                logging.debug(f"Got a Name")
+                            
+                                # Append the second element of the tuple to the parent's text
+                                append_text = data_node
+                                break
+                    
+                    if append_text:
+                        # Modify the text of the parent node (the one with the dict)
+                        current_text = child.text(0)  # Get the current displayed text
+                        new_text = f"{current_text} Suspected Base Name: '{append_text}'"
+                        child.setText(0, new_text)
+
+                # Traverse the child nodes recursively
+                traverse_nodes(child)
+
+        # Start traversing from the root node
+        traverse_nodes(root)
+        
+        logging.debug("#*#*#*#add_base_names_lables_in_tree() EXIT")
+        
+        
+        
 
 
 class SecondTabContent(BaseTabContent):
