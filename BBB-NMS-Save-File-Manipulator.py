@@ -2,11 +2,13 @@ import sys, os, pdb, logging, json, traceback, configparser
 from PyQt5.QtCore import pyqtSignal, QObject, Qt, QMimeData, QTimer
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QSplitter, QTabWidget,
                              QTextEdit, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QAction,
-                             QTreeWidget, QTreeWidgetItem, QPushButton, QFileDialog, QMessageBox, QAbstractItemView, QDialog, QLineEdit)
+                             QTreeWidget, QTreeWidgetItem, QPushButton, QFileDialog, QMessageBox,
+                             QAbstractItemView, QDialog, QLineEdit, QInputDialog)
 from PyQt5.QtGui import QClipboard, QDragEnterEvent, QDropEvent, QDragMoveEvent, QDrag
+from PyQt5.QtCore import Qt # Import the Qt namespace
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG, format='line %(lineno)d - %(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.ERROR, format='line %(lineno)d - %(asctime)s - %(levelname)s - %(message)s')
 
 def global_exception_handler(exc_type, exc_value, exc_traceback):
     if issubclass(exc_type, KeyboardInterrupt):
@@ -38,6 +40,22 @@ class CustomTreeWidget(QTreeWidget):
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
+        
+    def expand_node_to_level(self, item, level):
+        if level < 0:
+            return
+
+        item.setExpanded(True)
+
+        # Recursively expand child items
+        for i in range(item.childCount()):
+            self.expand_node_to_level(item.child(i), level - 1)
+            
+    # Call this function on the top-level items of the tree widget
+    def expand_tree_to_level(self, level):
+        self.expand_node_to_level(self.invisibleRootItem(), level)            
+        
+    
 
     def dropEvent(self, event):
         logging.debug("==================== DROP EVENT START ====================")
@@ -309,7 +327,7 @@ INIT_TEXT = """[
 ]
 """
 
-
+"""
 class TextModel(QObject):
     # Define a signal to be emitted when text changes
     textChanged = pyqtSignal()
@@ -339,6 +357,110 @@ class TextModel(QObject):
         if text != self.text_data:  # Emit signal only if text is actually changed
             self.text_data = text
             self.textChanged.emit()
+
+"""            
+            
+            
+# Parent Class: DataModel
+class DataModel(QObject):
+    # Define the signal to be emitted when text changes (can be inherited)
+    # (Dude I don't know. Python wants this out here even though it is treated like an instance variable
+    # when declared this way. ChatGPT couldn't explain it to me. Just know: this thing is treated like
+    # an instance variable for the life of the app:
+    textChanged = pyqtSignal()
+    
+    
+    def __init__(self, ini_file_manager):
+        logging.debug("DataModel(QObject).__init__ ENTER")
+        super().__init__()
+        self.model_data = None
+        
+        # Check if a file exists in the ini manager's last saved path
+        self.last_file_path = ini_file_manager.get_last_working_file_path()
+        logging.debug("DataModel(QObject).__init__ EXIT")
+
+    # Accessor stubs
+    def init_model_data(self):
+        raise NotImplementedError("Subclasses must implement 'get_text'")
+    
+    def get_text(self):
+        raise NotImplementedError("Subclasses must implement 'get_text'")
+
+    def set_text(self, text):
+        raise NotImplementedError("Subclasses must implement 'set_text'")
+
+    def get_json(self):
+        raise NotImplementedError("Subclasses must implement 'get_json'")
+
+    def set_json(self, json_array):
+        raise NotImplementedError("Subclasses must implement 'set_json'")
+        
+            
+
+# Subclass: JsonArrayModel
+class JsonArrayModel(DataModel):
+    def __init__(self, ini_file_manager):
+        logging.debug("JsonArrayModel(DataModel).__init__ ENTER")
+        super().__init__(ini_file_manager)
+        self.init_model_data()
+        
+        logging.debug("JsonArrayModel(DataModel).__init__ EXIT")        
+        
+    def init_model_data(self):
+        if self.last_file_path and os.path.exists(self.last_file_path):
+            # If the file exists, load its contents
+            try:
+                with open(self.last_file_path, 'r') as file:
+                    self.model_data = json.loads(file.read())
+            except Exception as e:
+                print(f"Failed to load text from {self.last_file_path}: {e}")
+                self.model_data = json.loads(INIT_TEXT)
+        else:
+            # Fall back to INIT_TEXT if no file path is found or the file doesn't exist
+            self.model_data = json.loads(INIT_TEXT)
+            
+        #we need all values to be treated as strings:
+        self.convert_values_to_strings_in_place(self.model_data)    
+        
+            
+    def convert_values_to_strings_in_place(self, obj):
+        if isinstance(obj, dict):
+            # Recursively convert values in dictionaries (in place)
+            for k, v in obj.items():
+                obj[k] = self.convert_values_to_strings_in_place(v)
+        elif isinstance(obj, list):
+            # Recursively convert items in lists (in place)
+            for i in range(len(obj)):
+                obj[i] = self.convert_values_to_strings_in_place(obj[i])
+        else:
+            # Convert everything else (numbers, booleans, etc.) to strings
+            if not isinstance(obj, str):
+                obj = str(obj)
+
+            return obj
+
+        return obj  # Return the modified object for recursion consistency       
+                
+
+    # Override the stubbed accessor functions
+    def get_text(self):
+        return json.dumps(self.model_data, indent=4)
+
+    def set_text(self, text):
+        json_dump = json.dumps(self.model_data)
+        
+        if text != json_dump:  # Emit signal only if text is actually changed
+            self.model_data = json_dump
+            self.textChanged.emit()
+
+    def get_json(self):
+        return self.model_data
+        
+    def set_json(self, json_array):
+        if json_array != self.model_data:  # Emit signal only if JSON data is actually changed
+            self.model_data = json_array
+            self.textChanged.emit()
+    
 
 
 
@@ -375,13 +497,28 @@ class FirstTabContent(BaseTabContent):
         self.left_button = QPushButton("Synch from Text Window")
         self.left_button.setFixedWidth(button_width) 
         
+        self.sort_bases_by_gal_sys_name_button = QPushButton("Sort By Gal, Sys, Name")
+        self.sort_bases_by_gal_sys_name_button.setFixedWidth(button_width)
+        
         # Create tree widget and text edit
         #self.tree_widget = QTreeWidget()
         self.tree_widget = CustomTreeWidget(self)
+        self.tree_widget.setHeaderHidden(True)
+        
+        # Create layout for the buttons to be horizontal
+        left_buttons_lo = QHBoxLayout()
+        left_buttons_lo.addWidget(self.left_button)
+        left_buttons_lo.addWidget(self.sort_bases_by_gal_sys_name_button)
+
+        # Set alignment
+        left_buttons_lo.setAlignment(Qt.AlignLeft)
+
+        # Create a vertical layout for the left side and add buttons layout
+        left_button_layout = QVBoxLayout()
         
         # Create layouts for buttons
         left_button_layout = QVBoxLayout()
-        left_button_layout.addWidget(self.left_button)
+        left_button_layout.addLayout(left_buttons_lo)
         left_button_layout.addWidget(self.tree_widget)
         
         left_container = QWidget()
@@ -395,6 +532,11 @@ class FirstTabContent(BaseTabContent):
         self.copy_button.setFixedWidth(button_width)
         
         self.text_edit = QTextEdit()
+        
+        # Enable custom context menu
+        self.text_edit.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.text_edit.customContextMenuRequested.connect(self.show_context_menu)
+                
         self.text_edit.setText(self.model.get_text())
 
         right_pane_layout = QVBoxLayout()
@@ -417,8 +559,8 @@ class FirstTabContent(BaseTabContent):
         self.splitter.addWidget(right_container)
 
         # Set initial splitter size ratios (optional)
-        self.splitter.setStretchFactor(0, 4)  # Left pane takes more space
-        self.splitter.setStretchFactor(1, 6)  # Right pane takes less space
+        self.splitter.setStretchFactor(0, 5)  # Left pane takes more space
+        self.splitter.setStretchFactor(1, 5)  # Right pane takes less space
 
         # Set the splitter as the main layout for the widget
         main_layout = QVBoxLayout()
@@ -429,17 +571,53 @@ class FirstTabContent(BaseTabContent):
 
         # Connect buttons to methods
         self.left_button.clicked.connect(self.sync_from_text_window)
+        self.sort_bases_by_gal_sys_name_button.clicked.connect(self.sort_bases_by_gal_sys_name)
         self.right_button.clicked.connect(self.sync_from_tree_window)
         self.copy_button.clicked.connect(lambda: copy_to_clipboard(self.model, self))        
         
 
         # Update tree from model
         self.update_tree_from_model()
-        self.tree_widget.expandAll()
+        #self.tree_widget.expandAll()
+        self.tree_widget.expand_tree_to_level(1)
+        
 
         # Connect text edit changes to model
         self.text_edit.textChanged.connect(self.set_model_from_text_widget)
         self.model.textChanged.connect(self.model_changed)
+        
+    def show_context_menu(self, position):
+        # Create the default context menu
+        context_menu = self.text_edit.createStandardContextMenu()
+
+        # Add a search option
+        search_action = context_menu.addAction("Search Text")
+
+        # Connect the search option to a function that performs the search
+        search_action.triggered.connect(self.search_text)
+
+        # Show the context menu
+        context_menu.exec_(self.text_edit.mapToGlobal(position))
+
+    def search_text(self):
+        # Ask the user to enter the text they want to search for
+        search_string, ok = QInputDialog.getText(self, "Search", "Enter text to search:")
+        
+        if ok and search_string:
+            # Find the search string in the QTextEdit
+            cursor = self.text_edit.textCursor()
+            document = self.text_edit.document()
+
+            # Start searching from the beginning
+            cursor = document.find(search_string, 0)
+
+            if cursor.isNull():
+                # If the string was not found
+                print("Text not found")
+            else:
+                # Select and highlight the found text
+                self.text_edit.setTextCursor(cursor)
+                self.text_edit.ensureCursorVisible()        
         
     def blockSignals(self):
         self.text_edit.blockSignals(True)
@@ -465,9 +643,36 @@ class FirstTabContent(BaseTabContent):
             json_data = json.loads(self.text_edit.toPlainText())
             self.clear_tree_view()
             self.populate_tree_from_json(json_data)
-            self.tree_widget.expandAll()
+            self.tree_widget.expand_tree_to_level(1)
         except json.JSONDecodeError as e:
             QMessageBox.critical(self, "Error", f"Failed to parse JSON from text window: {e}")
+            
+    def sort_bases_by_gal_sys_name(self):
+        logging.debug("Sort Bases clicked, model BEFORE:")
+        model_json = self.model.get_json()
+        
+        if(logging.getLogger().getEffectiveLevel() == logging.DEBUG):
+            for el in model_json:
+                logging.debug(f"Gal: {el['GalacticAddress'][7:8]}, {Sys: el['GalacticAddress'][3:6]}, {el['Name']}")
+        
+        # Sort model_json in place based on the desired key
+        model_json.sort(key=lambda el: (
+            int(el['GalacticAddress'][7:8], 16),  # galaxy (characters 5 and 6)
+            int(el['GalacticAddress'][3:6], 16),  # system (characters 2 to 4)
+            el['Name']                   # base_name
+        ))
+        
+        logging.debug("Sort Bases clicked, model AFTER:")
+        
+        if(logging.getLogger().getEffectiveLevel() == logging.DEBUG):
+            for el in model_json:
+                logging.debug(f"Gal: {el['GalacticAddress'][7:8]}, {Sys: el['GalacticAddress'][3:6]}, {el['Name']}")
+        
+        self.update_tree_from_model()
+        self.tree_widget.expand_tree_to_level(1)
+        self.reset_tab_text_content_from_model()
+
+        
 
     def sync_from_tree_window(self):
         logging.debug("Sync from Tree Window clicked")
@@ -508,10 +713,10 @@ class FirstTabContent(BaseTabContent):
         json_data = self.load_json_from_model()
         if json_data is not None:
             
-            self.text_edit.blockSignals(True)
+            self.blockSignals()
             self.clear_tree_view()
             self.populate_tree_from_json(json_data)
-            self.text_edit.blockSignals(False)
+            self.unblockSignals()
             
             logging.debug("Tree view updated with model data.")            
             
@@ -626,7 +831,27 @@ class FirstTabContent(BaseTabContent):
                 size = len(json_data)
                 #new tree widget item for this level in the json text:
                 item = get_new_QTreeWidgetItem()
-                item.setText(0, f"Dict ({size})")
+                
+                
+                
+                
+                
+                #if we are the top level node, assuming this is NMS base data, add the base name data
+                #to the top levelnode label text:
+                if(level == 1 ):
+                    base_name =  json_data['Name']
+                    if not base_name:
+                        base_name = "Unnamed Freighter Base"
+                    
+                    item.setText(0, f"Dict ({size}) Gal: {GALAXIES[int(json_data['GalacticAddress'][7:8], 16)]}, Sys: {json_data['GalacticAddress'][3:6]}, Base: {base_name}")
+                else:
+                    item.setText(0, f"Dict ({size})")                
+                
+                
+                
+                
+                
+                
                 item.setData(0, Qt.UserRole, {}) #add dict as parent json_data at this level
                                
                 parent_tree_node.addChild(item)
@@ -683,7 +908,7 @@ class FirstTabContent(BaseTabContent):
         parent_tree_node = self.tree_widget.invisibleRootItem()
         parse_item(json_data, parent_tree_node, 0)
         
-        self.add_base_names_lables_in_tree(parent_tree_node)
+        #self.add_base_names_lables_in_tree(parent_tree_node)
         
         
 
@@ -722,6 +947,10 @@ class FirstTabContent(BaseTabContent):
                             
                                 # Append the second element of the tuple to the parent's text
                                 append_text = data_node
+                                
+                                if not append_text:
+                                    append_text = "Unnamed Freighter Base"
+                                    
                                 break
                     
                     if append_text:
@@ -844,11 +1073,14 @@ class IniFileManager:
 
 class MainWindow(QMainWindow):
     def __init__(self):
+        logging.debug("MainWindow(QMainWindow).__init__ ENTER")
+        
+        
         super().__init__()
         
         self.ini_file_manager = IniFileManager()
         
-        self.model = TextModel(self.ini_file_manager)
+        self.model = JsonArrayModel(self.ini_file_manager)
         self.tabs = QTabWidget()
 
         self.tab1 = FirstTabContent(self.model, 'Tab 1')
@@ -861,9 +1093,11 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(self.tabs)
         self.setWindowTitle('Model-View Example')
-        self.setGeometry(100, 100, 1000, 800)
+        self.setGeometry(400, 250, 1500, 800)
 
         self.create_menu_bar(self.model)
+        logging.debug("MainWindow(QMainWindow).__init__ EXIT")
+        
 
     def create_menu_bar(self, model):
         menu_bar = self.menuBar()
@@ -968,18 +1202,277 @@ class MainWindow(QMainWindow):
     def update_tabs_from_model(self):
         self.tab1.reset_tab_text_content_from_model()
         self.tab2.reset_tab_text_content_from_model()
-        
-
-
-
+ 
 def main():
+    init_galaxies()
     logging.debug("main enter")
     app = QApplication(sys.argv)
     main_window = MainWindow()
     main_window.show()
     logging.debug("main exit")
     sys.exit(app.exec_())
-
+    
+def init_galaxies():
+    global GALAXIES
+    GALAXIES = {}
+    GALAXIES[0] = 'Euclid'
+    GALAXIES[1] = 'Hilbert Dimension'
+    GALAXIES[2] = 'Calypso'
+    GALAXIES[3] = 'Hesperius Dimension'
+    GALAXIES[4] = 'Hyades'
+    GALAXIES[5] = 'Ickjamatew'
+    GALAXIES[6] = 'Budullangr'
+    GALAXIES[7] = 'Kikolgallr'
+    GALAXIES[8] = 'Eltiensleen'
+    GALAXIES[9] = 'Eissentam'
+    GALAXIES[10] = 'Elkupalos'
+    GALAXIES[11] = 'Aptarkaba'
+    GALAXIES[12] = 'Ontiniangp'
+    GALAXIES[13] = 'Odiwagiri'
+    GALAXIES[14] = 'Ogtialabi'
+    GALAXIES[15] = 'Muhacksonto'
+    GALAXIES[16] = 'Hitonskyer'
+    GALAXIES[17] = 'Rerasmutul'
+    GALAXIES[18] = 'Isdoraijung'
+    GALAXIES[19] = 'Doctinawyra'
+    GALAXIES[20] = 'Loychazinq'
+    GALAXIES[21] = 'Zukasizawa'
+    GALAXIES[22] = 'Ekwathore'
+    GALAXIES[23] = 'Yeberhahne'
+    GALAXIES[24] = 'Twerbetek'
+    GALAXIES[25] = 'Sivarates'
+    GALAXIES[26] = 'Eajerandal'
+    GALAXIES[27] = 'Aldukesci'
+    GALAXIES[28] = 'Wotyarogii'
+    GALAXIES[29] = 'Sudzerbal'
+    GALAXIES[30] = 'Maupenzhay'
+    GALAXIES[31] = 'Sugueziume'
+    GALAXIES[32] = 'Brogoweldian'
+    GALAXIES[33] = 'Ehbogdenbu'
+    GALAXIES[34] = 'Ijsenufryos'
+    GALAXIES[35] = 'Nipikulha'
+    GALAXIES[36] = 'Autsurabin'
+    GALAXIES[37] = 'Lusontrygiamh'
+    GALAXIES[38] = 'Rewmanawa'
+    GALAXIES[39] = 'Ethiophodhe'
+    GALAXIES[40] = 'Urastrykle'
+    GALAXIES[41] = 'Xobeurindj'
+    GALAXIES[42] = 'Oniijialdu'
+    GALAXIES[43] = 'Wucetosucc'
+    GALAXIES[44] = 'Ebyeloof'
+    GALAXIES[45] = 'Odyavanta'
+    GALAXIES[46] = 'Milekistri'
+    GALAXIES[47] = 'Waferganh'
+    GALAXIES[48] = 'Agnusopwit'
+    GALAXIES[49] = 'Teyaypilny'
+    GALAXIES[50] = 'Zalienkosm'
+    GALAXIES[51] = 'Ladgudiraf'
+    GALAXIES[52] = 'Mushonponte'
+    GALAXIES[53] = 'Amsentisz'
+    GALAXIES[54] = 'Fladiselm'
+    GALAXIES[55] = 'Laanawemb'
+    GALAXIES[56] = 'Ilkerloor'
+    GALAXIES[57] = 'Davanossi'
+    GALAXIES[58] = 'Ploehrliou'
+    GALAXIES[59] = 'Corpinyaya'
+    GALAXIES[60] = 'Leckandmeram'
+    GALAXIES[61] = 'Quulngais'
+    GALAXIES[62] = 'Nokokipsechl'
+    GALAXIES[63] = 'Rinblodesa'
+    GALAXIES[64] = 'Loydporpen'
+    GALAXIES[65] = 'Ibtrevskip'
+    GALAXIES[66] = 'Elkowaldb'
+    GALAXIES[67] = 'Heholhofsko'
+    GALAXIES[68] = 'Yebrilowisod'
+    GALAXIES[69] = 'Husalvangewi'
+    GALAXIES[70] = 'Ovnauesed'
+    GALAXIES[71] = 'Bahibusey'
+    GALAXIES[72] = 'Nuybeliaure'
+    GALAXIES[73] = 'Doshawchuc'
+    GALAXIES[74] = 'Ruckinarkh'
+    GALAXIES[75] = 'Thorettac'
+    GALAXIES[76] = 'Nuponoparau'
+    GALAXIES[77] = 'Moglaschil'
+    GALAXIES[78] = 'Uiweupose'
+    GALAXIES[79] = 'Nasmilete'
+    GALAXIES[80] = 'Ekdaluskin'
+    GALAXIES[81] = 'Hakapanasy'
+    GALAXIES[82] = 'Dimonimba'
+    GALAXIES[83] = 'Cajaccari'
+    GALAXIES[84] = 'Olonerovo'
+    GALAXIES[85] = 'Umlanswick'
+    GALAXIES[86] = 'Henayliszm'
+    GALAXIES[87] = 'Utzenmate'
+    GALAXIES[88] = 'Umirpaiya'
+    GALAXIES[89] = 'Paholiang'
+    GALAXIES[90] = 'Iaereznika'
+    GALAXIES[91] = 'Yudukagath'
+    GALAXIES[92] = 'Boealalosnj'
+    GALAXIES[93] = 'Yaevarcko'
+    GALAXIES[94] = 'Coellosipp'
+    GALAXIES[95] = 'Wayndohalou'
+    GALAXIES[96] = 'Smoduraykl'
+    GALAXIES[97] = 'Apmaneessu'
+    GALAXIES[98] = 'Hicanpaav'
+    GALAXIES[99] = 'Akvasanta'
+    GALAXIES[100] = 'Tuychelisaor'
+    GALAXIES[101] = 'Rivskimbe'
+    GALAXIES[102] = 'Daksanquix'
+    GALAXIES[103] = 'Kissonlin'
+    GALAXIES[104] = 'Aediabiel'
+    GALAXIES[105] = 'Ulosaginyik'
+    GALAXIES[106] = 'Roclaytonycar'
+    GALAXIES[107] = 'Kichiaroa'
+    GALAXIES[108] = 'Irceauffey'
+    GALAXIES[109] = 'Nudquathsenfe'
+    GALAXIES[110] = 'Getaizakaal'
+    GALAXIES[111] = 'Hansolmien'
+    GALAXIES[112] = 'Bloytisagra'
+    GALAXIES[113] = 'Ladsenlay'
+    GALAXIES[114] = 'Luyugoslasr'
+    GALAXIES[115] = 'Ubredhatk'
+    GALAXIES[116] = 'Cidoniana'
+    GALAXIES[117] = 'Jasinessa'
+    GALAXIES[118] = 'Torweierf'
+    GALAXIES[119] = 'Saffneckm'
+    GALAXIES[120] = 'Thnistner'
+    GALAXIES[121] = 'Dotusingg'
+    GALAXIES[122] = 'Luleukous'
+    GALAXIES[123] = 'Jelmandan'
+    GALAXIES[124] = 'Otimanaso'
+    GALAXIES[125] = 'Enjaxusanto'
+    GALAXIES[126] = 'Sezviktorew'
+    GALAXIES[127] = 'Zikehpm'
+    GALAXIES[128] = 'Bephembah'
+    GALAXIES[129] = 'Broomerrai'
+    GALAXIES[130] = 'Meximicka'
+    GALAXIES[131] = 'Venessika'
+    GALAXIES[132] = 'Gaiteseling'
+    GALAXIES[133] = 'Zosakasiro'
+    GALAXIES[134] = 'Drajayanes'
+    GALAXIES[135] = 'Ooibekuar'
+    GALAXIES[136] = 'Urckiansi'
+    GALAXIES[137] = 'Dozivadido'
+    GALAXIES[138] = 'Emiekereks'
+    GALAXIES[139] = 'Meykinunukur'
+    GALAXIES[140] = 'Kimycuristh'
+    GALAXIES[141] = 'Roansfien'
+    GALAXIES[142] = 'Isgarmeso'
+    GALAXIES[143] = 'Daitibeli'
+    GALAXIES[144] = 'Gucuttarik'
+    GALAXIES[145] = 'Enlaythie'
+    GALAXIES[146] = 'Drewweste'
+    GALAXIES[147] = 'Akbulkabi'
+    GALAXIES[148] = 'Homskiw'
+    GALAXIES[149] = 'Zavainlani'
+    GALAXIES[150] = 'Jewijkmas'
+    GALAXIES[151] = 'Itlhotagra'
+    GALAXIES[152] = 'Podalicess'
+    GALAXIES[153] = 'Hiviusauer'
+    GALAXIES[154] = 'Halsebenk'
+    GALAXIES[155] = 'Puikitoac'
+    GALAXIES[156] = 'Gaybakuaria'
+    GALAXIES[157] = 'Grbodubhe'
+    GALAXIES[158] = 'Rycempler'
+    GALAXIES[159] = 'Indjalala'
+    GALAXIES[160] = 'Fontenikk'
+    GALAXIES[161] = 'Pasycihelwhee'
+    GALAXIES[162] = 'Ikbaksmit'
+    GALAXIES[163] = 'Telicianses'
+    GALAXIES[164] = 'Oyleyzhan'
+    GALAXIES[165] = 'Uagerosat'
+    GALAXIES[166] = 'Impoxectin'
+    GALAXIES[167] = 'Twoodmand'
+    GALAXIES[168] = 'Hilfsesorbs'
+    GALAXIES[169] = 'Ezdaranit'
+    GALAXIES[170] = 'Wiensanshe'
+    GALAXIES[171] = 'Ewheelonc'
+    GALAXIES[172] = 'Litzmantufa'
+    GALAXIES[173] = 'Emarmatosi'
+    GALAXIES[174] = 'Mufimbomacvi'
+    GALAXIES[175] = 'Wongquarum'
+    GALAXIES[176] = 'Hapirajua'
+    GALAXIES[177] = 'Igbinduina'
+    GALAXIES[178] = 'Wepaitvas'
+    GALAXIES[179] = 'Sthatigudi'
+    GALAXIES[180] = 'Yekathsebehn'
+    GALAXIES[181] = 'Ebedeagurst'
+    GALAXIES[182] = 'Nolisonia'
+    GALAXIES[183] = 'Ulexovitab'
+    GALAXIES[184] = 'Iodhinxois'
+    GALAXIES[185] = 'Irroswitzs'
+    GALAXIES[186] = 'Bifredait'
+    GALAXIES[187] = 'Beiraghedwe'
+    GALAXIES[188] = 'Yeonatlak'
+    GALAXIES[189] = 'Cugnatachh'
+    GALAXIES[190] = 'Nozoryenki'
+    GALAXIES[191] = 'Ebralduri'
+    GALAXIES[192] = 'Evcickcandj'
+    GALAXIES[193] = 'Ziybosswin'
+    GALAXIES[194] = 'Heperclait'
+    GALAXIES[195] = 'Sugiuniam'
+    GALAXIES[196] = 'Aaseertush'
+    GALAXIES[197] = 'Uglyestemaa'
+    GALAXIES[198] = 'Horeroedsh'
+    GALAXIES[199] = 'Drundemiso'
+    GALAXIES[200] = 'Ityanianat'
+    GALAXIES[201] = 'Purneyrine'
+    GALAXIES[202] = 'Dokiessmat'
+    GALAXIES[203] = 'Nupiacheh'
+    GALAXIES[204] = 'Dihewsonj'
+    GALAXIES[205] = 'Rudrailhik'
+    GALAXIES[206] = 'Tweretnort'
+    GALAXIES[207] = 'Snatreetze'
+    GALAXIES[208] = 'Iwundaracos'
+    GALAXIES[209] = 'Digarlewena'
+    GALAXIES[210] = 'Erquagsta'
+    GALAXIES[211] = 'Logovoloin'
+    GALAXIES[212] = 'Boyaghosganh'
+    GALAXIES[213] = 'Kuolungau'
+    GALAXIES[214] = 'Pehneldept'
+    GALAXIES[215] = 'Yevettiiqidcon'
+    GALAXIES[216] = 'Sahliacabru'
+    GALAXIES[217] = 'Noggalterpor'
+    GALAXIES[218] = 'Chmageaki'
+    GALAXIES[219] = 'Veticueca'
+    GALAXIES[220] = 'Vittesbursul'
+    GALAXIES[221] = 'Nootanore'
+    GALAXIES[222] = 'Innebdjerah'
+    GALAXIES[223] = 'Kisvarcini'
+    GALAXIES[224] = 'Cuzcogipper'
+    GALAXIES[225] = 'Pamanhermonsu'
+    GALAXIES[226] = 'Brotoghek'
+    GALAXIES[227] = 'Mibittara'
+    GALAXIES[228] = 'Huruahili'
+    GALAXIES[229] = 'Raldwicarn'
+    GALAXIES[230] = 'Ezdartlic'
+    GALAXIES[231] = 'Badesclema'
+    GALAXIES[232] = 'Isenkeyan'
+    GALAXIES[233] = 'Iadoitesu'
+    GALAXIES[234] = 'Yagrovoisi'
+    GALAXIES[235] = 'Ewcomechio'
+    GALAXIES[236] = 'Inunnunnoda'
+    GALAXIES[237] = 'Dischiutun'
+    GALAXIES[238] = 'Yuwarugha'
+    GALAXIES[239] = 'Ialmendra'
+    GALAXIES[240] = 'Reponudrle'
+    GALAXIES[241] = 'Rinjanagrbo'
+    GALAXIES[242] = 'Zeziceloh'
+    GALAXIES[243] = 'Oeileutasc'
+    GALAXIES[244] = 'Zicniijinis'
+    GALAXIES[245] = 'Dugnowarilda'
+    GALAXIES[246] = 'Neuxoisan'
+    GALAXIES[247] = 'Ilmenhorn'
+    GALAXIES[248] = 'Rukwatsuku'
+    GALAXIES[249] = 'Nepitzaspru'
+    GALAXIES[250] = 'Chcehoemig'
+    GALAXIES[251] = 'Haffneyrin'
+    GALAXIES[252] = 'Uliciawai'
+    GALAXIES[253] = 'Tuhgrespod'
+    GALAXIES[254] = 'Iousongola'
+    GALAXIES[255] = 'Odyalutai'
+    
 
 if __name__ == '__main__':
     main()
+
