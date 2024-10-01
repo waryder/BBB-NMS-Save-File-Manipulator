@@ -28,7 +28,7 @@ def get_new_QTreeWidgetItem():
 def copy_to_clipboard(model, parentWindow = None):
     clipboard = QApplication.clipboard()
     clipboard.setText(model.get_text())
-    QMessageBox.information(parentWindow, "Copied", "Text copied to clipboard!")
+    QMessageBox.information(parentWindow, "Copied", "Text copied to clipboard!") 
 
 class CustomTreeWidget(QTreeWidget):
     def __init__(self, parent=None):
@@ -357,86 +357,6 @@ class TextModel(QObject):
         if text != self.text_data:  # Emit signal only if text is actually changed
             self.text_data = text
             self.textChanged.emit()
-            
-            
-            
-# Parent Class: DataModel
-class DataModel(QObject):
-    # Define the signal to be emitted when text changes (can be inherited)
-    # (Dude I don't know. Python wants this out here even though it is treated like an instance variable
-    # when declared this way. ChatGPT couldn't explain it to me. Just know: this thing is treated like
-    # an instance variable for the life of the app:
-    textChanged = pyqtSignal()
-    
-    
-    def __init__(self, ini_file_manager):
-        logging.debug("DataModel(QObject).__init__ ENTER")
-        super().__init__()
-        self.model_data = None
-        
-        # Check if a file exists in the ini manager's last saved path
-        self.last_file_path = ini_file_manager.get_last_working_file_path()
-        logging.debug("DataModel(QObject).__init__ EXIT")
-
-    # Accessor stubs
-    def init_model_data(self):
-        raise NotImplementedError("Subclasses must implement 'get_text'")
-    
-    def get_text(self):
-        raise NotImplementedError("Subclasses must implement 'get_text'")
-
-    def set_text(self, text):
-        raise NotImplementedError("Subclasses must implement 'set_text'")
-
-    def get_json(self):
-        raise NotImplementedError("Subclasses must implement 'get_json'")
-
-    def set_json(self, json_array):
-        raise NotImplementedError("Subclasses must implement 'set_json'")
-        
-            
-
-# Subclass: JsonArrayModel
-class JsonArrayModel(DataModel):
-    def __init__(self, ini_file_manager):
-        logging.debug("JsonArrayModel(DataModel).__init__ ENTER")
-        super().__init__(ini_file_manager)
-        self.init_model_data()
-        
-        logging.debug("JsonArrayModel(DataModel).__init__ EXIT")        
-        
-    def init_model_data(self):
-        if self.last_file_path and os.path.exists(self.last_file_path):
-            # If the file exists, load its contents
-            try:
-                with open(self.last_file_path, 'r') as file:
-                    self.model_data = json.loads(file.read())
-            except Exception as e:
-                print(f"Failed to load text from {self.last_file_path}: {e}")
-                self.model_data = json.loads(INIT_TEXT)
-        else:
-            # Fall back to INIT_TEXT if no file path is found or the file doesn't exist
-            self.model_data = json.loads(INIT_TEXT)
-
-    # Override the stubbed accessor functions
-    def get_text(self):
-        return json.dumps(self.model_data, indent=4)
-
-    def set_text(self, text):
-        json_dump = json.dumps(self.model_data)
-        
-        if text != json_dump:  # Emit signal only if text is actually changed
-            self.model_data = json_dump
-            self.textChanged.emit()
-
-    def get_json(self):
-        return self.model_data
-
-    def set_json(self, json_array):
-        if json_array != self.model_data:  # Emit signal only if JSON data is actually changed
-            self.model_data = json_array
-            self.textChanged.emit()
-    
 
 """            
             
