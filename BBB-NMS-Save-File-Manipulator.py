@@ -104,7 +104,11 @@ class CustomTreeWidget(QTreeWidget):
         if item is not None:
             # Create a context menu
             menu = QMenu(self)
-
+            
+            # Add an action to highlight the text line in the text widget for this data in the selected node
+            highlight_in_text_box_action = menu.addAction("Highlight In Text Box")
+            highlight_in_text_box_action.triggered.connect(lambda: self.highlight_in_text_box(item))
+            
             # Add an action to toggle expansion of the selected node
             toggle_expand_action = menu.addAction("Toggle Expansion 2 Levels")
             toggle_expand_action.triggered.connect(lambda: self.toggle_node_expansion(item))
@@ -115,6 +119,36 @@ class CustomTreeWidget(QTreeWidget):
 
             # Show the context menu at the position of the right-click
             menu.exec_(self.viewport().mapToGlobal(position))
+            
+    def highlight_in_text_box(self, item):
+        logger.verbose("highlight_in_text_box() ENTER") 
+        text_edit = self.first_tab_obj.text_edit
+        line_num = item.data(0, Qt.UserRole + 1)
+        logger.verbose(f"line_num: {line_num}")
+        
+        #QMessageBox.information(None, "Title", f"line number {line_num}")
+      
+        cursor = QTextCursor(text_edit.document())
+        
+        # Move cursor to the start of the desired line
+        cursor.movePosition(QTextCursor.Start)
+        cursor.movePosition(QTextCursor.Down, QTextCursor.MoveAnchor, line_num - 1)
+
+        # Select the entire line
+        cursor.select(QTextCursor.LineUnderCursor)
+        
+        # Highlight the found occurrence and update the last cursor position
+        text_edit.setTextCursor(cursor)
+        text_edit.ensureCursorVisible()  # Scroll to make the found text visible
+        
+        logger.verbose("highlight_in_text_box() EXIT")
+
+
+        
+        
+        
+       
+       
             
     def delete_node(self, item):
         # Get the parent of the item
@@ -129,8 +163,7 @@ class CustomTreeWidget(QTreeWidget):
             if index != -1:
                 self.tree_widget.takeTopLevelItem(index)
 
-        self.first_tab_obj.sync_text_from_tree_window()      
-        
+        self.first_tab_obj.sync_text_from_tree_window() 
 
     def toggle_node_expansion(self, item):
         # Toggle expansion of the current node
@@ -534,6 +567,8 @@ class FirstTabContent(BaseTabContent):
         self.tree_widget = CustomTreeWidget(self)
         self.tree_widget.setHeaderHidden(True)
         
+        self.bottom_left_label = QLabel("", self)
+        
         # Create layout for the buttons to be horizontal
         left_buttons_lo = QHBoxLayout()
         left_buttons_lo.addWidget(self.left_button)
@@ -543,15 +578,17 @@ class FirstTabContent(BaseTabContent):
         left_buttons_lo.setAlignment(Qt.AlignLeft)
 
         # Create a vertical layout for the left side and add buttons layout
-        left_button_layout = QVBoxLayout()
+        left_pane_layout = QVBoxLayout()
         
         # Create layouts for buttons
-        left_button_layout = QVBoxLayout()
-        left_button_layout.addLayout(left_buttons_lo)
-        left_button_layout.addWidget(self.tree_widget)
+        left_pane_layout = QVBoxLayout()
+        left_pane_layout.addLayout(left_buttons_lo)
+        left_pane_layout.addWidget(self.tree_widget)
+        left_pane_layout.addWidget(self.bottom_left_label)
+        
         
         left_container = QWidget()
-        left_container.setLayout(left_button_layout)
+        left_container.setLayout(left_pane_layout)
         
 #right pane: 
         self.right_button = QPushButton("Synch from Tree Window")
@@ -577,14 +614,20 @@ class FirstTabContent(BaseTabContent):
                 
         self.text_edit.setText(self.model.get_text())
 
+        #added just to keep spacing consistent with left panel:
+        self.bottom_right_label = QLabel("", self)
+        
         right_pane_layout = QVBoxLayout()
         right_button_layout = QHBoxLayout()
         right_button_layout.setAlignment(Qt.AlignLeft)
-        right_button_layout.setSpacing(2)
+        #right_button_layout.setSpacing(2)
+        
         #right_button_layout.addWidget(self.right_button)
         right_button_layout.addWidget(self.copy_button)
         right_pane_layout.addLayout(right_button_layout)
         right_pane_layout.addWidget(self.text_edit)
+        right_pane_layout.addWidget(self.bottom_right_label)
+        
 
         right_container = QWidget()
         right_container.setLayout(right_pane_layout)
@@ -871,8 +914,12 @@ class FirstTabContent(BaseTabContent):
 
     def populate_tree_from_json(self, json_data, parent_tree_node=None):
         logger.debug("populate_tree_from_json() called.")
+        base_count = 0
+        line_count = 0
         
         def parse_item(json_data, parent_tree_node, level):
+            nonlocal base_count
+            nonlocal line_count
             logger.verbose(f"**start level:{level}")
             
             if isinstance(json_data, list):
@@ -883,6 +930,9 @@ class FirstTabContent(BaseTabContent):
                 item = get_new_QTreeWidgetItem()
                 item.setText(0, f"Array ({size})")
                 item.setData(0, Qt.UserRole, []) #add list as parent json_data at this level
+                line_count += 1
+                item.setData(0, Qt.UserRole + 1, line_count) #store off the expected line number upon generation of the text from this this tree 
+                
                 parent_tree_node.addChild(item)
                 
                 for idx, val in enumerate(json_data):
@@ -899,11 +949,21 @@ class FirstTabContent(BaseTabContent):
                         child_item.setData(0, Qt.UserRole, val) #add val as data bottom of this level                 
 
                         child_item.setText(0, f"{val}")
+                        
+                        line_count += 1
+                        child_item.setData(0, Qt.UserRole + 1, line_count) #store off the expected line number upon generation of the text from this this tree 
+                        
+                        
                         #child_item.setFlags(item.flags() | Qt.ItemIsEditable)  # Make item editable
                         #current child_item to item for this level:
                         item.addChild(child_item)
                         #add item for this level in json data to the parent tree node that was passed in:
                         parent_tree_node.addChild(item)
+                
+                #at the end of processing a list, the text output will have a trailing '],' and
+                #so we need to adjust the line count for that on the way out: 
+                line_count += 1        
+                        
             
             elif isinstance(json_data, dict):
                 logger.verbose(f"dict='{json_data}'")
@@ -913,8 +973,9 @@ class FirstTabContent(BaseTabContent):
                 item = get_new_QTreeWidgetItem()
                 
                 #if we are the top level node, assuming this is NMS base data, add the base name data
-                #to the top levelnode label text:
+                #to the top level node label text:
                 if(level == 1 ):
+                    base_count += 1
                     base_name =  json_data['Name']
                     if not base_name:
                         base_name = "Unnamed Freighter Base"
@@ -924,6 +985,9 @@ class FirstTabContent(BaseTabContent):
                     item.setText(0, f"Dict ({size})")                
                                 
                 item.setData(0, Qt.UserRole, {}) #add dict as parent json_data at this level
+                
+                line_count += 1
+                item.setData(0, Qt.UserRole + 1, line_count) #store off the expected line number upon generation of the text from this this tree 
                                
                 parent_tree_node.addChild(item)
                                 
@@ -932,6 +996,10 @@ class FirstTabContent(BaseTabContent):
                     
                     logger.verbose(f"dict child tuple['{key}']: {val}")
                     parse_item(data_tuple, item, level + 1)
+                    
+                #at the end of processing a dict, the text output will have a trailing '},' and
+                #so we need to adjust the line count for that on the way out: 
+                line_count += 1
             
             elif isinstance(json_data, tuple):
                 logger.verbose(f"tuple='{json_data}'")
@@ -944,20 +1012,34 @@ class FirstTabContent(BaseTabContent):
                 item = get_new_QTreeWidgetItem()
                 item.setText(0, f"Tuple")
                 item.setData(0, Qt.UserRole, ()) #add a tuple as parent at this level
-            
+                line_count += 1
+                item.setData(0, Qt.UserRole + 1, line_count) #store off the expected line number upon generation of the text from this this tree
+                            
                 #add the key value to the dict child item:
                 key_item = get_new_QTreeWidgetItem()
                 key_item.setText(0, f"{key}")
                 key_item.setData(0, Qt.UserRole, key)
+
+                #this data came from the same line in the source text so do not increment line_count here:    
+                key_item.setData(0, Qt.UserRole + 1, line_count) #store off the expected line number upon generation of the text from this this tree 
+                
                 item.addChild(key_item)
                 
                 if(isinstance(val, dict) or isinstance(val, list)):
+                    #line_count will be incremented at the next stage for the array, when actually because we are processing a tuple right now, the array 
+                    #or list symbol is on the same line as the "tuple", so decrement it here so when bumped back at the next stage, saved off line numbers will be correct:
+                    line_count -= 1    
+                    
                     #for each of these child items go parse the next level of children:
                     parse_item(val, item, level + 1)
+
                 else:
                     data_item = get_new_QTreeWidgetItem()
                     data_item.setText(0, f"{val}")
                     data_item.setData(0, Qt.UserRole, val) 
+                    
+                    #this data came from the same line in the source text so do not increment line_count here:    
+                    data_item.setData(0, Qt.UserRole + 1, line_count) #store off the expected line number upon generation of the text from this this tree 
                     
                     #current data_item to tuple item for this level:
                     item.addChild(data_item)
@@ -969,6 +1051,10 @@ class FirstTabContent(BaseTabContent):
                 
                 item = QTreeWidgetItem([str(json_data)])
                 item.setData(0, Qt.UserRole, json_data) 
+                
+                line_count += 1
+                item.setData(0, Qt.UserRole + 1, line_count) #store off the expected line number upon generation of the text from this this tree 
+                
                 #item.setFlags(item.flags() | Qt.ItemIsEditable)  # Make item editable
                 parent_tree_node.addChild(item)
 
@@ -978,7 +1064,17 @@ class FirstTabContent(BaseTabContent):
         
         parent_tree_node = self.tree_widget.invisibleRootItem()
         parse_item(json_data, parent_tree_node, 0)
+        
+        self.bottom_left_label.setText(f"Number of Bases: {base_count}")
 
+        
+        
+        
+        
+        
+
+        
+        
         
 
 class SecondTabContent(BaseTabContent):
