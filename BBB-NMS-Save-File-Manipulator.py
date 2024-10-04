@@ -23,7 +23,7 @@ def verbose(self, message, *args, **kwargs):
 logging.Logger.verbose = verbose
 
 # Set up logging to include VERBOSE level messages
-logging.basicConfig(level=logging.ERROR, format='line %(lineno)d - %(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='line %(lineno)d - %(asctime)s - %(levelname)s - %(message)s')
 
 # Get a logger instance
 logger = logging.getLogger(__name__)
@@ -459,69 +459,91 @@ class DataModel(QObject):
         raise NotImplementedError("Subclasses must implement 'set_json'")        
             
 
-# Subclass: JsonArrayModel
 class JsonArrayModel(DataModel):
     def __init__(self, ini_file_manager):
         logger.debug("JsonArrayModel(DataModel).__init__ ENTER")
         super().__init__(ini_file_manager)
         self.init_model_data()
         
-        logger.debug("JsonArrayModel(DataModel).__init__ EXIT")        
+        logger.debug("JsonArrayModel(DataModel).__init__ EXIT") 
+
+    def convert_values_to_strings_in_place(self, obj):
+        logger.debug("convert_values_to_strings_in_place() ENTER")
+        
+        def recurse(obj):
+            if isinstance(obj, dict):
+                # Recursively convert values in dictionaries (in place)
+                for k, v in obj.items():
+                    obj[k] = recurse(v)
+            elif isinstance(obj, list):
+                # Recursively convert items in lists (in place)
+                for i in range(len(obj)):
+                    obj[i] = recurse(obj[i])
+            else:
+                # Convert everything else (numbers, booleans, etc.) to strings
+                if not isinstance(obj, str):
+                    obj = str(obj)
+                
+                return obj
+            
+            return obj  # Return the modified object for recursion consistency
+            
+        recurse(obj)    
+        logger.debug("convert_values_to_strings_in_place() EXIT")            
         
     def init_model_data(self):
+        logger.debug("init_model_data() ENTER")
+        new_model_data = None
+        
         if self.last_file_path and os.path.exists(self.last_file_path):
             # If the file exists, load its contents
             try:
                 with open(self.last_file_path, 'r') as file:
-                    self.model_data = json.loads(file.read())
+                    new_model_data = json.loads(file.read())
             except Exception as e:
                 print(f"Failed to load text from {self.last_file_path}: {e}")
-                self.model_data = json.loads(INIT_TEXT)
+                new_model_data = json.loads(INIT_TEXT)
         else:
             # Fall back to INIT_TEXT if no file path is found or the file doesn't exist
-            self.model_data = json.loads(INIT_TEXT)
+            new_model_data = json.loads(INIT_TEXT)            
             
-        #we need all values to be treated as strings:
-        self.convert_values_to_strings_in_place(self.model_data)    
+        self.__set_self_with_json_data(new_model_data)    
         
-            
-    def convert_values_to_strings_in_place(self, obj):
-        if isinstance(obj, dict):
-            # Recursively convert values in dictionaries (in place)
-            for k, v in obj.items():
-                obj[k] = self.convert_values_to_strings_in_place(v)
-        elif isinstance(obj, list):
-            # Recursively convert items in lists (in place)
-            for i in range(len(obj)):
-                obj[i] = self.convert_values_to_strings_in_place(obj[i])
-        else:
-            # Convert everything else (numbers, booleans, etc.) to strings
-            if not isinstance(obj, str):
-                obj = str(obj)
-
-            return obj
-
-        return obj  # Return the modified object for recursion consistency       
-                
+        logger.debug("init_model_data() EXIT")
 
     # Override the stubbed accessor functions
     def get_text(self):
+        logger.debug("get_text() ENTER")
+        logger.debug("get_text() EXIT")
         return json.dumps(self.model_data, indent=4)
 
     def set_text(self, text):
-        json_dumps = json.dumps(self.model_data)
-        
-        if text != json_dumps:  # Emit signal only if text is actually changed
-            self.model_data = json_dumps
-            self.modelChanged.emit()
+        logger.debug("set_text() ENTER")
+        json_loads = json.loads(text)
+        self.__set_self_with_json_data(json_loads)
+            
+        logger.debug("set_text EXIT")    
 
     def get_json(self):
+        logger.debug("get_json() ENTER")
+        logger.debug("get_json() EXIT")
         return self.model_data
         
     def set_json(self, json_array):
-        if json_array != self.model_data:  # Emit signal only if JSON data is actually changed
+        logger.debug("set_json() ENTER")
+        self.__set_self_with_json_data(json_array)
+        logger.debug("set_json() EXIT")            
+            
+    def __set_self_with_json_data(self, json_array):
+        logger.debug("__set_model_with_json_data() ENTER")
+        
+        if json_array != self.model_data:
             self.model_data = json_array
+            #we need all values to be treated as strings:
+            self.convert_values_to_strings_in_place(self.model_data)
             self.modelChanged.emit()
+            
+        logger.debug("__set_model_with_json_data() EXIT")    
             
 
 class BaseTabContent(QWidget):
@@ -533,7 +555,7 @@ class BaseTabContent(QWidget):
     def reset_tab_text_content_from_model(self):
         pass
 
-    def set_model_from_text_widget(self):
+    def update_model_from_text_widget(self):
         pass
         
     def blockSignals(self):
@@ -662,7 +684,7 @@ class FirstTabContent(BaseTabContent):
         self.tree_widget.expand_tree_to_level(1)
         
         # Connect text edit changes to model
-        self.text_edit.textChanged.connect(self.set_model_from_text_widget)
+        self.text_edit.textChanged.connect(self.update_model_from_text_widget)
         self.model.modelChanged.connect(self.model_changed)
         
             
@@ -760,15 +782,16 @@ class FirstTabContent(BaseTabContent):
         logger.verbose(f"Now: {self.model.get_text()}")        
 
     def sync_from_text_window(self):
-        logger.debug("Sync from Text Window")
+        logger.debug("Sync from Text Window ENTER")
         # Set tree from text
         try:
-            json_data = json.loads(self.text_edit.toPlainText())
-            self.clear_tree_view()
-            self.populate_tree_from_json(json_data)
+            self.update_model_from_text_widget()
+            self.update_tree_from_model()
             self.tree_widget.expand_tree_to_level(1)
         except json.JSONDecodeError as e:
             QMessageBox.critical(self, "Error", f"Failed to parse JSON from text window: {e}")
+            
+        logger.debug("Sync from Text Window EXIT")    
             
     def sort_bases_by_gal_sys_name(self):
         logger.debug("Sort Bases clicked")
@@ -794,17 +817,19 @@ class FirstTabContent(BaseTabContent):
         self.reset_tab_text_content_from_model()        
 
     def sync_text_from_tree_window(self):
-        logger.debug("Sync from Tree Window clicked")
+        logger.debug("sync from Tree Window ENTER")
         self.update_model_from_tree()
         self.reset_tab_text_content_from_model()        
+        logger.debug("sync from Tree Window EXIT")
 
-    def set_model_from_text_widget(self):
-        logger.debug("1st Tab set_model_from_text_widget() enter")
+    def update_model_from_text_widget(self):
+        logger.debug("1st Tab update_model_from_text_widget() enter")
         new_text = self.text_edit.toPlainText()
         self.model.set_text(new_text)
-        logger.debug("1st Tab set_model_from_text_widget() exit")
+        logger.debug("1st Tab update_model_from_text_widget() exit")
 
     def populate_tree(self, data, parent=None):
+        logger.debug("populate_tree() ENTER")
         if parent is None:
             parent = self.tree_widget.invisibleRootItem()
 
@@ -818,6 +843,8 @@ class FirstTabContent(BaseTabContent):
                 item = QTreeWidgetItem([f"Item {index}"])
                 parent.addChild(item)
                 self.populate_tree(value, item)
+                
+        logger.debug("populate_tree() EXIT")                    
 
     def reset_tab_text_content_from_model(self):
         logger.debug("1st Tab reset_tab_text_content_from_model() enter")
@@ -913,7 +940,7 @@ class FirstTabContent(BaseTabContent):
         self.tree_widget.clear()        
 
     def populate_tree_from_json(self, json_data, parent_tree_node=None):
-        logger.debug("populate_tree_from_json() called.")
+        logger.debug("populate_tree_from_json() ENTER")
         base_count = 0
         line_count = 0
         
@@ -980,7 +1007,7 @@ class FirstTabContent(BaseTabContent):
                     if not base_name:
                         base_name = "Unnamed Freighter Base"
                     
-                    item.setText(0, f"Dict ({size}) Gal: {GALAXIES[int(json_data['GalacticAddress'][7:8], 16)]}, Sys: {json_data['GalacticAddress'][3:6]}, Base: {base_name}")
+                    item.setText(0, f"[{base_count - 1}] Dict ({size}) Gal: {GALAXIES[int(json_data['GalacticAddress'][7:8], 16)]}, Sys: {json_data['GalacticAddress'][3:6]}, Base: {base_name}")
                 else:
                     item.setText(0, f"Dict ({size})")                
                                 
@@ -1066,16 +1093,8 @@ class FirstTabContent(BaseTabContent):
         parse_item(json_data, parent_tree_node, 0)
         
         self.bottom_left_label.setText(f"Number of Bases: {base_count}")
-
         
-        
-        
-        
-        
-
-        
-        
-        
+        logger.debug("populate_tree_from_json() EXIT")    
 
 class SecondTabContent(BaseTabContent):
     def __init__(self, model, tab_name):
@@ -1089,13 +1108,13 @@ class SecondTabContent(BaseTabContent):
         self.setLayout(self.layout)
 
         self.text_edit.setText(self.model.get_text())
-        self.text_edit.textChanged.connect(self.set_model_from_text_widget)
+        self.text_edit.textChanged.connect(self.update_model_from_text_widget)
 
-    def set_model_from_text_widget(self):
-        logger.debug("2nd Tab set_model_from_text_widget() enter")
+    def update_model_from_text_widget(self):
+        logger.debug("2nd Tab update_model_from_text_widget() enter")
         new_text = self.text_edit.toPlainText()
         self.model.set_text(new_text)
-        logger.debug("2nd Tab set_model_from_text_widget() exit")
+        logger.debug("2nd Tab update_model_from_text_widget() exit")
 
     def reset_tab_text_content_from_model(self):
         logger.debug("2nd Tab reset_tab_text_content_from_model() enter")
