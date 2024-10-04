@@ -50,6 +50,13 @@ def copy_to_clipboard(model, parentWindow = None):
     clipboard.setText(model.get_text())
     QMessageBox.information(parentWindow, "Copied", "Text copied to clipboard!") 
     
+def pretty_print_text_widget(model, parentWindow = None):
+    parentWindow.update_model_from_text_widget()
+    parentWindow.update_text_widget_from_model()
+    
+    
+    
+    
         
 class TextSearchDialog(QDialog):  # Change QWidget to QDialog
     def __init__(self, parent=None):
@@ -142,13 +149,6 @@ class CustomTreeWidget(QTreeWidget):
         text_edit.ensureCursorVisible()  # Scroll to make the found text visible
         
         logger.verbose("highlight_in_text_box() EXIT")
-
-
-        
-        
-        
-       
-       
             
     def delete_node(self, item):
         # Get the parent of the item
@@ -282,7 +282,7 @@ class CustomTreeWidget(QTreeWidget):
         logger.verbose(f"Model Text after update_model_from_tree(): {self.first_tab_obj.model.get_text()}")
         
         #update the text widget
-        self.first_tab_obj.reset_tab_text_content_from_model()    
+        self.first_tab_obj.update_text_widget_from_model()    
         self.first_tab_obj.unblockSignals()
         self.setCurrentItem(item)
 
@@ -552,7 +552,7 @@ class BaseTabContent(QWidget):
         self.model = model
         self.tab_name = tab_name
 
-    def reset_tab_text_content_from_model(self):
+    def update_text_widget_from_model(self):
         pass
 
     def update_model_from_text_widget(self):
@@ -578,7 +578,7 @@ class FirstTabContent(BaseTabContent):
         button_width = 140
                           
 #left pane:
-        self.left_button = QPushButton("Synch from Text Window")
+        self.left_button = QPushButton("Sync from Text Window")
         self.left_button.setFixedWidth(button_width) 
         
         self.sort_bases_by_gal_sys_name_button = QPushButton("Sort By Gal, Sys, Name")
@@ -619,6 +619,9 @@ class FirstTabContent(BaseTabContent):
         self.copy_button = QPushButton("Copy to Clipboard")  # New button for copying text
         self.copy_button.setFixedWidth(button_width)
         
+        self.pretty_print_button = QPushButton("Pretty Print")  # New button for copying text
+        self.pretty_print_button.setFixedWidth(button_width)
+        
         self.text_edit = QTextEdit()
         
         #Customize the palette to keep the selection highlighted when the window loses focus.
@@ -646,6 +649,8 @@ class FirstTabContent(BaseTabContent):
         
         #right_button_layout.addWidget(self.right_button)
         right_button_layout.addWidget(self.copy_button)
+        right_button_layout.addWidget(self.pretty_print_button)
+        
         right_pane_layout.addLayout(right_button_layout)
         right_pane_layout.addWidget(self.text_edit)
         right_pane_layout.addWidget(self.bottom_right_label)
@@ -675,8 +680,9 @@ class FirstTabContent(BaseTabContent):
         # Connect buttons to methods
         self.left_button.clicked.connect(self.sync_from_text_window)
         self.sort_bases_by_gal_sys_name_button.clicked.connect(self.sort_bases_by_gal_sys_name)
-        self.right_button.clicked.connect(self.sync_text_from_tree_window)
-        self.copy_button.clicked.connect(lambda: copy_to_clipboard(self.model, self))        
+        #self.right_button.clicked.connect(self.sync_text_from_tree_window)
+        self.copy_button.clicked.connect(lambda: copy_to_clipboard(self.model, self))
+        self.pretty_print_button.clicked.connect(lambda: pretty_print_text_widget(self.model, self))
         
         # Update tree from model
         self.update_tree_from_model()
@@ -814,12 +820,12 @@ class FirstTabContent(BaseTabContent):
         
         self.update_tree_from_model()
         self.tree_widget.expand_tree_to_level(1)
-        self.reset_tab_text_content_from_model()        
+        self.update_text_widget_from_model()        
 
     def sync_text_from_tree_window(self):
         logger.debug("sync from Tree Window ENTER")
         self.update_model_from_tree()
-        self.reset_tab_text_content_from_model()        
+        self.update_text_widget_from_model()        
         logger.debug("sync from Tree Window EXIT")
 
     def update_model_from_text_widget(self):
@@ -846,12 +852,12 @@ class FirstTabContent(BaseTabContent):
                 
         logger.debug("populate_tree() EXIT")                    
 
-    def reset_tab_text_content_from_model(self):
-        logger.debug("1st Tab reset_tab_text_content_from_model() enter")
-        self.blockSignals()
+    def update_text_widget_from_model(self):
+        logger.debug("1st Tab update_text_widget_from_model() enter")
+        #self.blockSignals()
         self.text_edit.setText(self.model.get_text())
-        self.unblockSignals()
-        logger.debug("1st Tab reset_tab_text_content_from_model() exit")
+        #self.unblockSignals()
+        logger.debug("1st Tab update_text_widget_from_model() exit")
   
     def update_tree_from_model(self):
         logger.debug("update_tree_from_model() called")
@@ -1116,13 +1122,13 @@ class SecondTabContent(BaseTabContent):
         self.model.set_text(new_text)
         logger.debug("2nd Tab update_model_from_text_widget() exit")
 
-    def reset_tab_text_content_from_model(self):
-        logger.debug("2nd Tab reset_tab_text_content_from_model() enter")
+    def update_text_widget_from_model(self):
+        logger.debug("2nd Tab update_text_widget_from_model() enter")
         self.blockSignals()
         self.text_edit.setText(self.model.get_text())
         self.unblockSignals()
 
-        logger.debug("2nd Tab reset_tab_text_content_from_model() exit")
+        logger.debug("2nd Tab update_text_widget_from_model() exit")
         
     def blockSignals(self):
         self.text_edit.blockSignals(True)
@@ -1316,15 +1322,15 @@ class MainWindow(QMainWindow):
         logger.debug(f"tab_changed() enter, index: {index}")
 
         try:
-            self.tabs.widget(index).reset_tab_text_content_from_model()
+            self.tabs.widget(index).update_text_widget_from_model()
         except Exception as e:
             logging.error(f"An error occurred: {e}")
 
         logger.debug("tab_changed() exit")
         
     def update_tabs_from_model(self):
-        self.tab1.reset_tab_text_content_from_model()
-        self.tab2.reset_tab_text_content_from_model()
+        self.tab1.update_text_widget_from_model()
+        self.tab2.update_text_widget_from_model()
  
 def main():
     init_galaxies()
