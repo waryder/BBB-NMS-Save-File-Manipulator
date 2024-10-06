@@ -1,4 +1,4 @@
-import sys, os, pdb, logging, json, traceback, configparser, pyautogui
+import sys, os, pdb, logging, json, traceback, configparser, pyautogui, yappi, psutil, threading, traceback
 from PyQt5.QtCore import pyqtSignal, QObject, Qt, QMimeData, QTimer
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QSplitter, QTabWidget,
                              QTextEdit, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QAction,
@@ -9,6 +9,21 @@ from PyQt5.QtGui import (QClipboard, QDragEnterEvent, QDropEvent, QDragMoveEvent
 from PyQt5.QtCore import Qt # Import the Qt namespace
 from PyQt5 import QtCore, QtGui, QtWidgets
 
+
+
+#Qt indexs into Tree Node Custom Data:
+QT_DATA_SAVE_NODES_DATA_STRUCT = Qt.UserRole
+QT_DATA_LINE_COUNT = Qt.UserRole + 1
+QT_DATA_IS_BASE = Qt.UserRole + 2
+
+#************
+# CURRENT LOGGER LEVEL:
+app_log_level = logging.ERROR   
+    
+#************
+
+GREEN_LED_COLOR = '#2eb82e'
+YELLOW_LED_COLOR = '#f9f906'
 
 # Define a new logging level called VERBOSE with a numeric value lower than DEBUG (5)
 VERBOSE = 5
@@ -23,7 +38,7 @@ def verbose(self, message, *args, **kwargs):
 logging.Logger.verbose = verbose
 
 # Set up logging to include VERBOSE level messages
-logging.basicConfig(level=logging.DEBUG, format='line %(lineno)d - %(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=app_log_level, format='line %(lineno)d - %(asctime)s - %(levelname)s - %(message)s')
 
 # Get a logger instance
 logger = logging.getLogger(__name__)
@@ -51,12 +66,20 @@ def copy_to_clipboard(model, parentWindow = None):
     QMessageBox.information(parentWindow, "Copied", "Text copied to clipboard!") 
     
 def pretty_print_text_widget(model, parentWindow = None):
-    parentWindow.update_model_from_text_widget()
+    logger.debug("pretty_print_text_widget() ENTER")
+    
+    parentWindow.text_changed_signal()
     parentWindow.update_text_widget_from_model()
-    
-    
-    
-    
+        
+    logger.debug("pretty_print_text_widget() EXIT")
+        
+def get_num_app_child_threads():
+    logger.debug("get_num_app_child_threads() ENTER")
+    # Get the current process (your application)
+    current_process = psutil.Process(os.getpid())
+    num_threads = len(current_process.threads())
+    logger.debug("get_num_app_child_threads() EXIT, num threads: {num_threads}")
+    return num_threads
         
 class TextSearchDialog(QDialog):  # Change QWidget to QDialog
     def __init__(self, parent=None):
@@ -104,6 +127,11 @@ class CustomTreeWidget(QTreeWidget):
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.show_context_menu)
         
+        #for scolling the tree view on drag outside of viewport:
+        self.scroll_timer = QTimer(self)
+        self.scroll_timer.timeout.connect(self.perform_smooth_scroll)
+        self.scroll_direction = None        
+        
     def show_context_menu(self, position):
         # Get the item at the position of the right-click
         item = self.itemAt(position)
@@ -112,25 +140,42 @@ class CustomTreeWidget(QTreeWidget):
             # Create a context menu
             menu = QMenu(self)
             
-            # Add an action to highlight the text line in the text widget for this data in the selected node
             highlight_in_text_box_action = menu.addAction("Highlight In Text Box")
             highlight_in_text_box_action.triggered.connect(lambda: self.highlight_in_text_box(item))
             
-            # Add an action to toggle expansion of the selected node
             toggle_expand_action = menu.addAction("Toggle Expansion 2 Levels")
             toggle_expand_action.triggered.connect(lambda: self.toggle_node_expansion(item))
             
-            # Add an action to delete the selected node and its children
+            #if top level array we want to add a menu item:
+            if(self.count_parents(item) == 0): #is top level    
+                toggle_expand_action = menu.addAction("Restore a Base")
+                toggle_expand_action.triggered.connect(lambda: self.restore_a_base(item))            
+            
+            is_a_base = item.data(0, QT_DATA_IS_BASE)
+            if is_a_base: 
+                toggle_expand_action = menu.addAction("Backup a Base")
+                toggle_expand_action.triggered.connect(lambda: self.backup_a_base(item))
+            
             delete_action = menu.addAction("Delete Node")
             delete_action.triggered.connect(lambda: self.delete_node(item))
 
             # Show the context menu at the position of the right-click
-            menu.exec_(self.viewport().mapToGlobal(position))
+            menu.exec_(self.viewport().mapToGlobal(position))            
+    
+    def count_parents(self, node):
+        count = 0
+        parent = node.parent()
+        
+        while parent is not None:
+            count += 1
+            parent = parent.parent()  # Move up to the next parent
             
+        return count
+    
     def highlight_in_text_box(self, item):
         logger.verbose("highlight_in_text_box() ENTER") 
         text_edit = self.first_tab_obj.text_edit
-        line_num = item.data(0, Qt.UserRole + 1)
+        line_num = item.data(0, QT_DATA_LINE_COUNT)
         logger.verbose(f"line_num: {line_num}")
         
         #QMessageBox.information(None, "Title", f"line number {line_num}")
@@ -151,6 +196,7 @@ class CustomTreeWidget(QTreeWidget):
         logger.verbose("highlight_in_text_box() EXIT")
             
     def delete_node(self, item):
+        logger.debug("delete_node() ENTER")
         # Get the parent of the item
         parent = item.parent()
 
@@ -164,14 +210,19 @@ class CustomTreeWidget(QTreeWidget):
                 self.tree_widget.takeTopLevelItem(index)
 
         self.first_tab_obj.sync_text_from_tree_window() 
+        logger.debug("delete_node() EXIT")
 
     def toggle_node_expansion(self, item):
+        logger.debug("toggle_node_expansion() ENTER")
+        
         # Toggle expansion of the current node
         if item.isExpanded():
             item.setExpanded(False)
         else:
             #item.setExpanded(True)    
             self.expand_node_to_level(item, 2)
+            
+        logger.debug("toggle_node_expansion() EXIT")            
         
     def expand_node_to_level(self, item, level):
         if level < 0:
@@ -186,9 +237,64 @@ class CustomTreeWidget(QTreeWidget):
     # Call this function on the top-level items of the tree widget
     def expand_tree_to_level(self, level):
         self.expand_node_to_level(self.invisibleRootItem(), level)
+        
+    def backup_a_base(self, item):
+        logger.debug("backup_a_base() ENTER")
+        #QMessageBox.information(self, "Title", "Got request to save off a base!")
+        
+        json_data = self.first_tab_obj.tree_widget_data_to_json(item)
+        text_data = json.dumps(json_data, indent=4)
+        
+        # Open the save file dialog
+        options = QFileDialog.Options()
+        file_path, _ = QFileDialog.getSaveFileName(None, "Save File", "", "NMS Base Files (*.nms_base.json);;All Files (*)", options=options)
+        
+        # If a file path is selected, save the string to the file
+        if file_path:
+            try:
+                with open(file_path, 'w') as file:
+                    file.write(text_data)
+                QMessageBox.information(None, "Success", "File saved successfully!")
+            except Exception as e:
+                QMessageBox.critical(None, "Error", f"Failed to save file: {str(e)}")
+        
+        logger.debug("backup_a_base() EXIT")
+        
+    def restore_a_base(self, item):
+        logger.debug("restore_a_base() ENTER")
+        file_content = None
+        
+        options = QFileDialog.Options()
+        options |= QFileDialog.ReadOnly
+        file_path, _ = QFileDialog.getOpenFileName(None, "Restore A Base To First Position In Tree", "", "NMS Base Files (*.nms_base.json);;All Files (*)", options=options)
+        
+        if file_path:
+            try:
+                with open(file_path, 'r') as file:
+                    file_content = file.read()  # Reads the entire file as a string
 
+            except Exception as e:
+                # If there's an error reading the file, show an error message
+                error_dialog = QMessageBox()
+                error_dialog.setText(f"Error reading file: {str(e)}")
+                error_dialog.exec_()
+                
+        if file_content:              
+            nms_base_json = json.loads(file_content)
+            self.first_tab_obj.model.add_base(nms_base_json)
+            dialog = QMessageBox()
+            dialog.setText(f"New Base Added To Tree!")
+            dialog.exec_()
+        else:
+            dialog = QMessageBox()
+            dialog.setText(f"File Data May Not Exist. New Base Could NOT Be Added To Tree!")
+            
+        logger.debug("restore_a_base() EXIT")   
+        
     def dropEvent(self, event):
         logger.debug("==================== DROP EVENT START ====================")
+        
+        self.first_tab_obj.set_led_based_on_app_thread_load()
         
         # Get the item being dragged
         dragged_item = self.currentItem()
@@ -307,8 +413,8 @@ class CustomTreeWidget(QTreeWidget):
             logger.verbose(f"=========areParentsSameType() One of parents was Null, Returning False")
             return False
             
-        parent1Data = parent1.data(0, Qt.UserRole)
-        parent2Data = parent2.data(0, Qt.UserRole)         
+        parent1Data = parent1.data(0, QT_DATA_SAVE_NODES_DATA_STRUCT)
+        parent2Data = parent2.data(0, QT_DATA_SAVE_NODES_DATA_STRUCT)         
               
         logger.verbose(f"==========areParentsSameType() Result: {type(parent1Data) == type(parent2Data)}")
         return type(parent1Data) == type(parent2Data)
@@ -321,7 +427,7 @@ class CustomTreeWidget(QTreeWidget):
             logger.debug(f"=========parentsNotArrayOrDict() One of parents was Null, Returning False")
             return False
             
-        parent1Data = parent1.data(0, Qt.UserRole)
+        parent1Data = parent1.data(0, QT_DATA_SAVE_NODES_DATA_STRUCT)
               
         logger.debug(f"==========areParentsArrayOrDict Result: {isinstance(parent1Data, (list, dict))}")
         return isinstance(parent1Data, (list, dict)) 
@@ -368,11 +474,37 @@ class CustomTreeWidget(QTreeWidget):
         else:
             event.ignore()
 
+    """
     def dragMoveEvent(self, event):
         if event.mimeData().hasFormat('application/x-qabstractitemmodeldatalist'):
             event.accept()
         else:
             event.ignore()
+    """
+    
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasFormat('application/x-qabstractitemmodeldatalist'):
+            event.accept()
+        else:
+            event.ignore()
+
+        rect = self.viewport().rect()
+        mouse_pos = event.pos()
+        scroll_threshold = 20
+
+        if mouse_pos.y() < rect.top() + scroll_threshold:
+            self.scroll_direction = -1  # Scroll up
+            self.scroll_timer.start(25)  # Start scrolling every 20 ms
+        elif mouse_pos.y() > rect.bottom() - scroll_threshold:
+            self.scroll_direction = 1  # Scroll down
+            self.scroll_timer.start(25)
+        else:
+            self.scroll_timer.stop()  # Stop scrolling if not near the edges
+
+    def perform_smooth_scroll(self):
+        if self.scroll_direction is not None:
+            self.verticalScrollBar().setValue(self.verticalScrollBar().value() + self.scroll_direction)
+    
             
     """
     def paintEvent(self, event):
@@ -532,8 +664,15 @@ class JsonArrayModel(DataModel):
     def set_json(self, json_array):
         logger.debug("set_json() ENTER")
         self.__set_self_with_json_data(json_array)
-        logger.debug("set_json() EXIT")            
-            
+        logger.debug("set_json() EXIT") 
+
+    def add_base(self, nms_base_json_array):
+        logger.debug("add_base() ENTER")
+        
+        self.model_data.insert(0, nms_base_json_array)
+        self.modelChanged.emit()
+        logger.debug("add_base() EXIT") 
+        
     def __set_self_with_json_data(self, json_array):
         logger.debug("__set_model_with_json_data() ENTER")
         
@@ -555,7 +694,7 @@ class BaseTabContent(QWidget):
     def update_text_widget_from_model(self):
         pass
 
-    def update_model_from_text_widget(self):
+    def text_changed_signal(self):
         pass
         
     def blockSignals(self):
@@ -578,50 +717,77 @@ class FirstTabContent(BaseTabContent):
         button_width = 140
                           
 #left pane:
-        self.left_button = QPushButton("Sync from Text Window")
-        self.left_button.setFixedWidth(button_width) 
+        self.sync_from_text_window_button = QPushButton("Sync from Text Window")
+        self.sync_from_text_window_button.setFixedWidth(button_width)
+###
+        # Create the text label and indicator widget for Tree sync status
+        self.tree_synced_label = QLabel("Tree Synced:", self)  # Create a text label for "Status"
+        self.tree_synced_label.setFixedWidth(button_width - 75)
         
+        self.tree_synced_indicator = QWidget(self)  # Create a widget to represent the LED
+        self.tree_synced_indicator.setFixedSize(10, 10)  # Set size to small (like an LED)
+
+        # Initially set the indicator to red (off) and make it circular
+        self.tree_synced_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
+###
         self.sort_bases_by_gal_sys_name_button = QPushButton("Sort By Gal, Sys, Name")
         self.sort_bases_by_gal_sys_name_button.setFixedWidth(button_width)
+###    
+        # Create the text label and indicator widget for Background Processing status
+        self.status_label = QLabel("Background Processing:", self)  # Create a text label for "Status"
+        self.status_label.setFixedWidth(button_width - 25)
         
+        self.status_indicator = QWidget(self)  # Create a widget to represent the LED
+        self.status_indicator.setFixedSize(10, 10)  # Set size to small (like an LED)
+
+        # Initially set the indicator to red (off) and make it circular
+        self.status_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
+###        
         # Create tree widget and text edit
         #self.tree_widget = QTreeWidget()
         self.tree_widget = CustomTreeWidget(self)
         self.tree_widget.setHeaderHidden(True)
         
         self.bottom_left_label = QLabel("", self)
-        
+###        
+        status_layout = QHBoxLayout()
+        status_layout.addWidget(self.status_label)
+        status_layout.addWidget(self.status_indicator)
+###        
+        tree_synced_indicator_layout = QHBoxLayout()
+        tree_synced_indicator_layout.addWidget(self.tree_synced_label)
+        tree_synced_indicator_layout.addWidget(self.tree_synced_indicator)
+###        
         # Create layout for the buttons to be horizontal
         left_buttons_lo = QHBoxLayout()
-        left_buttons_lo.addWidget(self.left_button)
+        left_buttons_lo.addWidget(self.sync_from_text_window_button)
+        left_buttons_lo.addLayout(tree_synced_indicator_layout)
         left_buttons_lo.addWidget(self.sort_bases_by_gal_sys_name_button)
-
+        left_buttons_lo.addLayout(status_layout)  # Add the status layout to the left
         # Set alignment
         left_buttons_lo.setAlignment(Qt.AlignLeft)
-
+###
         # Create a vertical layout for the left side and add buttons layout
         left_pane_layout = QVBoxLayout()
-        
         # Create layouts for buttons
         left_pane_layout = QVBoxLayout()
         left_pane_layout.addLayout(left_buttons_lo)
         left_pane_layout.addWidget(self.tree_widget)
         left_pane_layout.addWidget(self.bottom_left_label)
-        
-        
+###        
         left_container = QWidget()
         left_container.setLayout(left_pane_layout)
         
 #right pane: 
         self.right_button = QPushButton("Synch from Tree Window")
         self.right_button.setFixedWidth(button_width)
-        
+###        
         self.copy_button = QPushButton("Copy to Clipboard")  # New button for copying text
         self.copy_button.setFixedWidth(button_width)
-        
+###        
         self.pretty_print_button = QPushButton("Pretty Print")  # New button for copying text
         self.pretty_print_button.setFixedWidth(button_width)
-        
+###        
         self.text_edit = QTextEdit()
         
         #Customize the palette to keep the selection highlighted when the window loses focus.
@@ -678,7 +844,7 @@ class FirstTabContent(BaseTabContent):
         self.setLayout(main_layout)
 
         # Connect buttons to methods
-        self.left_button.clicked.connect(self.sync_from_text_window)
+        self.sync_from_text_window_button.clicked.connect(self.sync_from_text_window)
         self.sort_bases_by_gal_sys_name_button.clicked.connect(self.sort_bases_by_gal_sys_name)
         #self.right_button.clicked.connect(self.sync_text_from_tree_window)
         self.copy_button.clicked.connect(lambda: copy_to_clipboard(self.model, self))
@@ -690,12 +856,79 @@ class FirstTabContent(BaseTabContent):
         self.tree_widget.expand_tree_to_level(1)
         
         # Connect text edit changes to model
-        self.text_edit.textChanged.connect(self.update_model_from_text_widget)
+        
+        
+        
+        #self.text_edit.textChanged.connect(self.text_changed_signal)
+        
+        
+        
+        
         self.model.modelChanged.connect(self.model_changed)
         
             
+    # Function to update the indicator color (red or green)
+    def update_status_indicator_to_green(self, green_if_true):
+        logger.debug("update_status_indicator_to_green() ENTER")
+        palette = self.status_indicator.palette()
+        
+        if green_if_true:
+            logger.debug("green")
+            self.status_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
+        else:
+            logger.debug("yellow")
+            self.status_indicator.setStyleSheet(f"background-color: {YELLOW_LED_COLOR}; border-radius: 4px;")
+            
+        self.status_indicator.setPalette(palette)
+        self.status_indicator.update()
+        logger.debug("update_status_indicator_to_green() EXIT")
+        
+    
+    # Function to update the indicator color (red or green)
+    def update_tree_synced_indicator(self, green_if_true):
+        logger.debug("update_tree_synced_indicator() ENTER")
+        palette = self.tree_synced_indicator.palette()
+        
+        if green_if_true:
+            logger.debug("green")
+            self.tree_synced_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
+        else:
+            logger.debug("red")
+            self.tree_synced_indicator.setStyleSheet(f"background-color: red; border-radius: 4px;")
+            
+        self.tree_synced_indicator.setPalette(palette)
+        self.tree_synced_indicator.update()
+        logger.debug("update_tree_synced_indicator() EXIT")    
+        
+
+    def set_led_based_on_app_thread_load(self, max_threads = 4):
+        logger.debug("set_led_based_on_app_thread_load() EXIT")
+        
+        def run():
+            nonlocal max_threads
+            logger.debug("set_led_based_on_app_thread_load() ENTER")
+            
+            #4 comes from testing the idle state of the app informally:
+            num_threads = get_num_app_child_threads()
+            logger.debug(f"max_threads: {max_threads}, num_threads: {num_threads}")
+                
+            if num_threads > max_threads:
+                #set the led yellow:
+                self.update_status_indicator_to_green(False)
+                
+                QTimer.singleShot(2000, run)
+                logger.debug("set_led_based_on_app_thread_load() EXIT, yellow\n")
+            else:    
+                #set the led green:        
+                self.update_status_indicator_to_green(True)
+                logger.debug("set_led_based_on_app_thread_load() EXIT, green\n")            
+        
+        #wait 2 seconds on the first run:
+        QTimer.singleShot(2000, run)
+        logger.debug("set_led_based_on_app_thread_load() EXIT")
        
     def show_context_menu(self, position):
+        logger.debug("show_context_menu() ENTER")
         # Create the default context menu
         context_menu = self.text_edit.createStandardContextMenu()
 
@@ -707,7 +940,8 @@ class FirstTabContent(BaseTabContent):
 
         # Show the context menu
         context_menu.exec_(self.text_edit.mapToGlobal(position))
-
+        logger.debug("show_context_menu() ENTER")
+        
     def search_text(self):       
         logger.debug("search_text() ENTER")
         # Prompt the user to enter a search string
@@ -785,22 +1019,36 @@ class FirstTabContent(BaseTabContent):
         
     def model_changed(self):
         logger.debug(f"Model Changed.")
+        self.blockSignals()
+
+        self.update_text_widget_from_model()
+        self.update_tree_from_model()
+        
+        self.unblockSignals()
         logger.verbose(f"Now: {self.model.get_text()}")        
 
     def sync_from_text_window(self):
         logger.debug("Sync from Text Window ENTER")
+        self.set_led_based_on_app_thread_load()
+        
         # Set tree from text
         try:
-            self.update_model_from_text_widget()
+            #update model from txt_widget:
+            self.text_changed_signal()
             self.update_tree_from_model()
-            self.tree_widget.expand_tree_to_level(1)
+            
         except json.JSONDecodeError as e:
             QMessageBox.critical(self, "Error", f"Failed to parse JSON from text window: {e}")
             
+        self.tree_widget.expand_tree_to_level(1)
+        self.update_tree_synced_indicator(True)            
         logger.debug("Sync from Text Window EXIT")    
             
     def sort_bases_by_gal_sys_name(self):
         logger.debug("Sort Bases clicked")
+        
+        self.set_led_based_on_app_thread_load()
+        
         model_json = self.model.get_json()
         
         if(logging.getLogger().getEffectiveLevel() == logger.verbose):
@@ -819,7 +1067,6 @@ class FirstTabContent(BaseTabContent):
                 logger.verbose(f"Gal: {el['GalacticAddress'][7:8]}, {Sys: el['GalacticAddress'][3:6]}, {el['Name']}")
         
         self.update_tree_from_model()
-        self.tree_widget.expand_tree_to_level(1)
         self.update_text_widget_from_model()        
 
     def sync_text_from_tree_window(self):
@@ -828,11 +1075,12 @@ class FirstTabContent(BaseTabContent):
         self.update_text_widget_from_model()        
         logger.debug("sync from Tree Window EXIT")
 
-    def update_model_from_text_widget(self):
-        logger.debug("1st Tab update_model_from_text_widget() enter")
+    def text_changed_signal(self):
+        logger.debug("1st Tab text_changed_signal() enter")        
+        self.update_tree_synced_indicator(False)
         new_text = self.text_edit.toPlainText()
         self.model.set_text(new_text)
-        logger.debug("1st Tab update_model_from_text_widget() exit")
+        logger.debug("1st Tab text_changed_signal() exit")
 
     def populate_tree(self, data, parent=None):
         logger.debug("populate_tree() ENTER")
@@ -880,9 +1128,9 @@ class FirstTabContent(BaseTabContent):
         logger.verbose(f"tree string: {tree_data}")
         self.model.set_json(tree_data)
         
-    def tree_widget_data_to_json(self): 
+    def tree_widget_data_to_json(self, node_in = None): 
         def parse_item(tree_node, depth):
-            node_data = tree_node.data(0, Qt.UserRole)
+            node_data = tree_node.data(0, QT_DATA_SAVE_NODES_DATA_STRUCT)
             
             logger.verbose(f"\n\nDepth: {depth}")            
             logger.verbose(f"current node data: {node_data}, data type={type(node_data)}")
@@ -912,7 +1160,7 @@ class FirstTabContent(BaseTabContent):
             if(isinstance(node_data, tuple)):
                 output = ()
                 
-                key = tree_node.child(0).data(0, Qt.UserRole)
+                key = tree_node.child(0).data(0, QT_DATA_SAVE_NODES_DATA_STRUCT)
                 value = parse_item(tree_node.child(1), depth + 1) #go send the value nodes back around...
                 
                 output = (key, value)
@@ -922,9 +1170,14 @@ class FirstTabContent(BaseTabContent):
                 logger.verbose(f"got something else: {node_data}")                
                 return node_data            
         
-        #we want the first data node which is the child of the root node in the tree object:    
-        first_real_tree_node = self.tree_widget.invisibleRootItem().child(0)
-        tree_data = parse_item(first_real_tree_node, 0) 
+        if not node_in:
+            #assume we want the whole tree
+            #we want the first data node which is the child of the root node in the tree object:    
+            tree_node = self.tree_widget.invisibleRootItem().child(0)
+        else:
+            tree_node = node_in
+           
+        tree_data = parse_item(tree_node, 0) 
         logger.verbose(f"\n\nResult: {tree_data}")
 
         return tree_data
@@ -962,9 +1215,9 @@ class FirstTabContent(BaseTabContent):
                 #new tree widget item for this level in the json text:
                 item = get_new_QTreeWidgetItem()
                 item.setText(0, f"Array ({size})")
-                item.setData(0, Qt.UserRole, []) #add list as parent json_data at this level
+                item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, []) #add list as parent json_data at this level
                 line_count += 1
-                item.setData(0, Qt.UserRole + 1, line_count) #store off the expected line number upon generation of the text from this this tree 
+                item.setData(0, QT_DATA_LINE_COUNT, line_count) #store off the expected line number upon generation of the text from this this tree 
                 
                 parent_tree_node.addChild(item)
                 
@@ -979,12 +1232,12 @@ class FirstTabContent(BaseTabContent):
                         #child is a scaler value. Just add it.
                         
                         child_item = get_new_QTreeWidgetItem()
-                        child_item.setData(0, Qt.UserRole, val) #add val as data bottom of this level                 
+                        child_item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, val) #add val as data bottom of this level                 
 
                         child_item.setText(0, f"{val}")
                         
                         line_count += 1
-                        child_item.setData(0, Qt.UserRole + 1, line_count) #store off the expected line number upon generation of the text from this this tree 
+                        child_item.setData(0, QT_DATA_LINE_COUNT, line_count) #store off the expected line number upon generation of the text from this this tree 
                         
                         
                         #child_item.setFlags(item.flags() | Qt.ItemIsEditable)  # Make item editable
@@ -1008,7 +1261,11 @@ class FirstTabContent(BaseTabContent):
                 #if we are the top level node, assuming this is NMS base data, add the base name data
                 #to the top level node label text:
                 if(level == 1 ):
+                    #store off indiecation that tree node is for a base: 
+                    item.setData(0, QT_DATA_IS_BASE, True)
                     base_count += 1
+                    
+                    #empty base names usually indicate it's a freighter:
                     base_name =  json_data['Name']
                     if not base_name:
                         base_name = "Unnamed Freighter Base"
@@ -1017,10 +1274,10 @@ class FirstTabContent(BaseTabContent):
                 else:
                     item.setText(0, f"Dict ({size})")                
                                 
-                item.setData(0, Qt.UserRole, {}) #add dict as parent json_data at this level
+                item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, {}) #add dict as parent json_data at this level
                 
                 line_count += 1
-                item.setData(0, Qt.UserRole + 1, line_count) #store off the expected line number upon generation of the text from this this tree 
+                item.setData(0, QT_DATA_LINE_COUNT, line_count) #store off the expected line number upon generation of the text from this this tree 
                                
                 parent_tree_node.addChild(item)
                                 
@@ -1044,17 +1301,17 @@ class FirstTabContent(BaseTabContent):
                 #new tree widget item for this level in the json text:
                 item = get_new_QTreeWidgetItem()
                 item.setText(0, f"Tuple")
-                item.setData(0, Qt.UserRole, ()) #add a tuple as parent at this level
+                item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, ()) #add a tuple as parent at this level
                 line_count += 1
-                item.setData(0, Qt.UserRole + 1, line_count) #store off the expected line number upon generation of the text from this this tree
+                item.setData(0, QT_DATA_LINE_COUNT, line_count) #store off the expected line number upon generation of the text from this this tree
                             
                 #add the key value to the dict child item:
                 key_item = get_new_QTreeWidgetItem()
                 key_item.setText(0, f"{key}")
-                key_item.setData(0, Qt.UserRole, key)
+                key_item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, key)
 
                 #this data came from the same line in the source text so do not increment line_count here:    
-                key_item.setData(0, Qt.UserRole + 1, line_count) #store off the expected line number upon generation of the text from this this tree 
+                key_item.setData(0, QT_DATA_LINE_COUNT, line_count) #store off the expected line number upon generation of the text from this this tree 
                 
                 item.addChild(key_item)
                 
@@ -1069,10 +1326,10 @@ class FirstTabContent(BaseTabContent):
                 else:
                     data_item = get_new_QTreeWidgetItem()
                     data_item.setText(0, f"{val}")
-                    data_item.setData(0, Qt.UserRole, val) 
+                    data_item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, val) 
                     
                     #this data came from the same line in the source text so do not increment line_count here:    
-                    data_item.setData(0, Qt.UserRole + 1, line_count) #store off the expected line number upon generation of the text from this this tree 
+                    data_item.setData(0, QT_DATA_LINE_COUNT, line_count) #store off the expected line number upon generation of the text from this this tree 
                     
                     #current data_item to tuple item for this level:
                     item.addChild(data_item)
@@ -1083,10 +1340,10 @@ class FirstTabContent(BaseTabContent):
                 logger.verbose(f"data item, data='{json_data}', type of {type(json_data)}")
                 
                 item = QTreeWidgetItem([str(json_data)])
-                item.setData(0, Qt.UserRole, json_data) 
+                item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, json_data) 
                 
                 line_count += 1
-                item.setData(0, Qt.UserRole + 1, line_count) #store off the expected line number upon generation of the text from this this tree 
+                item.setData(0, QT_DATA_LINE_COUNT, line_count) #store off the expected line number upon generation of the text from this this tree 
                 
                 #item.setFlags(item.flags() | Qt.ItemIsEditable)  # Make item editable
                 parent_tree_node.addChild(item)
@@ -1098,6 +1355,7 @@ class FirstTabContent(BaseTabContent):
         parent_tree_node = self.tree_widget.invisibleRootItem()
         parse_item(json_data, parent_tree_node, 0)
         
+        self.tree_widget.expand_tree_to_level(1)
         self.bottom_left_label.setText(f"Number of Bases: {base_count}")
         
         logger.debug("populate_tree_from_json() EXIT")    
@@ -1114,13 +1372,13 @@ class SecondTabContent(BaseTabContent):
         self.setLayout(self.layout)
 
         self.text_edit.setText(self.model.get_text())
-        self.text_edit.textChanged.connect(self.update_model_from_text_widget)
+        self.text_edit.textChanged.connect(self.text_changed_signal)
 
-    def update_model_from_text_widget(self):
-        logger.debug("2nd Tab update_model_from_text_widget() enter")
+    def text_changed_signal(self):
+        logger.debug("2nd Tab text_changed_signal() enter")
         new_text = self.text_edit.toPlainText()
         self.model.set_text(new_text)
-        logger.debug("2nd Tab update_model_from_text_widget() exit")
+        logger.debug("2nd Tab text_changed_signal() exit")
 
     def update_text_widget_from_model(self):
         logger.debug("2nd Tab update_text_widget_from_model() enter")
@@ -1212,19 +1470,22 @@ class MainWindow(QMainWindow):
         self.model = JsonArrayModel(self.ini_file_manager)
         self.tabs = QTabWidget()
 
-        self.tab1 = FirstTabContent(self.model, 'Tab 1', self)
+        self.tab1 = FirstTabContent(self.model, 'Bases', self)
         self.tab2 = SecondTabContent(self.model, 'Tab 2')
 
-        self.tabs.addTab(self.tab1, 'Tab 1')
+        self.tabs.addTab(self.tab1, 'Base Processing')
         self.tabs.addTab(self.tab2, 'Tab 2')
 
         self.tabs.currentChanged.connect(self.tab_changed)
 
         self.setCentralWidget(self.tabs)
-        self.setWindowTitle('Model-View Example')
+        self.setWindowTitle('BBB NMS Save File Manipulator')
         self.setGeometry(400, 250, 1500, 800)
 
         self.create_menu_bar(self.model)
+        
+        self.tab1.set_led_based_on_app_thread_load(max_threads = 5)
+        
         logger.debug("MainWindow(QMainWindow).__init__ EXIT")
         
 
@@ -1331,6 +1592,15 @@ class MainWindow(QMainWindow):
     def update_tabs_from_model(self):
         self.tab1.update_text_widget_from_model()
         self.tab2.update_text_widget_from_model()
+        
+    #def closeEvent(self, event):
+    #    """Handle app close event and stop Yappi profiling."""
+    #    yappi.stop()
+    #    print("Application closed. Printing Yappi profiling stats...")
+    #    yappi.get_func_stats().print_all()
+    #    yappi.get_thread_stats().print_all()
+    #    event.accept()  # Proceed with closing the window    
+        
  
 def main():
     init_galaxies()
@@ -1339,7 +1609,8 @@ def main():
     main_window = MainWindow()
     main_window.show()
     logger.debug("main exit")
-    sys.exit(app.exec_())
+    
+    return app.exec_()
     
 def init_galaxies():
     global GALAXIES
@@ -1603,5 +1874,12 @@ def init_galaxies():
     
 
 if __name__ == '__main__':
-    main()
-
+    #yappi.start() 
+    
+    exit_code = main()
+    sys.exit(exit_code)  # Ensure the program terminates correctly
+    
+   
+    
+    
+    
