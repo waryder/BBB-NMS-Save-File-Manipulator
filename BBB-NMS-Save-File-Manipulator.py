@@ -1,13 +1,15 @@
-import sys, os, pdb, logging, json, traceback, configparser, pyautogui, yappi, psutil, threading, traceback
-from PyQt5.QtCore import pyqtSignal, QObject, Qt, QMimeData, QTimer
+import sys, os, pdb, logging, json, traceback, configparser 
+import pyautogui, yappi, psutil, threading, traceback, concurrent.futures
+from PyQt5.QtCore import pyqtSignal, QObject, Qt, QMimeData, QTimer, QEvent
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QSplitter, QTabWidget,
                              QTextEdit, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QAction,
                              QTreeWidget, QTreeWidgetItem, QPushButton, QFileDialog, QMessageBox,
-                             QAbstractItemView, QDialog, QLineEdit, QInputDialog, QMenu)
+                             QAbstractItemView, QDialog, QLineEdit, QInputDialog, QMenu, QHeaderView)
 from PyQt5.QtGui import (QClipboard, QDragEnterEvent, QDropEvent, QDragMoveEvent, QDrag, QTextCursor,
-                        QColor, QPalette)
-from PyQt5.QtCore import Qt # Import the Qt namespace
+                        QColor, QPalette, QKeySequence)
+from PyQt5.QtCore import Qt, QThread # Import the Qt namespace
 from PyQt5 import QtCore, QtGui, QtWidgets
+from BBB_NMS_SFM_Help import NMSHelpMenu  # Import your HelpMenu module
 
 
 
@@ -16,9 +18,13 @@ QT_DATA_SAVE_NODES_DATA_STRUCT = Qt.UserRole
 QT_DATA_LINE_COUNT = Qt.UserRole + 1
 QT_DATA_IS_BASE = Qt.UserRole + 2
 
+GALAXY_FROM_GALACTIC_ADDR_IDX = 0
+SYSTEM_FROM_GALACTIC_ADDR_IDX = 1
+PLANET_FROM_GALACTIC_ADDR_IDX = 2
+
 #************
 # CURRENT LOGGER LEVEL:
-app_log_level = logging.ERROR   
+app_log_level = logging.DEBUG   
     
 #************
 
@@ -43,13 +49,12 @@ logging.basicConfig(level=app_log_level, format='line %(lineno)d - %(asctime)s -
 # Get a logger instance
 logger = logging.getLogger(__name__)
 
-
-
 def global_exception_handler(exc_type, exc_value, exc_traceback):
     if issubclass(exc_type, KeyboardInterrupt):
         # Let KeyboardInterrupt exceptions pass through without logging
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         return
+        
     
     # Print the error and traceback
     print(f"Unhandled exception: {exc_value}")
@@ -60,10 +65,12 @@ def get_new_QTreeWidgetItem():
     widget.setFlags(widget.flags() | Qt.ItemIsDragEnabled | Qt.ItemIsDropEnabled)  # Make item drag and droppable Qt.ItemIsEditable
     return widget
     
+    
 def copy_to_clipboard(model, parentWindow = None):
     clipboard = QApplication.clipboard()
     clipboard.setText(model.get_text())
     QMessageBox.information(parentWindow, "Copied", "Text copied to clipboard!") 
+    
     
 def pretty_print_text_widget(model, parentWindow = None):
     logger.debug("pretty_print_text_widget() ENTER")
@@ -72,6 +79,7 @@ def pretty_print_text_widget(model, parentWindow = None):
     parentWindow.update_text_widget_from_model()
         
     logger.debug("pretty_print_text_widget() EXIT")
+
         
 def get_num_app_child_threads():
     logger.debug("get_num_app_child_threads() ENTER")
@@ -80,6 +88,24 @@ def get_num_app_child_threads():
     num_threads = len(current_process.threads())
     logger.debug("get_num_app_child_threads() EXIT, num threads: {num_threads}")
     return num_threads
+
+
+#some values are preceeded by '0x' and some are not:    
+def get_galaxy_system_planet_from_full_addr(galactic_addr_in):
+    if isinstance(galactic_addr_in, int):
+        galactic_address = f"0x{galactic_addr_in:X}" 
+    elif "0x" not in galactic_addr_in:    
+        galactic_address = f"0x{int(galactic_addr_in):X}"
+    else:
+        galactic_address = galactic_addr_in    
+        
+    gal_idx_slice = slice(6, 8)
+    system_idx_slice = slice(3, 6)
+    planet_idx = 2
+    
+    return [galactic_address[gal_idx_slice], galactic_address[system_idx_slice], galactic_address[2]]  
+
+   
         
 class TextSearchDialog(QDialog):  # Change QWidget to QDialog
     def __init__(self, parent=None):
@@ -113,6 +139,32 @@ class TextSearchDialog(QDialog):  # Change QWidget to QDialog
         #self.accept()  # Close the dialog upon successful search
         
 
+
+        
+class CustomTextEdit(QTextEdit):
+    def __init__(self, parent=None):
+        self.first_tab_obj = parent  # Reference to the parent tab object
+        super(CustomTextEdit, self).__init__(parent)
+
+    def keyPressEvent(self, event):
+        # Check if Ctrl+V or Cmd+V (on macOS) is pressed
+        if event.matches(QKeySequence.Paste):
+            print("Text pasted via keyboard shortcut")
+            self.first_tab_obj.update_status_indicator_to_green(False)  # Update indicator
+            super(CustomTextEdit, self).keyPressEvent(event)  # Let the normal paste occur
+        else:
+            super(CustomTextEdit, self).keyPressEvent(event)
+
+    def event(self, event):
+        # Capture all paste events (context menu and programmatically)
+        if event.type() == QEvent.Clipboard:
+            print("Text pasted via paste event")
+            self.first_tab_obj.update_status_indicator_to_green(False)  # Update indicator
+        return super(CustomTextEdit, self).event(event)
+        
+        
+        
+
 class CustomTreeWidget(QTreeWidget):
     def __init__(self, parent=None):
         super(CustomTreeWidget, self).__init__(parent)
@@ -130,7 +182,8 @@ class CustomTreeWidget(QTreeWidget):
         #for scolling the tree view on drag outside of viewport:
         self.scroll_timer = QTimer(self)
         self.scroll_timer.timeout.connect(self.perform_smooth_scroll)
-        self.scroll_direction = None        
+        self.scroll_direction = None
+
         
     def show_context_menu(self, position):
         # Get the item at the position of the right-click
@@ -504,6 +557,8 @@ class CustomTreeWidget(QTreeWidget):
     def perform_smooth_scroll(self):
         if self.scroll_direction is not None:
             self.verticalScrollBar().setValue(self.verticalScrollBar().value() + self.scroll_direction)
+
+    
     
             
     """
@@ -598,30 +653,31 @@ class JsonArrayModel(DataModel):
         self.init_model_data()
         
         logger.debug("JsonArrayModel(DataModel).__init__ EXIT") 
-
-    def convert_values_to_strings_in_place(self, obj):
-        logger.debug("convert_values_to_strings_in_place() ENTER")
-        
-        def recurse(obj):
-            if isinstance(obj, dict):
-                # Recursively convert values in dictionaries (in place)
-                for k, v in obj.items():
-                    obj[k] = recurse(v)
-            elif isinstance(obj, list):
-                # Recursively convert items in lists (in place)
-                for i in range(len(obj)):
-                    obj[i] = recurse(obj[i])
-            else:
-                # Convert everything else (numbers, booleans, etc.) to strings
-                if not isinstance(obj, str):
-                    obj = str(obj)
+        """
+            def convert_values_to_strings_in_place(self, obj):
+                print("convert_values_to_strings_in_place() ENTER")
                 
-                return obj
-            
-            return obj  # Return the modified object for recursion consistency
-            
-        recurse(obj)    
-        logger.debug("convert_values_to_strings_in_place() EXIT")            
+                def recurse(obj):
+                    if isinstance(obj, dict):
+                        # Recursively convert values in dictionaries (in place)
+                        for k, v in obj.items():
+                            obj[k] = recurse(v)
+                    elif isinstance(obj, list):
+                        # Recursively convert items in lists (in place)
+                        for i in range(len(obj)):
+                            obj[i] = recurse(obj[i])
+                    else:
+                        # Convert everything else (numbers, booleans, etc.) to strings
+                        if not isinstance(obj, str):
+                            obj = str(obj)
+                        
+                        return obj
+                    
+                    return obj  # Return the modified object for recursion consistency
+                    
+                recurse(obj)    
+                print("convert_values_to_strings_in_place() EXIT") 
+        """        
         
     def init_model_data(self):
         logger.debug("init_model_data() ENTER")
@@ -678,8 +734,12 @@ class JsonArrayModel(DataModel):
         
         if json_array != self.model_data:
             self.model_data = json_array
+            
+            #this was causing issues:
             #we need all values to be treated as strings:
-            self.convert_values_to_strings_in_place(self.model_data)
+            #self.convert_values_to_strings_in_place(self.model_data)
+            
+            
             self.modelChanged.emit()
             
         logger.debug("__set_model_with_json_data() EXIT")    
@@ -788,7 +848,7 @@ class FirstTabContent(BaseTabContent):
         self.pretty_print_button = QPushButton("Pretty Print")  # New button for copying text
         self.pretty_print_button.setFixedWidth(button_width)
 ###        
-        self.text_edit = QTextEdit()
+        self.text_edit = CustomTextEdit(self)
         
         #Customize the palette to keep the selection highlighted when the window loses focus.
         #This also solved that on search, the found text was not highlighting. I didn't track down
@@ -858,7 +918,7 @@ class FirstTabContent(BaseTabContent):
         # Connect text edit changes to model
         
         
-        
+        #this is to update the model on each charater input. I think we're doing away with this:
         #self.text_edit.textChanged.connect(self.text_changed_signal)
         
         
@@ -1028,7 +1088,7 @@ class FirstTabContent(BaseTabContent):
         logger.verbose(f"Now: {self.model.get_text()}")        
 
     def sync_from_text_window(self):
-        logger.debug("Sync from Text Window ENTER")
+        print("Sync from Text Window ENTER")
         self.set_led_based_on_app_thread_load()
         
         # Set tree from text
@@ -1042,7 +1102,7 @@ class FirstTabContent(BaseTabContent):
             
         self.tree_widget.expand_tree_to_level(1)
         self.update_tree_synced_indicator(True)            
-        logger.debug("Sync from Text Window EXIT")    
+        print("Sync from Text Window EXIT")    
             
     def sort_bases_by_gal_sys_name(self):
         logger.debug("Sort Bases clicked")
@@ -1053,18 +1113,20 @@ class FirstTabContent(BaseTabContent):
         
         if(logging.getLogger().getEffectiveLevel() == logger.verbose):
             for el in model_json:
-                logger.verbose(f"Gal: {el['GalacticAddress'][7:8]}, {Sys: el['GalacticAddress'][3:6]}, {el['Name']}")
+                galval = get_galaxy_system_planet_from_full_addr(el['GalacticAddress'])[GALAXY_FROM_GALACTIC_ADDR_IDX]
+                sysval = get_galaxy_system_planet_from_full_addr(el['GalacticAddress'])[SYSTEM_FROM_GALACTIC_ADDR_IDX]
+                logger.verbose(f"Gal: {galval}, Sys: {sysval}, {el['Name']}")
         
         # Sort model_json in place based on the desired key
         model_json.sort(key=lambda el: (
-            int(el['GalacticAddress'][7:8], 16),  # galaxy (characters 5 and 6)
-            int(el['GalacticAddress'][3:6], 16),  # system (characters 2 to 4)
-            el['Name']                   # base_name
+            int(get_galaxy_system_planet_from_full_addr(el['GalacticAddress'])[GALAXY_FROM_GALACTIC_ADDR_IDX], 16),  # galaxy (characters 5 and 6)
+            int(get_galaxy_system_planet_from_full_addr(el['GalacticAddress'])[SYSTEM_FROM_GALACTIC_ADDR_IDX], 16),  # system (characters 2 to 4)
+            el['Name'] # base_name
         ))
         
         if(logging.getLogger().getEffectiveLevel() == logger.verbose):
             for el in model_json:
-                logger.verbose(f"Gal: {el['GalacticAddress'][7:8]}, {Sys: el['GalacticAddress'][3:6]}, {el['Name']}")
+                logger.verbose(f"Gal: {get_galaxy_system_planet_from_full_addr(el['GalacticAddress'])[GALAXY_FROM_GALACTIC_ADDR_IDX]}, Sys: {get_galaxy_system_planet_from_full_addr(el['GalacticAddress'])[SYSTEM_FROM_GALACTIC_ADDR_IDX]}, {el['Name']}")
         
         self.update_tree_from_model()
         self.update_text_widget_from_model()        
@@ -1199,7 +1261,9 @@ class FirstTabContent(BaseTabContent):
         self.tree_widget.clear()        
 
     def populate_tree_from_json(self, json_data, parent_tree_node=None):
+        #return
         logger.debug("populate_tree_from_json() ENTER")
+
         base_count = 0
         line_count = 0
         
@@ -1270,7 +1334,10 @@ class FirstTabContent(BaseTabContent):
                     if not base_name:
                         base_name = "Unnamed Freighter Base"
                     
-                    item.setText(0, f"[{base_count - 1}] Dict ({size}) Gal: {GALAXIES[int(json_data['GalacticAddress'][7:8], 16)]}, Sys: {json_data['GalacticAddress'][3:6]}, Base: {base_name}")
+                    galactic_addr = json_data['GalacticAddress']
+                    galaxy = get_galaxy_system_planet_from_full_addr(galactic_addr)[GALAXY_FROM_GALACTIC_ADDR_IDX]
+                    system = get_galaxy_system_planet_from_full_addr(galactic_addr)[SYSTEM_FROM_GALACTIC_ADDR_IDX]
+                    item.setText(0, f"[{base_count - 1}] Dict ({size}) Gal name: {GALAXIES[int(galaxy, 16)]}, Sys: {system}, Base: {base_name}")
                 else:
                     item.setText(0, f"Dict ({size})")                
                                 
@@ -1303,6 +1370,12 @@ class FirstTabContent(BaseTabContent):
                 item.setText(0, f"Tuple")
                 item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, ()) #add a tuple as parent at this level
                 line_count += 1
+                
+                #if the tuple key is "Message", testing revealed it could be over multiple lines based on '/w's. Account for this:
+                if( key == "Message" ):
+                    line_count += val.count('/w')
+                    
+               
                 item.setData(0, QT_DATA_LINE_COUNT, line_count) #store off the expected line number upon generation of the text from this this tree
                             
                 #add the key value to the dict child item:
@@ -1337,9 +1410,10 @@ class FirstTabContent(BaseTabContent):
                 parent_tree_node.addChild(item)
             
             else:
-                logger.verbose(f"data item, data='{json_data}', type of {type(json_data)}")
+                print(f"data item, data='{json_data}', type of {type(json_data)}")
                 
-                item = QTreeWidgetItem([str(json_data)])
+                #This was converting items to strings but it caused issues on export...
+                #item = QTreeWidgetItem([str(json_data)])
                 item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, json_data) 
                 
                 line_count += 1
@@ -1358,7 +1432,17 @@ class FirstTabContent(BaseTabContent):
         self.tree_widget.expand_tree_to_level(1)
         self.bottom_left_label.setText(f"Number of Bases: {base_count}")
         
-        logger.debug("populate_tree_from_json() EXIT")    
+
+
+ 
+        
+        logger.debug("populate_tree_from_json() EXIT") 
+        
+    
+
+
+
+
 
 class SecondTabContent(BaseTabContent):
     def __init__(self, model, tab_name):
@@ -1508,6 +1592,9 @@ class MainWindow(QMainWindow):
         file_menu.addAction(save_action)
         file_menu.addAction(save_as_action)
         file_menu.addAction(copy_action)
+        
+        self.help_menu = NMSHelpMenu(self)  # Create an instance of the HelpMenu
+        self.help_menu.create_help_menu(menu_bar)  # Add the Help menu to the menu bar
 
     def open_file(self):
         options = QFileDialog.Options()
