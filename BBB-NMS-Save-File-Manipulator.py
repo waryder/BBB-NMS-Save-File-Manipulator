@@ -1,64 +1,7 @@
-import sys, os, pdb, logging, json, traceback, configparser 
-import pyautogui, yappi, psutil, threading, traceback, concurrent.futures
-from PyQt5.QtCore import pyqtSignal, QObject, Qt, QMimeData, QTimer, QEvent
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QSplitter, QTabWidget,
-                             QTextEdit, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QAction,
-                             QTreeWidget, QTreeWidgetItem, QPushButton, QFileDialog, QMessageBox,
-                             QAbstractItemView, QDialog, QLineEdit, QInputDialog, QMenu, QHeaderView)
-from PyQt5.QtGui import (QClipboard, QDragEnterEvent, QDropEvent, QDragMoveEvent, QDrag, QTextCursor,
-                        QColor, QPalette, QKeySequence)
-from PyQt5.QtCore import Qt, QThread # Import the Qt namespace
-from PyQt5 import QtCore, QtGui, QtWidgets
-from BBB_NMS_SFM_Help import NMSHelpMenu  # Import your HelpMenu module
+from imports import *
+from NMSHelpMenu import NMSHelpMenu  
+from CustomTreeWidget import CustomTreeWidget
 
-
-
-#Qt indexs into Tree Node Custom Data:
-QT_DATA_SAVE_NODES_DATA_STRUCT = Qt.UserRole
-QT_DATA_LINE_COUNT = Qt.UserRole + 1
-QT_DATA_IS_BASE = Qt.UserRole + 2
-
-GALAXY_FROM_GALACTIC_ADDR_IDX = 0
-SYSTEM_FROM_GALACTIC_ADDR_IDX = 1
-PLANET_FROM_GALACTIC_ADDR_IDX = 2
-
-#************
-# CURRENT LOGGER LEVEL:
-app_log_level = logging.DEBUG   
-    
-#************
-
-GREEN_LED_COLOR = '#2eb82e'
-YELLOW_LED_COLOR = '#f9f906'
-
-# Define a new logging level called VERBOSE with a numeric value lower than DEBUG (5)
-VERBOSE = 5
-logging.addLevelName(VERBOSE, "VERBOSE")
-# Add VERBOSE as a reference to the logging module
-logging.VERBOSE = VERBOSE
-
-def verbose(self, message, *args, **kwargs):
-    if self.isEnabledFor(VERBOSE):
-        self._log(VERBOSE, message, args, **kwargs)
-
-logging.Logger.verbose = verbose
-
-# Set up logging to include VERBOSE level messages
-logging.basicConfig(level=app_log_level, format='line %(lineno)d - %(asctime)s - %(levelname)s - %(message)s')
-
-# Get a logger instance
-logger = logging.getLogger(__name__)
-
-def global_exception_handler(exc_type, exc_value, exc_traceback):
-    if issubclass(exc_type, KeyboardInterrupt):
-        # Let KeyboardInterrupt exceptions pass through without logging
-        sys.__excepthook__(exc_type, exc_value, exc_traceback)
-        return
-        
-    
-    # Print the error and traceback
-    print(f"Unhandled exception: {exc_value}")
-    traceback.print_exception(exc_type, exc_value, exc_traceback)
     
 def get_new_QTreeWidgetItem():
     widget = QTreeWidgetItem()
@@ -137,11 +80,9 @@ class TextSearchDialog(QDialog):  # Change QWidget to QDialog
         search_string = self.line_edit.text()
         self.parent().handle_search_input(search_string)  # Handle search in parent
         #self.accept()  # Close the dialog upon successful search
+    
         
-
-
-        
-class CustomTextEdit(QTextEdit):
+class CustomTextEdit(QPlainTextEdit):
     def __init__(self, parent=None):
         self.first_tab_obj = parent  # Reference to the parent tab object
         super(CustomTextEdit, self).__init__(parent)
@@ -162,454 +103,9 @@ class CustomTextEdit(QTextEdit):
             self.first_tab_obj.update_status_indicator_to_green(False)  # Update indicator
         return super(CustomTextEdit, self).event(event)
         
-        
-        
-
-class CustomTreeWidget(QTreeWidget):
-    def __init__(self, parent=None):
-        super(CustomTreeWidget, self).__init__(parent)
-        
-        #we expect parent to be the first tab object here:
-        self.first_tab_obj = parent        
-        self.setDragDropMode(QAbstractItemView.InternalMove)
-        self.setDragEnabled(True)
-        self.setAcceptDrops(True)
-        self.setDropIndicatorShown(True)
-          # Enable the custom context menu on the tree widget
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.customContextMenuRequested.connect(self.show_context_menu)
-        
-        #for scolling the tree view on drag outside of viewport:
-        self.scroll_timer = QTimer(self)
-        self.scroll_timer.timeout.connect(self.perform_smooth_scroll)
-        self.scroll_direction = None
-
-        
-    def show_context_menu(self, position):
-        # Get the item at the position of the right-click
-        item = self.itemAt(position)
-
-        if item is not None:
-            # Create a context menu
-            menu = QMenu(self)
-            
-            highlight_in_text_box_action = menu.addAction("Highlight In Text Box")
-            highlight_in_text_box_action.triggered.connect(lambda: self.highlight_in_text_box(item))
-            
-            toggle_expand_action = menu.addAction("Toggle Expansion 2 Levels")
-            toggle_expand_action.triggered.connect(lambda: self.toggle_node_expansion(item))
-            
-            #if top level array we want to add a menu item:
-            if(self.count_parents(item) == 0): #is top level    
-                toggle_expand_action = menu.addAction("Restore a Base")
-                toggle_expand_action.triggered.connect(lambda: self.restore_a_base(item))            
-            
-            is_a_base = item.data(0, QT_DATA_IS_BASE)
-            if is_a_base: 
-                toggle_expand_action = menu.addAction("Backup a Base")
-                toggle_expand_action.triggered.connect(lambda: self.backup_a_base(item))
-            
-            delete_action = menu.addAction("Delete Node")
-            delete_action.triggered.connect(lambda: self.delete_node(item))
-
-            # Show the context menu at the position of the right-click
-            menu.exec_(self.viewport().mapToGlobal(position))            
-    
-    def count_parents(self, node):
-        count = 0
-        parent = node.parent()
-        
-        while parent is not None:
-            count += 1
-            parent = parent.parent()  # Move up to the next parent
-            
-        return count
-    
-    def highlight_in_text_box(self, item):
-        logger.verbose("highlight_in_text_box() ENTER") 
-        text_edit = self.first_tab_obj.text_edit
-        line_num = item.data(0, QT_DATA_LINE_COUNT)
-        logger.verbose(f"line_num: {line_num}")
-        
-        #QMessageBox.information(None, "Title", f"line number {line_num}")
-      
-        cursor = QTextCursor(text_edit.document())
-        
-        # Move cursor to the start of the desired line
-        cursor.movePosition(QTextCursor.Start)
-        cursor.movePosition(QTextCursor.Down, QTextCursor.MoveAnchor, line_num - 1)
-
-        # Select the entire line
-        cursor.select(QTextCursor.LineUnderCursor)
-        
-        # Highlight the found occurrence and update the last cursor position
-        text_edit.setTextCursor(cursor)
-        text_edit.ensureCursorVisible()  # Scroll to make the found text visible
-        
-        logger.verbose("highlight_in_text_box() EXIT")
-            
-    def delete_node(self, item):
-        logger.debug("delete_node() ENTER")
-        # Get the parent of the item
-        parent = item.parent()
-
-        # If the item has a parent, remove it from the parent
-        if parent is not None:
-            parent.removeChild(item)
-        else:
-            # If no parent, the item is a top-level node
-            index = self.tree_widget.indexOfTopLevelItem(item)
-            if index != -1:
-                self.tree_widget.takeTopLevelItem(index)
-
-        self.first_tab_obj.sync_text_from_tree_window() 
-        logger.debug("delete_node() EXIT")
-
-    def toggle_node_expansion(self, item):
-        logger.debug("toggle_node_expansion() ENTER")
-        
-        # Toggle expansion of the current node
-        if item.isExpanded():
-            item.setExpanded(False)
-        else:
-            #item.setExpanded(True)    
-            self.expand_node_to_level(item, 2)
-            
-        logger.debug("toggle_node_expansion() EXIT")            
-        
-    def expand_node_to_level(self, item, level):
-        if level < 0:
-            return
-
-        item.setExpanded(True)
-
-        # Recursively expand child items
-        for i in range(item.childCount()):
-            self.expand_node_to_level(item.child(i), level - 1)
-            
-    # Call this function on the top-level items of the tree widget
-    def expand_tree_to_level(self, level):
-        self.expand_node_to_level(self.invisibleRootItem(), level)
-        
-    def backup_a_base(self, item):
-        logger.debug("backup_a_base() ENTER")
-        #QMessageBox.information(self, "Title", "Got request to save off a base!")
-        
-        json_data = self.first_tab_obj.tree_widget_data_to_json(item)
-        text_data = json.dumps(json_data, indent=4)
-        
-        # Open the save file dialog
-        options = QFileDialog.Options()
-        file_path, _ = QFileDialog.getSaveFileName(None, "Save File", "", "NMS Base Files (*.nms_base.json);;All Files (*)", options=options)
-        
-        # If a file path is selected, save the string to the file
-        if file_path:
-            try:
-                with open(file_path, 'w') as file:
-                    file.write(text_data)
-                QMessageBox.information(None, "Success", "File saved successfully!")
-            except Exception as e:
-                QMessageBox.critical(None, "Error", f"Failed to save file: {str(e)}")
-        
-        logger.debug("backup_a_base() EXIT")
-        
-    def restore_a_base(self, item):
-        logger.debug("restore_a_base() ENTER")
-        file_content = None
-        
-        options = QFileDialog.Options()
-        options |= QFileDialog.ReadOnly
-        file_path, _ = QFileDialog.getOpenFileName(None, "Restore A Base To First Position In Tree", "", "NMS Base Files (*.nms_base.json);;All Files (*)", options=options)
-        
-        if file_path:
-            try:
-                with open(file_path, 'r') as file:
-                    file_content = file.read()  # Reads the entire file as a string
-
-            except Exception as e:
-                # If there's an error reading the file, show an error message
-                error_dialog = QMessageBox()
-                error_dialog.setText(f"Error reading file: {str(e)}")
-                error_dialog.exec_()
-                
-        if file_content:              
-            nms_base_json = json.loads(file_content)
-            self.first_tab_obj.model.add_base(nms_base_json)
-            dialog = QMessageBox()
-            dialog.setText(f"New Base Added To Tree!")
-            dialog.exec_()
-        else:
-            dialog = QMessageBox()
-            dialog.setText(f"File Data May Not Exist. New Base Could NOT Be Added To Tree!")
-            
-        logger.debug("restore_a_base() EXIT")   
-        
-    def dropEvent(self, event):
-        logger.debug("==================== DROP EVENT START ====================")
-        
-        self.first_tab_obj.set_led_based_on_app_thread_load()
-        
-        # Get the item being dragged
-        dragged_item = self.currentItem()
-        if not dragged_item:
-            logger.debug("No dragged item found")
-            event.ignore()
-            logger.debug("==================== DROP EVENT END (IGNORED) ====================")
-            return
-
-        # Get the item where we're dropping
-        drop_target = self.itemAt(event.pos())
-        
-        if not drop_target:
-            logger.debug("No drop target found")
-            event.ignore()
-            logger.debug("==================== DROP EVENT END (IGNORED) ====================")
-            return
-            
-        if not self.areParentsDataSameType(dragged_item, drop_target):
-            logger.debug("=====dragged_item, drop_target parents were not of same type; leaving DROP EVENT=======")
-            QMessageBox.information(self, "Error", "Dragged Item and Drop Target parents must exist and be of the same data type; Aborting Drag and Drop!")
-            return
-            
-        if not self.areParentsArrayOrDict(dragged_item, drop_target):
-            logger.debug("=====parents were not array or dict data types; leaving DROP EVENT=======")
-            QMessageBox.information(self, "Error", "Parents must be Arrays or Dictionary data types; Aborting Drag and Drop!")
-            return     
- 
-        if self.wouldBeLastChild(dragged_item):
-            logger.debug("=====dragged item would have been last Child; leaving DROP EVENT=======")
-            QMessageBox.information(self, "Error", "Dragged Item must not be the last Child under a Parent; Aborting Drag and Drop!")
-            return
-
-        logger.verbose(f"Dragged item: {dragged_item.text(0)}")
-        logger.verbose(f"Drop target: {drop_target.text(0)}")
-
-        # Log the entire tree structure before the move
-        logger.verbose("Tree structure before move:")
-        self.log_tree_structure()
-
-        # Determine if we're dropping above or below the target
-        drop_position = self.dropIndicatorPosition()
-        logger.verbose(f"Drop indicator position: {drop_position}")
-
-        # Get the parent of the drop target
-        new_parent = drop_target.parent() or self.invisibleRootItem()
-        logger.verbose(f"New parent: {new_parent.text(0) if isinstance(new_parent, QTreeWidgetItem) else 'Root'}")
-
-        # Determine the new index
-        new_index = self.getNewIndex(dragged_item, drop_target, new_parent)
-
-        # Remove the dragged item from its original position
-        old_parent = dragged_item.parent() or self.invisibleRootItem()
-        old_index = old_parent.indexOfChild(dragged_item)
-        logger.verbose(f"Old parent: {old_parent.text(0) if isinstance(old_parent, QTreeWidgetItem) else 'Root'}")
-        logger.verbose(f"Old index: {old_index}")
-        
-        # Check if we're moving within the same parent
-        if old_parent == new_parent and old_index < new_index:
-            new_index -= 1
-            logger.verbose(f"Adjusted new index for same parent move: {new_index}")
-
-        logger.verbose(f"About to take child from old parent at index {old_index}")        
-        
-        item = old_parent.takeChild(old_index)
-             
-        if item:
-            logger.verbose(f"Successfully took child: {item.text(0)}")
-        else:
-            logging.error("Failed to take child from old parent")
-            event.ignore()
-            logger.debug("==================== DROP EVENT END (IGNORED) ====================")
-            return
-
-        # Insert the dragged item at the new position
-        logger.verbose(f"About to insert child to new parent at index {new_index}")
-        new_parent.insertChild(new_index, item)
-
-        logger.verbose(f"Item moved from index {old_index} to {new_index}")
-
-        # Log the entire tree structure after the move
-        logger.verbose("Tree structure after move:")
-        self.log_tree_structure()  
-
-        #Let us handle the updates so we know what's going on
-        self.first_tab_obj.blockSignals() 
-        
-        logger.verbose(f"Model Text before update_model_from_tree(): {self.first_tab_obj.model.get_text()}")
-        #update the model from the new Tree structure
-        self.first_tab_obj.update_model_from_tree()
-        logger.verbose(f"Model Text after update_model_from_tree(): {self.first_tab_obj.model.get_text()}")
-        
-        #update the text widget
-        self.first_tab_obj.update_text_widget_from_model()    
-        self.first_tab_obj.unblockSignals()
-        self.setCurrentItem(item)
-
-        logger.debug("==================== DROP EVENT END ====================")
-        self.log_tree_structure()
-        
-        
-    def wouldBeLastChild(self, dragged_item):  
-        parent1 = dragged_item.parent()
-        if(parent1.childCount() == 1):
-            logger.verbose("Dragged_item would be last child of a parent");
-            return True
-        else:
-            logger.verbose("Dragged_item would NOT be last child of a parent");
-            return False
-        
-    def areParentsDataSameType(self, dragged_item, drop_target):
-        parent1 = dragged_item.parent()
-        parent2 = drop_target.parent()
-        
-        if parent1 == None or parent2 == None:
-            logger.verbose(f"=========areParentsSameType() One of parents was Null, Returning False")
-            return False
-            
-        parent1Data = parent1.data(0, QT_DATA_SAVE_NODES_DATA_STRUCT)
-        parent2Data = parent2.data(0, QT_DATA_SAVE_NODES_DATA_STRUCT)         
-              
-        logger.verbose(f"==========areParentsSameType() Result: {type(parent1Data) == type(parent2Data)}")
-        return type(parent1Data) == type(parent2Data)
-        
-    def areParentsArrayOrDict(self, dragged_item, drop_target):
-        #function assumes we already know the parents ARE the SAME data type from previous check! 
-        parent1 = dragged_item.parent()
-        
-        if parent1 == None:
-            logger.debug(f"=========parentsNotArrayOrDict() One of parents was Null, Returning False")
-            return False
-            
-        parent1Data = parent1.data(0, QT_DATA_SAVE_NODES_DATA_STRUCT)
-              
-        logger.debug(f"==========areParentsArrayOrDict Result: {isinstance(parent1Data, (list, dict))}")
-        return isinstance(parent1Data, (list, dict)) 
-
-    def getNewIndex(self, dragged_item, drop_target, new_parent):
-        parent1 = dragged_item.parent()
-        parent2 = drop_target.parent()
-        new_index = 0
-        
-        if parent1 is parent2:
-            if new_parent.indexOfChild(dragged_item) > new_parent.indexOfChild(drop_target):
-                new_index = new_parent.indexOfChild(drop_target)
-            else:
-                new_index = new_parent.indexOfChild(drop_target) + 1
-        else:
-            #just stick it in below. End user can move drag it again within same parent to reposition:
-            new_index = new_parent.indexOfChild(drop_target) + 1
-            
-        return new_index    
-        
- 
-    def refresh_view(self, item): 
-        logger.debug("Refreshing view")
-        self.dataChanged(self.indexFromItem(item), self.indexFromItem(item))
-        self.update()
-        self.scrollToItem(item)
-        self.model().layoutChanged.emit()
-        self.viewport().update()
-        self.repaint()  # Force an immediate repaint
-        QApplication.processEvents()  # Process any pending events
-
-    def log_tree_structure(self, item=None, level=0):
-        if item is None:
-            item = self.invisibleRootItem()
-        
-        for i in range(item.childCount()):
-            child = item.child(i)
-            logger.verbose(f"Next Child in Tree Structure: {'  ' * level}{child.text(0)}")
-            self.log_tree_structure(child, level + 1)
-
-    def dragEnterEvent(self, event):
-        if event.mimeData().hasFormat('application/x-qabstractitemmodeldatalist'):
-            event.accept()
-        else:
-            event.ignore()
-
-    """
-    def dragMoveEvent(self, event):
-        if event.mimeData().hasFormat('application/x-qabstractitemmodeldatalist'):
-            event.accept()
-        else:
-            event.ignore()
-    """
-    
-    def dragMoveEvent(self, event):
-        if event.mimeData().hasFormat('application/x-qabstractitemmodeldatalist'):
-            event.accept()
-        else:
-            event.ignore()
-
-        rect = self.viewport().rect()
-        mouse_pos = event.pos()
-        scroll_threshold = 20
-
-        if mouse_pos.y() < rect.top() + scroll_threshold:
-            self.scroll_direction = -1  # Scroll up
-            self.scroll_timer.start(25)  # Start scrolling every 20 ms
-        elif mouse_pos.y() > rect.bottom() - scroll_threshold:
-            self.scroll_direction = 1  # Scroll down
-            self.scroll_timer.start(25)
-        else:
-            self.scroll_timer.stop()  # Stop scrolling if not near the edges
-
-    def perform_smooth_scroll(self):
-        if self.scroll_direction is not None:
-            self.verticalScrollBar().setValue(self.verticalScrollBar().value() + self.scroll_direction)
-
-    
-    
-            
-    """
-    def paintEvent(self, event):
-        logger.debug("paintEvent started")
-        super().paintEvent(event)
-        logger.debug("paintEvent completed")
-    """
-
-    def onDataChanged(self, topLeft, bottomRight, roles):
-        logger.debug("dataChanged signal emitted")
-
-    def onLayoutAboutToBeChanged(self):
-        logger.debug("layoutAboutToBeChanged signal emitted")
-
-    def onLayoutChanged(self):
-        logger.debug("layoutChanged signal emitted")
-
-    def onRowsInserted(self, parent, first, last):
-        logger.debug(f"rowsInserted signal emitted: {first} to {last}")
-
-    def onRowsMoved(self, parent, start, end, destination, row):
-        logger.debug(f"rowsMoved signal emitted: {start} to {end}, new position {row}")
-
-    def onRowsRemoved(self, parent, first, last):
-        logger.debug(f"rowsRemoved signal emitted: {first} to {last}") 
- 
-      
 
 # Set the global exception handler
 sys.excepthook = global_exception_handler
-
-INIT_TEXT = """[
-    {
-        "BaseVersion":8,
-        "OriginalBaseVersion":8,
-        "GalacticAddress":5068787278259680,
-        "Position":[
-            4566.828125,
-            -28771.09375,
-            -94145.3125
-        ],
-        "Forward":[
-            0.07187037914991379,
-            -0.9528860449790955,
-            0.29469117522239687
-        ]
-    }
-]
-"""
-
             
 # Parent Class: DataModel
 class DataModel(QObject):
@@ -653,31 +149,6 @@ class JsonArrayModel(DataModel):
         self.init_model_data()
         
         logger.debug("JsonArrayModel(DataModel).__init__ EXIT") 
-        """
-            def convert_values_to_strings_in_place(self, obj):
-                print("convert_values_to_strings_in_place() ENTER")
-                
-                def recurse(obj):
-                    if isinstance(obj, dict):
-                        # Recursively convert values in dictionaries (in place)
-                        for k, v in obj.items():
-                            obj[k] = recurse(v)
-                    elif isinstance(obj, list):
-                        # Recursively convert items in lists (in place)
-                        for i in range(len(obj)):
-                            obj[i] = recurse(obj[i])
-                    else:
-                        # Convert everything else (numbers, booleans, etc.) to strings
-                        if not isinstance(obj, str):
-                            obj = str(obj)
-                        
-                        return obj
-                    
-                    return obj  # Return the modified object for recursion consistency
-                    
-                recurse(obj)    
-                print("convert_values_to_strings_in_place() EXIT") 
-        """        
         
     def init_model_data(self):
         logger.debug("init_model_data() ENTER")
@@ -863,7 +334,7 @@ class FirstTabContent(BaseTabContent):
         self.text_edit.setContextMenuPolicy(Qt.CustomContextMenu)
         self.text_edit.customContextMenuRequested.connect(self.show_context_menu)
                 
-        self.text_edit.setText(self.model.get_text())
+        self.text_edit.setPlainText(self.model.get_text())
 
         #added just to keep spacing consistent with left panel:
         self.bottom_right_label = QLabel("", self)
@@ -1165,7 +636,7 @@ class FirstTabContent(BaseTabContent):
     def update_text_widget_from_model(self):
         logger.debug("1st Tab update_text_widget_from_model() enter")
         #self.blockSignals()
-        self.text_edit.setText(self.model.get_text())
+        self.text_edit.setPlainText(self.model.get_text())
         #self.unblockSignals()
         logger.debug("1st Tab update_text_widget_from_model() exit")
   
@@ -1173,8 +644,7 @@ class FirstTabContent(BaseTabContent):
         logger.debug("update_tree_from_model() called")
         
         json_data = self.load_json_from_model()
-        if json_data is not None:
-            
+        if json_data is not None:            
             self.blockSignals()
             self.clear_tree_view()
             self.populate_tree_from_json(json_data)
@@ -1192,6 +662,12 @@ class FirstTabContent(BaseTabContent):
         
     def tree_widget_data_to_json(self, node_in = None): 
         def parse_item(tree_node, depth):
+            #we do not expect this here but were seeing it for some reason. We have deleted nodes
+            #at times when we get to this point and it seems like maybe Qt hangs onto a ghost reference
+            #to deleted nodes or something:            
+            if tree_node is None:
+                return
+            
             node_data = tree_node.data(0, QT_DATA_SAVE_NODES_DATA_STRUCT)
             
             logger.verbose(f"\n\nDepth: {depth}")            
@@ -1432,16 +908,7 @@ class FirstTabContent(BaseTabContent):
         self.tree_widget.expand_tree_to_level(1)
         self.bottom_left_label.setText(f"Number of Bases: {base_count}")
         
-
-
- 
-        
         logger.debug("populate_tree_from_json() EXIT") 
-        
-    
-
-
-
 
 
 class SecondTabContent(BaseTabContent):
@@ -1451,11 +918,11 @@ class SecondTabContent(BaseTabContent):
 
     def init_ui(self):
         self.layout = QVBoxLayout()
-        self.text_edit = QTextEdit()
+        self.text_edit = QPlainTextEdit()
         self.layout.addWidget(self.text_edit)
         self.setLayout(self.layout)
 
-        self.text_edit.setText(self.model.get_text())
+        self.text_edit.setPlainText(self.model.get_text())
         self.text_edit.textChanged.connect(self.text_changed_signal)
 
     def text_changed_signal(self):
@@ -1467,7 +934,7 @@ class SecondTabContent(BaseTabContent):
     def update_text_widget_from_model(self):
         logger.debug("2nd Tab update_text_widget_from_model() enter")
         self.blockSignals()
-        self.text_edit.setText(self.model.get_text())
+        self.text_edit.setPlainText(self.model.get_text())
         self.unblockSignals()
 
         logger.debug("2nd Tab update_text_widget_from_model() exit")
