@@ -23,6 +23,9 @@ PLANET_FROM_GALACTIC_ADDR_IDX = 2
 GREEN_LED_COLOR = '#2eb82e'
 YELLOW_LED_COLOR = '#f9f906'
 
+global GALAXIES
+
+
 #************
 # CURRENT LOGGER LEVEL:
 app_log_level = logging.ERROR   
@@ -47,6 +50,52 @@ logging.basicConfig(level=app_log_level, format='line %(lineno)d - %(asctime)s -
 # Get a logger instance
 logger = logging.getLogger(__name__)
 
+def get_new_QTreeWidgetItem():
+    widget = QTreeWidgetItem()
+    widget.setFlags(widget.flags() | Qt.ItemIsDragEnabled | Qt.ItemIsDropEnabled)  # Make item drag and droppable Qt.ItemIsEditable
+    return widget
+    
+    
+def copy_to_clipboard(model, parentWindow = None):
+    clipboard = QApplication.clipboard()
+    clipboard.setText(model.get_text())
+    QMessageBox.information(parentWindow, "Copied", "Text copied to clipboard!") 
+    
+    
+def pretty_print_text_widget(model, parentWindow = None):
+    logger.debug("pretty_print_text_widget() ENTER")
+    
+    parentWindow.text_changed_signal()
+    parentWindow.update_text_widget_from_model()
+        
+    logger.debug("pretty_print_text_widget() EXIT")
+
+        
+def get_num_app_child_threads():
+    logger.debug("get_num_app_child_threads() ENTER")
+    # Get the current process (your application)
+    current_process = psutil.Process(os.getpid())
+    num_threads = len(current_process.threads())
+    logger.debug("get_num_app_child_threads() EXIT, num threads: {num_threads}")
+    return num_threads
+
+
+#some values are preceeded by '0x' and some are not:    
+def get_galaxy_system_planet_from_full_addr(galactic_addr_in):
+    if isinstance(galactic_addr_in, int):
+        galactic_address = f"0x{galactic_addr_in:X}" 
+    elif "0x" not in galactic_addr_in:    
+        galactic_address = f"0x{int(galactic_addr_in):X}"
+    else:
+        galactic_address = galactic_addr_in    
+        
+    gal_idx_slice = slice(6, 8)
+    system_idx_slice = slice(3, 6)
+    planet_idx = 2
+    
+    return [galactic_address[gal_idx_slice], galactic_address[system_idx_slice], galactic_address[2]]  
+
+
 def global_exception_handler(exc_type, exc_value, exc_traceback):
     if issubclass(exc_type, KeyboardInterrupt):
         # Let KeyboardInterrupt exceptions pass through without logging
@@ -58,24 +107,6 @@ def global_exception_handler(exc_type, exc_value, exc_traceback):
     print(f"Unhandled exception: {exc_value}")
     traceback.print_exception(exc_type, exc_value, exc_traceback)
     
-INIT_TEXT = """[
-    {
-        "BaseVersion":8,
-        "OriginalBaseVersion":8,
-        "GalacticAddress":5068787278259680,
-        "Position":[
-            4566.828125,
-            -28771.09375,
-            -94145.3125
-        ],
-        "Forward":[
-            0.07187037914991379,
-            -0.9528860449790955,
-            0.29469117522239687
-        ]
-    }
-]
-"""
 
 def safe_remove_qtreewidget_node(item):
     # Recursively delete all children of the item first
@@ -96,5 +127,272 @@ def safe_remove_qtreewidget_node(item):
         
             if index != -1:
                 tree_widget.takeTopLevelItem(index)
+                
+# Set the global exception handler
+sys.excepthook = global_exception_handler                
+                
+                
+def init_galaxies():
+    GALAXIES = {}
+    GALAXIES[0] = 'Euclid'
+    GALAXIES[1] = 'Hilbert Dimension'
+    GALAXIES[2] = 'Calypso'
+    GALAXIES[3] = 'Hesperius Dimension'
+    GALAXIES[4] = 'Hyades'
+    GALAXIES[5] = 'Ickjamatew'
+    GALAXIES[6] = 'Budullangr'
+    GALAXIES[7] = 'Kikolgallr'
+    GALAXIES[8] = 'Eltiensleen'
+    GALAXIES[9] = 'Eissentam'
+    GALAXIES[10] = 'Elkupalos'
+    GALAXIES[11] = 'Aptarkaba'
+    GALAXIES[12] = 'Ontiniangp'
+    GALAXIES[13] = 'Odiwagiri'
+    GALAXIES[14] = 'Ogtialabi'
+    GALAXIES[15] = 'Muhacksonto'
+    GALAXIES[16] = 'Hitonskyer'
+    GALAXIES[17] = 'Rerasmutul'
+    GALAXIES[18] = 'Isdoraijung'
+    GALAXIES[19] = 'Doctinawyra'
+    GALAXIES[20] = 'Loychazinq'
+    GALAXIES[21] = 'Zukasizawa'
+    GALAXIES[22] = 'Ekwathore'
+    GALAXIES[23] = 'Yeberhahne'
+    GALAXIES[24] = 'Twerbetek'
+    GALAXIES[25] = 'Sivarates'
+    GALAXIES[26] = 'Eajerandal'
+    GALAXIES[27] = 'Aldukesci'
+    GALAXIES[28] = 'Wotyarogii'
+    GALAXIES[29] = 'Sudzerbal'
+    GALAXIES[30] = 'Maupenzhay'
+    GALAXIES[31] = 'Sugueziume'
+    GALAXIES[32] = 'Brogoweldian'
+    GALAXIES[33] = 'Ehbogdenbu'
+    GALAXIES[34] = 'Ijsenufryos'
+    GALAXIES[35] = 'Nipikulha'
+    GALAXIES[36] = 'Autsurabin'
+    GALAXIES[37] = 'Lusontrygiamh'
+    GALAXIES[38] = 'Rewmanawa'
+    GALAXIES[39] = 'Ethiophodhe'
+    GALAXIES[40] = 'Urastrykle'
+    GALAXIES[41] = 'Xobeurindj'
+    GALAXIES[42] = 'Oniijialdu'
+    GALAXIES[43] = 'Wucetosucc'
+    GALAXIES[44] = 'Ebyeloof'
+    GALAXIES[45] = 'Odyavanta'
+    GALAXIES[46] = 'Milekistri'
+    GALAXIES[47] = 'Waferganh'
+    GALAXIES[48] = 'Agnusopwit'
+    GALAXIES[49] = 'Teyaypilny'
+    GALAXIES[50] = 'Zalienkosm'
+    GALAXIES[51] = 'Ladgudiraf'
+    GALAXIES[52] = 'Mushonponte'
+    GALAXIES[53] = 'Amsentisz'
+    GALAXIES[54] = 'Fladiselm'
+    GALAXIES[55] = 'Laanawemb'
+    GALAXIES[56] = 'Ilkerloor'
+    GALAXIES[57] = 'Davanossi'
+    GALAXIES[58] = 'Ploehrliou'
+    GALAXIES[59] = 'Corpinyaya'
+    GALAXIES[60] = 'Leckandmeram'
+    GALAXIES[61] = 'Quulngais'
+    GALAXIES[62] = 'Nokokipsechl'
+    GALAXIES[63] = 'Rinblodesa'
+    GALAXIES[64] = 'Loydporpen'
+    GALAXIES[65] = 'Ibtrevskip'
+    GALAXIES[66] = 'Elkowaldb'
+    GALAXIES[67] = 'Heholhofsko'
+    GALAXIES[68] = 'Yebrilowisod'
+    GALAXIES[69] = 'Husalvangewi'
+    GALAXIES[70] = 'Ovnauesed'
+    GALAXIES[71] = 'Bahibusey'
+    GALAXIES[72] = 'Nuybeliaure'
+    GALAXIES[73] = 'Doshawchuc'
+    GALAXIES[74] = 'Ruckinarkh'
+    GALAXIES[75] = 'Thorettac'
+    GALAXIES[76] = 'Nuponoparau'
+    GALAXIES[77] = 'Moglaschil'
+    GALAXIES[78] = 'Uiweupose'
+    GALAXIES[79] = 'Nasmilete'
+    GALAXIES[80] = 'Ekdaluskin'
+    GALAXIES[81] = 'Hakapanasy'
+    GALAXIES[82] = 'Dimonimba'
+    GALAXIES[83] = 'Cajaccari'
+    GALAXIES[84] = 'Olonerovo'
+    GALAXIES[85] = 'Umlanswick'
+    GALAXIES[86] = 'Henayliszm'
+    GALAXIES[87] = 'Utzenmate'
+    GALAXIES[88] = 'Umirpaiya'
+    GALAXIES[89] = 'Paholiang'
+    GALAXIES[90] = 'Iaereznika'
+    GALAXIES[91] = 'Yudukagath'
+    GALAXIES[92] = 'Boealalosnj'
+    GALAXIES[93] = 'Yaevarcko'
+    GALAXIES[94] = 'Coellosipp'
+    GALAXIES[95] = 'Wayndohalou'
+    GALAXIES[96] = 'Smoduraykl'
+    GALAXIES[97] = 'Apmaneessu'
+    GALAXIES[98] = 'Hicanpaav'
+    GALAXIES[99] = 'Akvasanta'
+    GALAXIES[100] = 'Tuychelisaor'
+    GALAXIES[101] = 'Rivskimbe'
+    GALAXIES[102] = 'Daksanquix'
+    GALAXIES[103] = 'Kissonlin'
+    GALAXIES[104] = 'Aediabiel'
+    GALAXIES[105] = 'Ulosaginyik'
+    GALAXIES[106] = 'Roclaytonycar'
+    GALAXIES[107] = 'Kichiaroa'
+    GALAXIES[108] = 'Irceauffey'
+    GALAXIES[109] = 'Nudquathsenfe'
+    GALAXIES[110] = 'Getaizakaal'
+    GALAXIES[111] = 'Hansolmien'
+    GALAXIES[112] = 'Bloytisagra'
+    GALAXIES[113] = 'Ladsenlay'
+    GALAXIES[114] = 'Luyugoslasr'
+    GALAXIES[115] = 'Ubredhatk'
+    GALAXIES[116] = 'Cidoniana'
+    GALAXIES[117] = 'Jasinessa'
+    GALAXIES[118] = 'Torweierf'
+    GALAXIES[119] = 'Saffneckm'
+    GALAXIES[120] = 'Thnistner'
+    GALAXIES[121] = 'Dotusingg'
+    GALAXIES[122] = 'Luleukous'
+    GALAXIES[123] = 'Jelmandan'
+    GALAXIES[124] = 'Otimanaso'
+    GALAXIES[125] = 'Enjaxusanto'
+    GALAXIES[126] = 'Sezviktorew'
+    GALAXIES[127] = 'Zikehpm'
+    GALAXIES[128] = 'Bephembah'
+    GALAXIES[129] = 'Broomerrai'
+    GALAXIES[130] = 'Meximicka'
+    GALAXIES[131] = 'Venessika'
+    GALAXIES[132] = 'Gaiteseling'
+    GALAXIES[133] = 'Zosakasiro'
+    GALAXIES[134] = 'Drajayanes'
+    GALAXIES[135] = 'Ooibekuar'
+    GALAXIES[136] = 'Urckiansi'
+    GALAXIES[137] = 'Dozivadido'
+    GALAXIES[138] = 'Emiekereks'
+    GALAXIES[139] = 'Meykinunukur'
+    GALAXIES[140] = 'Kimycuristh'
+    GALAXIES[141] = 'Roansfien'
+    GALAXIES[142] = 'Isgarmeso'
+    GALAXIES[143] = 'Daitibeli'
+    GALAXIES[144] = 'Gucuttarik'
+    GALAXIES[145] = 'Enlaythie'
+    GALAXIES[146] = 'Drewweste'
+    GALAXIES[147] = 'Akbulkabi'
+    GALAXIES[148] = 'Homskiw'
+    GALAXIES[149] = 'Zavainlani'
+    GALAXIES[150] = 'Jewijkmas'
+    GALAXIES[151] = 'Itlhotagra'
+    GALAXIES[152] = 'Podalicess'
+    GALAXIES[153] = 'Hiviusauer'
+    GALAXIES[154] = 'Halsebenk'
+    GALAXIES[155] = 'Puikitoac'
+    GALAXIES[156] = 'Gaybakuaria'
+    GALAXIES[157] = 'Grbodubhe'
+    GALAXIES[158] = 'Rycempler'
+    GALAXIES[159] = 'Indjalala'
+    GALAXIES[160] = 'Fontenikk'
+    GALAXIES[161] = 'Pasycihelwhee'
+    GALAXIES[162] = 'Ikbaksmit'
+    GALAXIES[163] = 'Telicianses'
+    GALAXIES[164] = 'Oyleyzhan'
+    GALAXIES[165] = 'Uagerosat'
+    GALAXIES[166] = 'Impoxectin'
+    GALAXIES[167] = 'Twoodmand'
+    GALAXIES[168] = 'Hilfsesorbs'
+    GALAXIES[169] = 'Ezdaranit'
+    GALAXIES[170] = 'Wiensanshe'
+    GALAXIES[171] = 'Ewheelonc'
+    GALAXIES[172] = 'Litzmantufa'
+    GALAXIES[173] = 'Emarmatosi'
+    GALAXIES[174] = 'Mufimbomacvi'
+    GALAXIES[175] = 'Wongquarum'
+    GALAXIES[176] = 'Hapirajua'
+    GALAXIES[177] = 'Igbinduina'
+    GALAXIES[178] = 'Wepaitvas'
+    GALAXIES[179] = 'Sthatigudi'
+    GALAXIES[180] = 'Yekathsebehn'
+    GALAXIES[181] = 'Ebedeagurst'
+    GALAXIES[182] = 'Nolisonia'
+    GALAXIES[183] = 'Ulexovitab'
+    GALAXIES[184] = 'Iodhinxois'
+    GALAXIES[185] = 'Irroswitzs'
+    GALAXIES[186] = 'Bifredait'
+    GALAXIES[187] = 'Beiraghedwe'
+    GALAXIES[188] = 'Yeonatlak'
+    GALAXIES[189] = 'Cugnatachh'
+    GALAXIES[190] = 'Nozoryenki'
+    GALAXIES[191] = 'Ebralduri'
+    GALAXIES[192] = 'Evcickcandj'
+    GALAXIES[193] = 'Ziybosswin'
+    GALAXIES[194] = 'Heperclait'
+    GALAXIES[195] = 'Sugiuniam'
+    GALAXIES[196] = 'Aaseertush'
+    GALAXIES[197] = 'Uglyestemaa'
+    GALAXIES[198] = 'Horeroedsh'
+    GALAXIES[199] = 'Drundemiso'
+    GALAXIES[200] = 'Ityanianat'
+    GALAXIES[201] = 'Purneyrine'
+    GALAXIES[202] = 'Dokiessmat'
+    GALAXIES[203] = 'Nupiacheh'
+    GALAXIES[204] = 'Dihewsonj'
+    GALAXIES[205] = 'Rudrailhik'
+    GALAXIES[206] = 'Tweretnort'
+    GALAXIES[207] = 'Snatreetze'
+    GALAXIES[208] = 'Iwundaracos'
+    GALAXIES[209] = 'Digarlewena'
+    GALAXIES[210] = 'Erquagsta'
+    GALAXIES[211] = 'Logovoloin'
+    GALAXIES[212] = 'Boyaghosganh'
+    GALAXIES[213] = 'Kuolungau'
+    GALAXIES[214] = 'Pehneldept'
+    GALAXIES[215] = 'Yevettiiqidcon'
+    GALAXIES[216] = 'Sahliacabru'
+    GALAXIES[217] = 'Noggalterpor'
+    GALAXIES[218] = 'Chmageaki'
+    GALAXIES[219] = 'Veticueca'
+    GALAXIES[220] = 'Vittesbursul'
+    GALAXIES[221] = 'Nootanore'
+    GALAXIES[222] = 'Innebdjerah'
+    GALAXIES[223] = 'Kisvarcini'
+    GALAXIES[224] = 'Cuzcogipper'
+    GALAXIES[225] = 'Pamanhermonsu'
+    GALAXIES[226] = 'Brotoghek'
+    GALAXIES[227] = 'Mibittara'
+    GALAXIES[228] = 'Huruahili'
+    GALAXIES[229] = 'Raldwicarn'
+    GALAXIES[230] = 'Ezdartlic'
+    GALAXIES[231] = 'Badesclema'
+    GALAXIES[232] = 'Isenkeyan'
+    GALAXIES[233] = 'Iadoitesu'
+    GALAXIES[234] = 'Yagrovoisi'
+    GALAXIES[235] = 'Ewcomechio'
+    GALAXIES[236] = 'Inunnunnoda'
+    GALAXIES[237] = 'Dischiutun'
+    GALAXIES[238] = 'Yuwarugha'
+    GALAXIES[239] = 'Ialmendra'
+    GALAXIES[240] = 'Reponudrle'
+    GALAXIES[241] = 'Rinjanagrbo'
+    GALAXIES[242] = 'Zeziceloh'
+    GALAXIES[243] = 'Oeileutasc'
+    GALAXIES[244] = 'Zicniijinis'
+    GALAXIES[245] = 'Dugnowarilda'
+    GALAXIES[246] = 'Neuxoisan'
+    GALAXIES[247] = 'Ilmenhorn'
+    GALAXIES[248] = 'Rukwatsuku'
+    GALAXIES[249] = 'Nepitzaspru'
+    GALAXIES[250] = 'Chcehoemig'
+    GALAXIES[251] = 'Haffneyrin'
+    GALAXIES[252] = 'Uliciawai'
+    GALAXIES[253] = 'Tuhgrespod'
+    GALAXIES[254] = 'Iousongola'
+    GALAXIES[255] = 'Odyalutai'   
+
+    return GALAXIES 
+
+GALAXIES = init_galaxies()    
 
     

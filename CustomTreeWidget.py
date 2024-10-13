@@ -1,6 +1,5 @@
 from imports import *
 
-
 class DeleteTreeNodesSelectedDialog(QDialog):
     def __init__(self, num_nodes = 0):
         super().__init__()  # This calls the parent class's __init__ method (QDialog)
