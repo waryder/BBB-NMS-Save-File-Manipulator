@@ -1,4 +1,4 @@
-import sys, os, pdb, logging, json, traceback, configparser 
+import sys, os, pdb, logging, json, traceback, configparser, copy 
 import pyautogui, yappi, psutil, threading, traceback, concurrent.futures
 from PyQt5.QtCore import pyqtSignal, QObject, Qt, QMimeData, QTimer, QEvent
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QSplitter, QTabWidget,
@@ -28,7 +28,7 @@ global GALAXIES
 
 #************
 # CURRENT LOGGER LEVEL:
-app_log_level = logging.ERROR   
+app_log_level = logging.DEBUG 
     
 #************
 
@@ -55,13 +55,6 @@ def get_new_QTreeWidgetItem():
     widget.setFlags(widget.flags() | Qt.ItemIsDragEnabled | Qt.ItemIsDropEnabled)  # Make item drag and droppable Qt.ItemIsEditable
     return widget
     
-    
-def copy_to_clipboard(model, parentWindow = None):
-    clipboard = QApplication.clipboard()
-    clipboard.setText(model.get_text())
-    QMessageBox.information(parentWindow, "Copied", "Text copied to clipboard!") 
-    
-    
 def pretty_print_text_widget(model, parentWindow = None):
     logger.debug("pretty_print_text_widget() ENTER")
     
@@ -72,11 +65,11 @@ def pretty_print_text_widget(model, parentWindow = None):
 
         
 def get_num_app_child_threads():
-    logger.debug("get_num_app_child_threads() ENTER")
+    logger.verbose("get_num_app_child_threads() ENTER")
     # Get the current process (your application)
     current_process = psutil.Process(os.getpid())
     num_threads = len(current_process.threads())
-    logger.debug("get_num_app_child_threads() EXIT, num threads: {num_threads}")
+    logger.verbose("get_num_app_child_threads() EXIT, num threads: {num_threads}")
     return num_threads
 
 

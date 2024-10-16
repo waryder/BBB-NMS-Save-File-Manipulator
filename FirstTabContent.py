@@ -11,8 +11,9 @@ class FirstTabContent(BaseTabContent):
         
         self.ini_file_manager = IniFileManager('app_preferences.ini')
         self.model = JsonArrayModel(self.ini_file_manager, self.init_text())
+        self.text_edit = None       
         
-        super().__init__(self.model)        
+        super().__init__(self.model, self.text_edit)        
         self.init_ui()
 
     def init_ui(self):
@@ -94,7 +95,7 @@ class FirstTabContent(BaseTabContent):
         self.pretty_print_button.setFixedWidth(button_width)
 ###        
         self.text_edit = CustomTextEdit(self)
-        
+                
         #Customize the palette to keep the selection highlighted when the window loses focus.
         #This also solved that on search, the found text was not highlighting. I didn't track down
         #the root cause of that since changing the default behavior of not highlighting on loss of focus
@@ -124,8 +125,7 @@ class FirstTabContent(BaseTabContent):
         
         right_pane_layout.addLayout(right_button_layout)
         right_pane_layout.addWidget(self.text_edit)
-        right_pane_layout.addWidget(self.bottom_right_label)
-        
+        right_pane_layout.addWidget(self.bottom_right_label)        
 
         right_container = QWidget()
         right_container.setLayout(right_pane_layout)
@@ -152,83 +152,37 @@ class FirstTabContent(BaseTabContent):
         self.sync_from_text_window_button.clicked.connect(self.sync_from_text_window)
         self.sort_bases_by_gal_sys_name_button.clicked.connect(self.sort_bases_by_gal_sys_name)
         #self.right_button.clicked.connect(self.sync_text_from_tree_window)
-        self.copy_button.clicked.connect(lambda: copy_to_clipboard(self.model, self))
+        self.copy_button.clicked.connect(lambda: self.copy_to_clipboard(self))
         self.pretty_print_button.clicked.connect(lambda: pretty_print_text_widget(self.model, self))
         
         # Update tree from model
         self.update_tree_from_model()
         self.tree_widget.expand_tree_to_level(1)
         
-        # Connect text edit changes to model        
-        
-        #this is to update the model on each charater input. I think we're doing away with this:
-        #self.text_edit.textChanged.connect(self.text_changed_signal) 
-        
+        # Connect text edit changes to model  
         self.model.modelChanged.connect(self.model_changed)
         
-            
-    # Function to update the indicator color (red or green)
-    def update_status_indicator_to_green(self, green_if_true):
-        logger.debug("update_status_indicator_to_green() ENTER")
-        palette = self.status_indicator.palette()
-        
-        if green_if_true:
-            logger.debug("green")
-            self.status_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
-        else:
-            logger.debug("yellow")
-            self.status_indicator.setStyleSheet(f"background-color: {YELLOW_LED_COLOR}; border-radius: 4px;")
-            
-        self.status_indicator.setPalette(palette)
-        self.status_indicator.update()
-        logger.debug("update_status_indicator_to_green() EXIT")
-        
-    
+        #this is to update the model on each charater input.
+        self.text_edit.textChanged.connect(self.text_changed_signal) 
+                       
     # Function to update the indicator color (red or green)
     def update_tree_synced_indicator(self, green_if_true):
-        logger.debug("update_tree_synced_indicator() ENTER")
+        logger.debug("1st tab update_tree_synced_indicator() ENTER")
         palette = self.tree_synced_indicator.palette()
         
         if green_if_true:
-            logger.debug("green")
+            logger.debug("1st tab green")
             self.tree_synced_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
         else:
-            logger.debug("red")
+            logger.debug("1st tab red")
             self.tree_synced_indicator.setStyleSheet(f"background-color: red; border-radius: 4px;")
             
         self.tree_synced_indicator.setPalette(palette)
         self.tree_synced_indicator.update()
-        logger.debug("update_tree_synced_indicator() EXIT")    
-        
-
-    def set_led_based_on_app_thread_load(self, max_threads = 4):
-        logger.debug("set_led_based_on_app_thread_load() EXIT")
-        
-        def run():
-            nonlocal max_threads
-            logger.debug("set_led_based_on_app_thread_load() ENTER")
-            
-            #4 comes from testing the idle state of the app informally:
-            num_threads = get_num_app_child_threads()
-            logger.debug(f"max_threads: {max_threads}, num_threads: {num_threads}")
-                
-            if num_threads > max_threads:
-                #set the led yellow:
-                self.update_status_indicator_to_green(False)
-                
-                QTimer.singleShot(2000, run)
-                logger.debug("set_led_based_on_app_thread_load() EXIT, yellow\n")
-            else:    
-                #set the led green:        
-                self.update_status_indicator_to_green(True)
-                logger.debug("set_led_based_on_app_thread_load() EXIT, green\n")            
-        
-        #wait 2 seconds on the first run:
-        QTimer.singleShot(2000, run)
-        logger.debug("set_led_based_on_app_thread_load() EXIT")
+        logger.debug("1st tab update_tree_synced_indicator() EXIT")    
        
     def show_context_menu(self, position):
-        logger.debug("show_context_menu() ENTER")
+        logger.debug("1st tab show_context_menu() ENTER")
         # Create the default context menu
         context_menu = self.text_edit.createStandardContextMenu()
 
@@ -240,28 +194,28 @@ class FirstTabContent(BaseTabContent):
 
         # Show the context menu
         context_menu.exec_(self.text_edit.mapToGlobal(position))
-        logger.debug("show_context_menu() ENTER")
+        logger.debug("1st tab show_context_menu() ENTER")
         
     def search_text(self):       
-        logger.debug("search_text() ENTER")
+        logger.debug("1st tab search_text() ENTER")
         self.search_dialog = TextSearchDialog(self)
         self.search_dialog.show()
-        logger.debug("search_text() EXIT")
+        logger.debug("1st tab search_text() EXIT")
         
     def blockSignals(self):
-        logger.debug("blockSignals() ENTER")
+        logger.debug("1st tab blockSignals() ENTER")
         
         self.text_edit.blockSignals(True)
         self.tree_widget.blockSignals(True)
         self.model.blockSignals(True)
-        logger.debug("blockSignals() ENTER")
+        logger.debug("1st tab blockSignals() ENTER")
         
     def unblockSignals(self):
-        logger.debug("unblockSignals() ENTER")
+        logger.debug("1st tab unblockSignals() ENTER")
         self.text_edit.blockSignals(False)
         self.tree_widget.blockSignals(False)
         self.model.blockSignals(False)
-        logger.debug("unblockSignals() ENTER")        
+        logger.debug("1st tab unblockSignals() ENTER")        
         
     def repaint_tree(self):
         logger.debug(f"repainting tree...")
@@ -279,12 +233,12 @@ class FirstTabContent(BaseTabContent):
 
     def sync_from_text_window(self):
         print("Sync from Text Window ENTER")
-        self.set_led_based_on_app_thread_load()
+        self.main_window.background_processing_signal.emit(4, "1st Tab")
         
         # Set tree from text
         try:
             #update model from txt_widget:
-            self.text_changed_signal()
+            self.update_model_from_text_edit()
             self.update_tree_from_model()
             
         except json.JSONDecodeError as e:
@@ -295,9 +249,8 @@ class FirstTabContent(BaseTabContent):
         print("Sync from Text Window EXIT")    
             
     def sort_bases_by_gal_sys_name(self):
-        logger.debug("Sort Bases clicked")
-        
-        self.set_led_based_on_app_thread_load()
+        logger.debug("1st tab Sort Bases clicked")
+        self.main_window.background_processing_signal.emit(4, "1st Tab")
         
         model_json = self.model.get_json()
         
@@ -322,20 +275,20 @@ class FirstTabContent(BaseTabContent):
         self.update_text_widget_from_model()        
 
     def sync_text_from_tree_window(self):
-        logger.debug("sync from Tree Window ENTER")
+        logger.debug("1st tab sync from Tree Window ENTER")
         self.update_model_from_tree()
         self.update_text_widget_from_model()        
-        logger.debug("sync from Tree Window EXIT")
+        logger.debug("1st tab sync from Tree Window EXIT")
 
-    def text_changed_signal(self):
-        logger.debug("1st Tab text_changed_signal() enter")        
+    def update_model_from_text_edit(self):
+        logger.debug("1st Tab update_model_from_text_edit() enter")        
         self.update_tree_synced_indicator(False)
         new_text = self.text_edit.toPlainText()
         self.model.set_text(new_text)
-        logger.debug("1st Tab text_changed_signal() exit")
+        logger.debug("1st Tab update_model_from_text_edit() exit")        
 
     def populate_tree(self, data, parent=None):
-        logger.debug("populate_tree() ENTER")
+        logger.debug("1st tab populate_tree() ENTER")
         if parent is None:
             parent = self.tree_widget.invisibleRootItem()
 
@@ -350,7 +303,7 @@ class FirstTabContent(BaseTabContent):
                 parent.addChild(item)
                 self.populate_tree(value, item)
                 
-        logger.debug("populate_tree() EXIT")                    
+        logger.debug("1st tab populate_tree() EXIT")                    
 
     def update_text_widget_from_model(self):
         logger.debug("1st Tab update_text_widget_from_model() enter")
@@ -360,7 +313,7 @@ class FirstTabContent(BaseTabContent):
         logger.debug("1st Tab update_text_widget_from_model() exit")
   
     def update_tree_from_model(self):
-        logger.debug("update_tree_from_model() called")
+        logger.debug("1st tab update_tree_from_model() called")
         
         json_data = self.load_json_from_model()
         if json_data is not None:            
@@ -369,7 +322,7 @@ class FirstTabContent(BaseTabContent):
             self.populate_tree_from_json(json_data)
             self.unblockSignals()
             
-            logger.debug("Tree view updated with model data.")            
+            logger.debug("1st tab Tree view updated with model data.")            
             
     def update_model_from_tree(self):
         logger.debug(f"update_model_from_tree() ENTER")
@@ -452,12 +405,12 @@ class FirstTabContent(BaseTabContent):
             return None        
             
     def clear_tree_view(self):
-        logger.debug("clear_tree_view() Called.")
+        logger.debug("1st tab clear_tree_view() Called.")
         self.tree_widget.clear()        
 
     def populate_tree_from_json(self, json_data, parent_tree_node=None):
         #return
-        logger.debug("populate_tree_from_json() ENTER")
+        logger.debug("1st tab populate_tree_from_json() ENTER")
 
         base_count = 0
         line_count = 0
@@ -627,7 +580,7 @@ class FirstTabContent(BaseTabContent):
         self.tree_widget.expand_tree_to_level(1)
         self.bottom_left_label.setText(f"Number of Bases: {base_count}")
         
-        logger.debug("populate_tree_from_json() EXIT") 
+        logger.debug("1st tab populate_tree_from_json() EXIT") 
         
     def init_text(self):
         return """[

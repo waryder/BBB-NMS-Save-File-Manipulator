@@ -11,9 +11,10 @@ class SecondTabContent(BaseTabContent):
         self.main_window = parent
         
         self.ini_file_manager = IniFileManager('tab2_preferences.ini')
-        self.model = JsonArrayModel(self.ini_file_manager, self.init_text()  )
+        self.model = JsonArrayModel(self.ini_file_manager, self.init_text())
+        self.text_edit = None
         
-        super().__init__(self.model)        
+        super().__init__(self.model, self.text_edit)        
         self.init_ui()
 
     def init_ui(self):
@@ -95,7 +96,7 @@ class SecondTabContent(BaseTabContent):
         self.pretty_print_button.setFixedWidth(button_width)
 ###        
         self.text_edit = CustomTextEdit(self)
-        
+                
         #Customize the palette to keep the selection highlighted when the window loses focus.
         #This also solved that on search, the found text was not highlighting. I didn't track down
         #the root cause of that since changing the default behavior of not highlighting on loss of focus
@@ -153,7 +154,7 @@ class SecondTabContent(BaseTabContent):
         self.sync_from_text_window_button.clicked.connect(self.sync_from_text_window)
         self.upgrade_starships_button.clicked.connect(self.upgrade_starships)
         #self.right_button.clicked.connect(self.sync_text_from_tree_window)
-        self.copy_button.clicked.connect(lambda: copy_to_clipboard(self.model, self))
+        self.copy_button.clicked.connect(lambda: self.copy_to_clipboard(self))
         self.pretty_print_button.clicked.connect(lambda: pretty_print_text_widget(self.model, self))
         
         # Update tree from model
@@ -161,75 +162,29 @@ class SecondTabContent(BaseTabContent):
         self.tree_widget.expand_tree_to_level(1)
         
         # Connect text edit changes to model        
-        
-        #this is to update the model on each charater input. I think we're doing away with this:
-        #self.text_edit.textChanged.connect(self.text_changed_signal) 
-        
         self.model.modelChanged.connect(self.model_changed)
-        
-            
-    # Function to update the indicator color (red or green)
-    def update_status_indicator_to_green(self, green_if_true):
-        logger.debug("update_status_indicator_to_green() ENTER")
-        palette = self.status_indicator.palette()
-        
-        if green_if_true:
-            logger.debug("green")
-            self.status_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
-        else:
-            logger.debug("yellow")
-            self.status_indicator.setStyleSheet(f"background-color: {YELLOW_LED_COLOR}; border-radius: 4px;")
-            
-        self.status_indicator.setPalette(palette)
-        self.status_indicator.update()
-        logger.debug("update_status_indicator_to_green() EXIT")
-        
+
+        #this is to update the model on each charater input.
+        self.text_edit.textChanged.connect(self.text_changed_signal) 
     
     # Function to update the indicator color (red or green)
     def update_tree_synced_indicator(self, green_if_true):
-        logger.debug("update_tree_synced_indicator() ENTER")
+        logger.debug("2nd tab update_tree_synced_indicator() ENTER")
         palette = self.tree_synced_indicator.palette()
         
         if green_if_true:
-            logger.debug("green")
+            logger.debug("2nd tab green")
             self.tree_synced_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
         else:
-            logger.debug("red")
+            logger.debug("2nd tab red")
             self.tree_synced_indicator.setStyleSheet(f"background-color: red; border-radius: 4px;")
             
         self.tree_synced_indicator.setPalette(palette)
         self.tree_synced_indicator.update()
-        logger.debug("update_tree_synced_indicator() EXIT")    
-        
-
-    def set_led_based_on_app_thread_load(self, max_threads = 4):
-        logger.debug("set_led_based_on_app_thread_load() EXIT")
-        
-        def run():
-            nonlocal max_threads
-            logger.debug("set_led_based_on_app_thread_load() ENTER")
-            
-            #4 comes from testing the idle state of the app informally:
-            num_threads = get_num_app_child_threads()
-            logger.debug(f"max_threads: {max_threads}, num_threads: {num_threads}")
-                
-            if num_threads > max_threads:
-                #set the led yellow:
-                self.update_status_indicator_to_green(False)
-                
-                QTimer.singleShot(2000, run)
-                logger.debug("set_led_based_on_app_thread_load() EXIT, yellow\n")
-            else:    
-                #set the led green:        
-                self.update_status_indicator_to_green(True)
-                logger.debug("set_led_based_on_app_thread_load() EXIT, green\n")            
-        
-        #wait 2 seconds on the first run:
-        QTimer.singleShot(2000, run)
-        logger.debug("set_led_based_on_app_thread_load() EXIT")
+        logger.debug("2nd tab update_tree_synced_indicator() EXIT")    
        
     def show_context_menu(self, position):
-        logger.debug("show_context_menu() ENTER")
+        logger.debug("2nd tab show_context_menu() ENTER")
         # Create the default context menu
         context_menu = self.text_edit.createStandardContextMenu()
 
@@ -241,28 +196,28 @@ class SecondTabContent(BaseTabContent):
 
         # Show the context menu
         context_menu.exec_(self.text_edit.mapToGlobal(position))
-        logger.debug("show_context_menu() ENTER")
+        logger.debug("2nd tab show_context_menu() ENTER")
         
     def search_text(self):       
-        logger.debug("search_text() ENTER")
+        logger.debug("2nd tab search_text() ENTER")
         self.search_dialog = TextSearchDialog(self)
         self.search_dialog.show()
-        logger.debug("search_text() EXIT")
+        logger.debug("2nd tab search_text() EXIT")
 
     def blockSignals(self):
-        logger.debug("blockSignals() ENTER")
+        logger.debug("2nd tab blockSignals() ENTER")
         
         self.text_edit.blockSignals(True)
         self.tree_widget.blockSignals(True)
         self.model.blockSignals(True)
-        logger.debug("blockSignals() ENTER")
+        logger.debug("2nd tab blockSignals() ENTER")
         
     def unblockSignals(self):
-        logger.debug("unblockSignals() ENTER")
+        logger.debug("2nd tab unblockSignals() ENTER")
         self.text_edit.blockSignals(False)
         self.tree_widget.blockSignals(False)
         self.model.blockSignals(False)
-        logger.debug("unblockSignals() ENTER")        
+        logger.debug("2nd tab unblockSignals() ENTER")        
         
     def repaint_tree(self):
         logger.debug(f"repainting tree...")
@@ -280,7 +235,7 @@ class SecondTabContent(BaseTabContent):
 
     def sync_from_text_window(self):
         print("Sync from Text Window ENTER")
-        self.set_led_based_on_app_thread_load()
+        self.main_window.background_processing_signal.emit(4, "2nd Tab")
         
         # Set tree from text
         try:
@@ -301,18 +256,11 @@ class SecondTabContent(BaseTabContent):
         with open(file_path, 'r') as file:
             return json.loads(file.read())
         
-        
-        
-        
-        
-        
-        
-        
     def upgrade_starships(self):
-        logger.debug("upgrade_starships() ENTER")
+        logger.debug("2nd tab upgrade_starships() ENTER")
+        self.main_window.background_processing_signal.emit(4, "2nd Tab")
         
-        self.set_led_based_on_app_thread_load()
-        model_json = self.model.get_json()
+        model_json = copy.deepcopy(self.model.get_json())
         
         starship_names = []
         for starship_el in model_json:
@@ -328,94 +276,91 @@ class SecondTabContent(BaseTabContent):
         for checkbox in selected_checkboxes:
             starship_el = model_json[checkbox.property('starshipListIdx')]            
             
-            name = starship_el['Name']
-            seed = starship_el['Resource']['Seed']
-            #need the second element of a 2 el list here:
-            seed = seed[1]
+            name = copy.deepcopy(starship_el['Name'])
+            #need the second element of ['Seed'] here:
+            seed = copy.deepcopy(starship_el['Resource']['Seed'][1])
             resource_filename = starship_el['Resource']['Filename']
             
-            print(f"***name before: {name}") 
-            print(f"   seed before: {seed}") 
+            logger.debug(f"***name before: {name}") 
+            logger.debug(f"   seed before: {seed}") 
                         
             reference = ""
             
             if "SENTINEL" in resource_filename:
-                print(f"   ship_type: SENTINEL")
                 reference = self.return_json_from_file('reference_sentinel.json')
-                print(f"   ship_type: SENTINEL")
+                logger.verbose(f"   ship_type: SENTINEL")
             
             elif "DROPSHIP" in resource_filename:
                 reference = self.return_json_from_file('reference_hauler.json')
-                print(f"   ship_type: DROPSHIP")
+                logger.verbose(f"   ship_type: DROPSHIP")
             
             elif "BIOSHIP" in resource_filename: 
                 reference = self.return_json_from_file('reference_living.json')
-                print(f"   ship_type: LIVING")
+                logger.verbose(f"   ship_type: LIVING")
 
             elif "SCIENTIFIC" in resource_filename:
                 reference = self.return_json_from_file('reference_explorer.json')
-                print(f"   ship_type: EXPLORER")                    
+                logger.verbose(f"   ship_type: EXPLORER")                    
 
             elif "SHUTTLE" in resource_filename:                          
                 reference = self.return_json_from_file('reference_shuttle.json')
-                print(f"   ship_type: SHUTTLE")
+                logger.verbose(f"   ship_type: SHUTTLE")
                 
             elif "FIGHTER" in resource_filename:
                 reference = self.return_json_from_file('reference_fighter.json')
-                print(f"   ship_type: FIGHTER")
+                logger.verbose(f"   ship_type: FIGHTER")
             
             elif "SAILSHIP" in resource_filename:
                 reference = self.return_json_from_file('reference_solar.json')
-                print(f"   ship_type: SOLAR")
+                logger.verbose(f"   ship_type: SOLAR")
 
             elif "S-CLASS" in resource_filename:
                 reference = self.return_json_from_file('reference_royal.json')
-                print(f"   ship_type: ROYAL")
+                logger.verbose(f"   ship_type: ROYAL")
                 
             else:
-                print ('ERROR');
+                print ('ERROR');                
                 
-            #assuming we found a valid data for each starship:
-            startship_el = reference
-            print(f"   >>>name (reference ship's) after overwrite: {startship_el['Name']}")
-            print(f"   >>>seed (reference ship's) after overwrite: {startship_el['Resource']['Seed']}")
+            #assuming we found a valid data for each starship. Shouldn't need to deep copy, really anywhere in here but something was screwing up, so it can't hurt anything either:
+            starship_el = copy.deepcopy(reference)
+            logger.verbose(f"   >>>name (reference ship's) after overwrite: {starship_el['Name']}")
+            logger.verbose(f"   >>>seed (reference ship's) after overwrite: {starship_el['Resource']['Seed']}")
             
-            startship_el['Name'] = name
-            startship_el['Resource']['Seed'] = seed
-            print(f"   final name: {starship_el['Name']}")
-            print(f"   final seed: {starship_el['Resource']['Seed']}")
- 
+            starship_el['Name'] = name
+            starship_el['Resource']['Seed'][1] = seed
+            
+            model_json[checkbox.property('starshipListIdx')] = starship_el
+            
+            #logger.verbose(json.dumps(starship_el,indent = 4) + ',')            
+            
+            logger.debug(f"   final name: {starship_el['Name']}")
+            logger.debug(f"   final seed: {starship_el['Resource']['Seed']}")
         
+        #logger.verbose(json.dumps(model_json, indent = 4))    
+            
+        self.blockSignals()
+        self.model.set_json(model_json)
         self.update_tree_from_model()
-        self.update_text_widget_from_model() 
+        self.update_text_widget_from_model()
+        self.unblockSignals()        
 
-        logger.debug("upgrade_starships() EXIT")        
+        logger.debug("2nd tab upgrade_starships() EXIT")        
         
-        
-        
-        
-        
-        
-        
-        
-        
-        
-
     def sync_text_from_tree_window(self):
-        logger.debug("sync from Tree Window ENTER")
+        logger.debug("2nd tab sync from Tree Window ENTER")
         self.update_model_from_tree()
         self.update_text_widget_from_model()        
-        logger.debug("sync from Tree Window EXIT")
+        logger.debug("2nd tab sync from Tree Window EXIT")
 
-    def text_changed_signal(self):
-        logger.debug("1st Tab text_changed_signal() enter")        
+    def update_model_from_text_edit(self):
+        logger.debug("1st Tab update_model_from_text_edit() enter")        
         self.update_tree_synced_indicator(False)
         new_text = self.text_edit.toPlainText()
         self.model.set_text(new_text)
-        logger.debug("1st Tab text_changed_signal() exit")
+        logger.debug("1st Tab update_model_from_text_edit() exit") 
 
     def populate_tree(self, data, parent=None):
-        logger.debug("populate_tree() ENTER")
+        logger.debug("2nd tab populate_tree() ENTER")
         if parent is None:
             parent = self.tree_widget.invisibleRootItem()
 
@@ -430,17 +375,17 @@ class SecondTabContent(BaseTabContent):
                 parent.addChild(item)
                 self.populate_tree(value, item)
                 
-        logger.debug("populate_tree() EXIT")                    
+        logger.debug("2nd tab populate_tree() EXIT")                    
 
     def update_text_widget_from_model(self):
-        logger.debug("1st Tab update_text_widget_from_model() enter")
+        logger.debug("2nd tab  update_text_widget_from_model() enter")
         #self.blockSignals()
         self.text_edit.setPlainText(self.model.get_text())
         #self.unblockSignals()
-        logger.debug("1st Tab update_text_widget_from_model() exit")
+        logger.debug("2nd tab  update_text_widget_from_model() exit")
   
     def update_tree_from_model(self):
-        logger.debug("update_tree_from_model() called")
+        logger.debug("2nd tab update_tree_from_model() called")
         
         json_data = self.load_json_from_model()
         if json_data is not None:            
@@ -449,14 +394,14 @@ class SecondTabContent(BaseTabContent):
             self.populate_tree_from_json(json_data)
             self.unblockSignals()
             
-            logger.debug("Tree view updated with model data.")            
+            logger.debug("2nd tab Tree view updated with model data.")            
             
     def update_model_from_tree(self):
         logger.debug(f"update_model_from_tree() ENTER")
         # To start from the root and traverse the whole tree:
         tree_data = self.tree_widget_data_to_json()
        
-        logger.verbose(f"tree string: {tree_data}")
+        logger.verbose(f"2nd tab tree string: {tree_data}")
         self.model.set_json(tree_data)
         
     def tree_widget_data_to_json(self, node_in = None): 
@@ -532,12 +477,12 @@ class SecondTabContent(BaseTabContent):
             return None        
             
     def clear_tree_view(self):
-        logger.debug("clear_tree_view() Called.")
+        logger.debug("2nd tab clear_tree_view() Called.")
         self.tree_widget.clear()        
 
     def populate_tree_from_json(self, json_data, parent_tree_node=None):
         #return
-        logger.debug("populate_tree_from_json() ENTER")
+        logger.debug("2nd tab populate_tree_from_json() ENTER")
 
         starship_count = 0
         line_count = 0
@@ -702,7 +647,7 @@ class SecondTabContent(BaseTabContent):
         self.tree_widget.expand_tree_to_level(1)
         self.bottom_left_label.setText(f"Number of Starships: {starship_count}")
         
-        logger.debug("populate_tree_from_json() EXIT") 
+        logger.debug("2nd tab populate_tree_from_json() EXIT") 
   
 
     def init_text(self):

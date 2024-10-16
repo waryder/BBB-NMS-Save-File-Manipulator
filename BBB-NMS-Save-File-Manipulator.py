@@ -6,6 +6,9 @@ from SecondTabContent import SecondTabContent
 
 
 class MainWindow(QMainWindow):
+    
+    background_processing_signal = pyqtSignal(int, str)
+    
     def __init__(self):
         logger.debug("MainWindow(QMainWindow).__init__ ENTER")
         super().__init__()
@@ -14,11 +17,14 @@ class MainWindow(QMainWindow):
 
         self.tab1 = FirstTabContent(self)
         self.tab2 = SecondTabContent(self)
+        self.background_processing_signal.connect(self.tab1.set_led_based_on_app_thread_load)
+        self.background_processing_signal.connect(self.tab2.set_led_based_on_app_thread_load)        
 
         self.tabs.addTab(self.tab1, 'Base Processing')
         self.tabs.addTab(self.tab2, 'Starship Processing')
 
-        self.tabs.currentChanged.connect(self.tab_changed)
+        self.tabs.tabBarClicked.connect(self.before_tab_change)
+        self.tabs.currentChanged.connect(self.after_tab_change)
 
         self.setCentralWidget(self.tabs)
         self.setWindowTitle('BBB NMS Save File Manipulator')
@@ -26,7 +32,7 @@ class MainWindow(QMainWindow):
 
         self.create_menu_bar()
         
-        self.tab1.set_led_based_on_app_thread_load(max_threads = 5)        
+        self.background_processing_signal.emit(5, "Main Window")
         logger.debug("MainWindow(QMainWindow).__init__ EXIT")        
 
     def create_menu_bar(self):
@@ -119,16 +125,17 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to save file: {e}")
 
+    def before_tab_change(self, index):
+        logger.debug(f"before_tab_changed() enter, index: {index}")
+        self.tab1.blockSignals() 
+        self.tab2.blockSignals()
+        logger.debug("before_tab_changed() exit")
 
-    def tab_changed(self, index):
-        logger.debug(f"tab_changed() enter, index: {index}")
-
-        try:
-            self.tabs.widget(index).update_text_widget_from_model()
-        except Exception as e:
-            logging.error(f"An error occurred: {e}")
-
-        logger.debug("tab_changed() exit")
+    def after_tab_change(self, index):
+        logger.debug(f"after_tab_changed() enter, index: {index}")
+        self.tab1.unblockSignals() 
+        self.tab2.unblockSignals()
+        logger.debug("after_tab_changed() exit")        
         
     def update_tabs_from_model(self):
         self.tab1.update_text_widget_from_model()
