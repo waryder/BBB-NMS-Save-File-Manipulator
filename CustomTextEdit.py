@@ -2,8 +2,9 @@ from imports import *
 
 class CustomTextEdit(QPlainTextEdit):
     def __init__(self, parent=None):
-        self.first_tab_obj = parent  # Reference to the parent tab object
         super(CustomTextEdit, self).__init__(parent)
+        self.first_tab_obj = parent  # Reference to the parent tab object
+        self.setLineWrapMode(QPlainTextEdit.NoWrap)
 
     def keyPressEvent(self, event):
         # Check if Ctrl+V or Cmd+V (on macOS) is pressed

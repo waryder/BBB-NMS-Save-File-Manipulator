@@ -3,6 +3,8 @@ from BaseTabContent import *
 from CustomTreeWidget import *
 from CustomTextEdit import *
 from DataModels import *
+from WhichStarshipsToUpgradeDialog import *
+from TextSearchDialog import *
 
 class SecondTabContent(BaseTabContent):
     def __init__(self, parent=None):
@@ -34,8 +36,8 @@ class SecondTabContent(BaseTabContent):
         # Initially set the indicator to red (off) and make it circular
         self.tree_synced_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
 ###
-        #self.sort_bases_by_gal_sys_name_button = QPushButton("Sort By Gal, Sys, Name")
-        #self.sort_bases_by_gal_sys_name_button.setFixedWidth(button_width)
+        self.upgrade_starships_button = QPushButton("Upgrade Starships")
+        self.upgrade_starships_button.setFixedWidth(button_width)
 ###    
         # Create the text label and indicator widget for Background Processing status
         self.status_label = QLabel("Background Processing:", self)  # Create a text label for "Status"
@@ -66,7 +68,7 @@ class SecondTabContent(BaseTabContent):
         left_buttons_lo = QHBoxLayout()
         left_buttons_lo.addWidget(self.sync_from_text_window_button)
         left_buttons_lo.addLayout(tree_synced_indicator_layout)
-        #left_buttons_lo.addWidget(self.sort_bases_by_gal_sys_name_button)
+        left_buttons_lo.addWidget(self.upgrade_starships_button)
         left_buttons_lo.addLayout(status_layout)  # Add the status layout to the left
         # Set alignment
         left_buttons_lo.setAlignment(Qt.AlignLeft)
@@ -149,7 +151,7 @@ class SecondTabContent(BaseTabContent):
 
         # Connect buttons to methods
         self.sync_from_text_window_button.clicked.connect(self.sync_from_text_window)
-        #self.sort_bases_by_gal_sys_name_button.clicked.connect(self.sort_bases_by_gal_sys_name)
+        self.upgrade_starships_button.clicked.connect(self.upgrade_starships)
         #self.right_button.clicked.connect(self.sync_text_from_tree_window)
         self.copy_button.clicked.connect(lambda: copy_to_clipboard(self.model, self))
         self.pretty_print_button.clicked.connect(lambda: pretty_print_text_widget(self.model, self))
@@ -243,60 +245,10 @@ class SecondTabContent(BaseTabContent):
         
     def search_text(self):       
         logger.debug("search_text() ENTER")
-        # Prompt the user to enter a search string
-        self.open_initial_text_search_dialog()
-        logger.debug("search_text() EXIT")
-
-    def handle_search_input(self, search_string):
-        if search_string:
-            self.current_search_string = search_string
-            self.last_cursor_position = self.text_edit.textCursor()
-            self.find_next_occurrence()            
-
-    def open_initial_text_search_dialog(self):
-        logger.debug("open_initial_text_search_dialog() ENTER")
-
         self.search_dialog = TextSearchDialog(self)
         self.search_dialog.show()
-        logger.debug("open_initial_text_search_dialog() EXIT")
-        
-    def find_next_occurrence(self):
-        logger.debug("find_next_occurrence() ENTER")
-        """
-        Searches for the next occurrence of the current search string starting 
-        from the last found position.
-        """
-        if not self.current_search_string:
-            return  # If no search string is set, return
+        logger.debug("search_text() EXIT")
 
-        # Get the QTextDocument object and continue searching from the current cursor position
-        document = self.text_edit.document()
-        cursor = document.find(self.current_search_string, self.text_edit.textCursor())
-        logger.verbose(f"Selection start and end: {cursor.selectionStart()}, {cursor.selectionEnd()}")
-        
-
-        # If no more occurrences are found, show a dialog box
-        if cursor.isNull():
-            self.text_edit.setTextCursor(self.last_cursor_position)  # Reset the text cursor
-            self.show_no_more_matches_dialog()
-        else:
-            
-            # Highlight the found occurrence and update the last cursor position
-            self.text_edit.setTextCursor(cursor)
-            
-            self.text_edit.ensureCursorVisible()  # Scroll to make the found text visible
-            self.last_cursor_position = self.text_edit.textCursor()  # Update the last position
-            
-        logger.debug("find_next_occurrence() EXIT")
-
-
-    # New method to show a dialog when no more matches are found
-    def show_no_more_matches_dialog(self):
-        """
-        Shows a message box when no more occurrences of the search string are found.
-        """
-        QMessageBox.information(self, "End of Search", "No more occurrences found.")        
-        
     def blockSignals(self):
         logger.debug("blockSignals() ENTER")
         
@@ -341,36 +293,113 @@ class SecondTabContent(BaseTabContent):
             
         self.tree_widget.expand_tree_to_level(1)
         self.update_tree_synced_indicator(True)            
-        print("Sync from Text Window EXIT")    
+        print("Sync from Text Window EXIT")
+
+    def return_json_from_file(self, filename):
+        current_directory = os.path.dirname(__file__)
+        file_path = os.path.join(current_directory, filename)
+        with open(file_path, 'r') as file:
+            return json.loads(file.read())
         
-    """ 
-    def sort_bases_by_gal_sys_name(self):
-        logger.debug("Sort Bases clicked")
+        
+        
+        
+        
+        
+        
+        
+    def upgrade_starships(self):
+        logger.debug("upgrade_starships() ENTER")
         
         self.set_led_based_on_app_thread_load()
-        
         model_json = self.model.get_json()
         
-        if(logging.getLogger().getEffectiveLevel() == logger.verbose):
-            for el in model_json:
-                galval = get_galaxy_system_planet_from_full_addr(el['GalacticAddress'])[GALAXY_FROM_GALACTIC_ADDR_IDX]
-                sysval = get_galaxy_system_planet_from_full_addr(el['GalacticAddress'])[SYSTEM_FROM_GALACTIC_ADDR_IDX]
-                logger.verbose(f"Gal: {galval}, Sys: {sysval}, {el['Name']}")
-        
-        # Sort model_json in place based on the desired key
-        model_json.sort(key=lambda el: (
-            int(get_galaxy_system_planet_from_full_addr(el['GalacticAddress'])[GALAXY_FROM_GALACTIC_ADDR_IDX], 16),  # galaxy (characters 5 and 6)
-            int(get_galaxy_system_planet_from_full_addr(el['GalacticAddress'])[SYSTEM_FROM_GALACTIC_ADDR_IDX], 16),  # system (characters 2 to 4)
-            el['Name'] # base_name
-        ))
-        
-        if(logging.getLogger().getEffectiveLevel() == logger.verbose):
-            for el in model_json:
-                logger.verbose(f"Gal: {get_galaxy_system_planet_from_full_addr(el['GalacticAddress'])[GALAXY_FROM_GALACTIC_ADDR_IDX]}, Sys: {get_galaxy_system_planet_from_full_addr(el['GalacticAddress'])[SYSTEM_FROM_GALACTIC_ADDR_IDX]}, {el['Name']}")
+        starship_names = []
+        for starship_el in model_json:
+            starship_names.append(starship_el['Name'])
+       
+        dialog = WhichStarshipsToUpgradeDialog(starship_names)
+        if dialog.exec_() == QDialog.Accepted:
+            # Show the selected items
+            selected_checkboxes = dialog.get_selected_items()
+            #QMessageBox.information(None, "Selected Items", f"Checked Options: {', '.join(selected_items)}")    
+             
+        #for starship_el in model_json:
+        for checkbox in selected_checkboxes:
+            starship_el = model_json[checkbox.property('starshipListIdx')]            
+            
+            name = starship_el['Name']
+            seed = starship_el['Resource']['Seed']
+            #need the second element of a 2 el list here:
+            seed = seed[1]
+            resource_filename = starship_el['Resource']['Filename']
+            
+            print(f"***name before: {name}") 
+            print(f"   seed before: {seed}") 
+                        
+            reference = ""
+            
+            if "SENTINEL" in resource_filename:
+                print(f"   ship_type: SENTINEL")
+                reference = self.return_json_from_file('reference_sentinel.json')
+                print(f"   ship_type: SENTINEL")
+            
+            elif "DROPSHIP" in resource_filename:
+                reference = self.return_json_from_file('reference_hauler.json')
+                print(f"   ship_type: DROPSHIP")
+            
+            elif "BIOSHIP" in resource_filename: 
+                reference = self.return_json_from_file('reference_living.json')
+                print(f"   ship_type: LIVING")
+
+            elif "SCIENTIFIC" in resource_filename:
+                reference = self.return_json_from_file('reference_explorer.json')
+                print(f"   ship_type: EXPLORER")                    
+
+            elif "SHUTTLE" in resource_filename:                          
+                reference = self.return_json_from_file('reference_shuttle.json')
+                print(f"   ship_type: SHUTTLE")
+                
+            elif "FIGHTER" in resource_filename:
+                reference = self.return_json_from_file('reference_fighter.json')
+                print(f"   ship_type: FIGHTER")
+            
+            elif "SAILSHIP" in resource_filename:
+                reference = self.return_json_from_file('reference_solar.json')
+                print(f"   ship_type: SOLAR")
+
+            elif "S-CLASS" in resource_filename:
+                reference = self.return_json_from_file('reference_royal.json')
+                print(f"   ship_type: ROYAL")
+                
+            else:
+                print ('ERROR');
+                
+            #assuming we found a valid data for each starship:
+            startship_el = reference
+            print(f"   >>>name (reference ship's) after overwrite: {startship_el['Name']}")
+            print(f"   >>>seed (reference ship's) after overwrite: {startship_el['Resource']['Seed']}")
+            
+            startship_el['Name'] = name
+            startship_el['Resource']['Seed'] = seed
+            print(f"   final name: {starship_el['Name']}")
+            print(f"   final seed: {starship_el['Resource']['Seed']}")
+ 
         
         self.update_tree_from_model()
-        self.update_text_widget_from_model()  
-    """        
+        self.update_text_widget_from_model() 
+
+        logger.debug("upgrade_starships() EXIT")        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
 
     def sync_text_from_tree_window(self):
         logger.debug("sync from Tree Window ENTER")
@@ -530,35 +559,37 @@ class SecondTabContent(BaseTabContent):
                 item.setData(0, QT_DATA_LINE_COUNT, line_count) #store off the expected line number upon generation of the text from this this tree 
                 
                 parent_tree_node.addChild(item)
-                
-                for idx, val in enumerate(json_data):
-                    logger.verbose(f"list child[{idx}], val={val}")
+
+                #if he has children:    
+                if json_data: 
+                    for idx, val in enumerate(json_data):
+                        logger.verbose(f"list child[{idx}], val={val}")
+                        
+                        if(isinstance(val, dict) or isinstance(val, list)):
+                            #for each of these child items go parse the next level of children:
+
+                            parse_item(val, item, level + 1)
+                        else:
+                            #child is a scaler value. Just add it.
+                            
+                            child_item = get_new_QTreeWidgetItem()
+                            child_item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, val) #add val as data bottom of this level                 
+
+                            child_item.setText(0, f"{val}")
+                            
+                            line_count += 1
+                            child_item.setData(0, QT_DATA_LINE_COUNT, line_count) #store off the expected line number upon generation of the text from this this tree 
+                            
+                            
+                            #child_item.setFlags(item.flags() | Qt.ItemIsEditable)  # Make item editable
+                            #current child_item to item for this level:
+                            item.addChild(child_item)
+                            #add item for this level in json data to the parent tree node that was passed in:
+                            parent_tree_node.addChild(item)
                     
-                    if(isinstance(val, dict) or isinstance(val, list)):
-                        #for each of these child items go parse the next level of children:
-
-                        parse_item(val, item, level + 1)
-                    else:
-                        #child is a scaler value. Just add it.
-                        
-                        child_item = get_new_QTreeWidgetItem()
-                        child_item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, val) #add val as data bottom of this level                 
-
-                        child_item.setText(0, f"{val}")
-                        
-                        line_count += 1
-                        child_item.setData(0, QT_DATA_LINE_COUNT, line_count) #store off the expected line number upon generation of the text from this this tree 
-                        
-                        
-                        #child_item.setFlags(item.flags() | Qt.ItemIsEditable)  # Make item editable
-                        #current child_item to item for this level:
-                        item.addChild(child_item)
-                        #add item for this level in json data to the parent tree node that was passed in:
-                        parent_tree_node.addChild(item)
-                
-                #at the end of processing a list, the text output will have a trailing '],' and
-                #so we need to adjust the line count for that on the way out: 
-                line_count += 1 
+                    #at the end of processing a list, the text output will have a trailing '],' and
+                    #so we need to adjust the line count for that on the way out: 
+                    line_count += 1 
             
             elif isinstance(json_data, dict):
                 logger.verbose(f"dict='{json_data}'")
@@ -585,15 +616,17 @@ class SecondTabContent(BaseTabContent):
                                
                 parent_tree_node.addChild(item)
                                 
-                for key, val in json_data.items():
-                    data_tuple = (key,val)
-                    
-                    logger.verbose(f"dict child tuple['{key}']: {val}")
-                    parse_item(data_tuple, item, level + 1)
-                    
-                #at the end of processing a dict, the text output will have a trailing '},' and
-                #so we need to adjust the line count for that on the way out: 
-                line_count += 1
+                #if he has children:    
+                if json_data:               
+                    for key, val in json_data.items():
+                        data_tuple = (key,val)
+                        
+                        logger.verbose(f"dict child tuple['{key}']: {val}")
+                        parse_item(data_tuple, item, level + 1)
+                        
+                    #at the end of processing a dict, the text output will have a trailing '},' and
+                    #so we need to adjust the line count for that on the way out: 
+                    line_count += 1
             
             elif isinstance(json_data, tuple):
                 logger.verbose(f"tuple='{json_data}'")

@@ -116,11 +116,13 @@ class IniFileManager:
     def __init__(self, ini_file=None):
         """
         Initializes the IniFileManager class.
-        :param ini_file: The path to the .ini file (default is 'app_preferences.ini').
+        :param ini_file: The path to the .ini file.
         """
         # Set the ini file path to be in the same directory as the script
         self.ini_file = os.path.join(os.path.dirname(__file__), ini_file)
         self.config = configparser.ConfigParser()
+        
+        #config = configparser.ConfigParser(allow_no_value=True)
 
         # Check if ini file exists, if not create a new one
         if os.path.exists(self.ini_file):
@@ -170,6 +172,30 @@ class IniFileManager:
         """
         if self.working_file_path:
             return os.path.basename(self.working_file_path)
-        return ''        
+        return ''
+
+    def get_reference_sentinel(self):
+        return self.config.get('Preferences', 'reference_sentinel', fallback='')
+        
+    def get_reference_hauler(self):
+        return self.config.get('Preferences', 'reference_hauler', fallback='')
+
+    def get_reference_living(self):
+        return self.config.get('Preferences', 'reference_living', fallback='')
+
+    def get_reference_explorer(self):
+        return self.config.get('Preferences', 'reference_explorer', fallback='')
+
+    def get_reference_shuttle(self):
+        return self.config.get('Preferences', 'reference_shuttle', fallback='')
+       
+    def get_reference_fighter(self):
+        return self.config.get('Preferences', 'reference_fighter', fallback='')
+
+    def get_reference_solar(self):
+        return self.config.get('Preferences', 'reference_solar', fallback='')        
+
+    def get_reference_royal(self):
+        return self.config.get('Preferences', 'reference_royal', fallback='')        
 
       

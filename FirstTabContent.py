@@ -3,6 +3,7 @@ from BaseTabContent import *
 from CustomTreeWidget import *
 from CustomTextEdit import *
 from DataModels import *
+from TextSearchDialog import *
 
 class FirstTabContent(BaseTabContent):
     def __init__(self, parent=None):
@@ -243,59 +244,9 @@ class FirstTabContent(BaseTabContent):
         
     def search_text(self):       
         logger.debug("search_text() ENTER")
-        # Prompt the user to enter a search string
-        self.open_initial_text_search_dialog()
-        logger.debug("search_text() EXIT")
-
-    def handle_search_input(self, search_string):
-        if search_string:
-            self.current_search_string = search_string
-            self.last_cursor_position = self.text_edit.textCursor()
-            self.find_next_occurrence()            
-
-    def open_initial_text_search_dialog(self):
-        logger.debug("open_initial_text_search_dialog() ENTER")
-
         self.search_dialog = TextSearchDialog(self)
         self.search_dialog.show()
-        logger.debug("open_initial_text_search_dialog() EXIT")
-        
-    def find_next_occurrence(self):
-        logger.debug("find_next_occurrence() ENTER")
-        """
-        Searches for the next occurrence of the current search string starting 
-        from the last found position.
-        """
-        if not self.current_search_string:
-            return  # If no search string is set, return
-
-        # Get the QTextDocument object and continue searching from the current cursor position
-        document = self.text_edit.document()
-        cursor = document.find(self.current_search_string, self.text_edit.textCursor())
-        logger.verbose(f"Selection start and end: {cursor.selectionStart()}, {cursor.selectionEnd()}")
-        
-
-        # If no more occurrences are found, show a dialog box
-        if cursor.isNull():
-            self.text_edit.setTextCursor(self.last_cursor_position)  # Reset the text cursor
-            self.show_no_more_matches_dialog()
-        else:
-            
-            # Highlight the found occurrence and update the last cursor position
-            self.text_edit.setTextCursor(cursor)
-            
-            self.text_edit.ensureCursorVisible()  # Scroll to make the found text visible
-            self.last_cursor_position = self.text_edit.textCursor()  # Update the last position
-            
-        logger.debug("find_next_occurrence() EXIT")
-
-
-    # New method to show a dialog when no more matches are found
-    def show_no_more_matches_dialog(self):
-        """
-        Shows a message box when no more occurrences of the search string are found.
-        """
-        QMessageBox.information(self, "End of Search", "No more occurrences found.")        
+        logger.debug("search_text() EXIT")
         
     def blockSignals(self):
         logger.debug("blockSignals() ENTER")

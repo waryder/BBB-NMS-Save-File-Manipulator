@@ -3,36 +3,7 @@ from NMSHelpMenu import NMSHelpMenu
 from FirstTabContent import FirstTabContent
 from SecondTabContent import SecondTabContent
     
-class TextSearchDialog(QDialog):  # Change QWidget to QDialog
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        
-        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
-        self.setWindowTitle("Search Dialog")
 
-        # Create a line edit for search input
-        self.line_edit = QLineEdit(self)
-        self.line_edit.setPlaceholderText("Enter search term")
-
-        # Create buttons for search and cancel
-        self.search_button = QPushButton("Search", self)
-        self.cancel_button = QPushButton("Cancel", self)
-
-        # Layout to hold widgets
-        layout = QVBoxLayout()
-        layout.addWidget(self.line_edit)
-        layout.addWidget(self.search_button)
-        layout.addWidget(self.cancel_button)
-        self.setLayout(layout)
-
-        # Connect buttons to respective methods
-        self.search_button.clicked.connect(self.perform_search)
-        self.cancel_button.clicked.connect(self.reject)  # Use reject() for canceling
-
-    def perform_search(self):
-        search_string = self.line_edit.text()
-        self.parent().handle_search_input(search_string)  # Handle search in parent
-        #self.accept()  # Close the dialog upon successful search
 
 class MainWindow(QMainWindow):
     def __init__(self):
