@@ -3,14 +3,14 @@ from imports import *
 class CustomTextEdit(QPlainTextEdit):
     def __init__(self, parent=None):
         super(CustomTextEdit, self).__init__(parent)
-        self.first_tab_obj = parent  # Reference to the parent tab object
+        self.parent_tab = parent  # Reference to the parent tab object
         self.setLineWrapMode(QPlainTextEdit.NoWrap)
 
     def keyPressEvent(self, event):
         # Check if Ctrl+V or Cmd+V (on macOS) is pressed
         if event.matches(QKeySequence.Paste):
             print("Text pasted via keyboard shortcut")
-            self.first_tab_obj.update_status_indicator_to_green(False)  # Update indicator
+            self.parent_tab.update_status_indicator_to_green(False, f"Cmd-V in {self.parent_tab.__class__.__name__}")  # Update indicator
             super(CustomTextEdit, self).keyPressEvent(event)  # Let the normal paste occur
         else:
             super(CustomTextEdit, self).keyPressEvent(event)
@@ -19,5 +19,5 @@ class CustomTextEdit(QPlainTextEdit):
         # Capture all paste events (context menu and programmatically)
         if event.type() == QEvent.Clipboard:
             print("Text pasted via paste event")
-            self.first_tab_obj.update_status_indicator_to_green(False)  # Update indicator
+            self.parent_tab.update_status_indicator_to_green(False)  # Update indicator
         return super(CustomTextEdit, self).event(event)

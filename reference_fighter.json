@@ -1,10 +1,10 @@
 {
-	"Name":"AFighter Reference TEST5",
+	"Name":"fighter 9_23_24-500",
 	"Resource":{
-		"Filename":"MODELS/COMMON/SPACECRAFT/FIGHTERS/FIGHTERSPECIALSWITCH.SCENE.MBIN",
+		"Filename":"MODELS/COMMON/SPACECRAFT/FIGHTERS/FIGHTER_PROC.SCENE.MBIN",
 		"Seed":[
 			true,
-			"0x5E037224D7F2443C"
+			"0x83970AB46347E8D3"
 		],
 		"AltId":"",
 		"ProceduralTexture":{
