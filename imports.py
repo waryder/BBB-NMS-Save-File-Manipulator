@@ -25,7 +25,6 @@ YELLOW_LED_COLOR = '#f9f906'
 
 global GALAXIES
 
-
 #************
 # CURRENT LOGGER LEVEL:
 app_log_level = logging.ERROR 
@@ -88,7 +87,7 @@ def get_galaxy_system_planet_from_full_addr(galactic_addr_in):
     
     return [galactic_address[gal_idx_slice], galactic_address[system_idx_slice], galactic_address[2]]  
 
-
+"""
 def global_exception_handler(exc_type, exc_value, exc_traceback):
     if issubclass(exc_type, KeyboardInterrupt):
         # Let KeyboardInterrupt exceptions pass through without logging
@@ -99,6 +98,10 @@ def global_exception_handler(exc_type, exc_value, exc_traceback):
     # Print the error and traceback
     print(f"Unhandled exception: {exc_value}")
     traceback.print_exception(exc_type, exc_value, exc_traceback)
+    
+# Set the global exception handler
+sys.excepthook = global_exception_handler
+"""     
     
 
 def safe_remove_qtreewidget_node(item):
@@ -120,9 +123,6 @@ def safe_remove_qtreewidget_node(item):
         
             if index != -1:
                 tree_widget.takeTopLevelItem(index)
-                
-# Set the global exception handler
-sys.excepthook = global_exception_handler                
                 
                 
 def init_galaxies():

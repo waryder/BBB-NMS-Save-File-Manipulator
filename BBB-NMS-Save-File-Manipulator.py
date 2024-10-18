@@ -1,17 +1,32 @@
 from imports import *
+
 from NMSHelpMenu import NMSHelpMenu  
 from FirstTabContent import FirstTabContent
 from SecondTabContent import SecondTabContent
+from IniFileManager import *
+
+def global_exception_handler(exc_type, exc_value, exc_traceback):
+    if issubclass(exc_type, KeyboardInterrupt):
+        # Let KeyboardInterrupt exceptions pass through without logging
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return        
     
+    # Print the error and traceback
+    print(f"Unhandled exception: {exc_value}")
+    traceback.print_exception(exc_type, exc_value, exc_traceback)
+    
+# Set the global exception handler
+sys.excepthook = global_exception_handler 
 
 
-class MainWindow(QMainWindow):
-    
-    background_processing_signal = pyqtSignal(int, str)
-    
+class MainWindow(QMainWindow):    
+    background_processing_signal = pyqtSignal(int, str)    
     def __init__(self):
         logger.debug("MainWindow(QMainWindow).__init__ ENTER")
+        self.ini_file_manager = ini_file_manager 
         super().__init__()
+        
+        #self.ini_file_manager = ini_file_manager #global
         
         self.tabs = QTabWidget()
 
@@ -54,7 +69,42 @@ class MainWindow(QMainWindow):
                 
         self.help_menu = NMSHelpMenu(self)  # Create an instance of the HelpMenu
         self.help_menu.create_help_menu(menu_bar)  # Add the Help menu to the menu bar
+                
+    def open_file(self):
+        active_tab = self.tabs.currentWidget()
+        result = ""
+        if active_tab == self.tab1:
+            result = self.ini_file_manager.open_file("tab1")
+        elif active_tab == self.tab2:
+            result = self.ini_file_manager.open_file("tab2")
+           
+        active_tab.blockSignals()   
+        active_tab.text_edit.setPlainText(result) 
+        active_tab.sync_from_text_window()
+        active_tab.unblockSignals()
+        
+    
+    def save_file(self):
+        active_tab = self.tabs.currentWidget()
+        if not active_tab.tree_synced:
+                active_tab.sync_from_text_window()
+        
+        if active_tab == self.tab1:
+            self.ini_file_manager.save_file("tab1", self.tab1.model.get_text())
+        elif active_tab == self.tab2:
+            self.ini_file_manager.save_file("tab2", self.tab2.model.get_text())
+        
+    def save_file_as(self):
+        active_tab = self.tabs.currentWidget()
+        if not active_tab.tree_synced:
+            active_tab.sync_from_text_window()
+        
+        if active_tab == self.tab1:
+            self.ini_file_manager.save_file_as("tab1", self.tab1.model.get_text())
+        elif active_tab == self.tab2:
+            self.ini_file_manager.save_file_as("tab2", self.tab2.model.get_text())
 
+    """
     def open_file(self):
         options = QFileDialog.Options()
         
@@ -81,9 +131,8 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to open file: {e}")
                 
-
     def save_file(self):
-        """Saves the file using the last saved path, or prompts if no path is set."""
+        #Saves the file using the last saved path, or prompts if no path is set.
         # Get the last working file path from the ini manager
         last_file_path = self.ini_file_manager.get_last_working_file_path()
         
@@ -103,7 +152,7 @@ class MainWindow(QMainWindow):
 
 
     def save_file_as(self):
-        """Implements the Save As functionality allowing the user to specify a file location."""
+        #Implements the Save As functionality allowing the user to specify a file location.
         # Get the preferences from the ini manager for the default save path
         save_file_name = QFileDialog.getSaveFileName(
             self, 'Save As', 
@@ -124,6 +173,7 @@ class MainWindow(QMainWindow):
             
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Failed to save file: {e}")
+    """
 
     def before_tab_change(self, index):
         logger.debug(f"before_tab_changed() enter, index: {index}")

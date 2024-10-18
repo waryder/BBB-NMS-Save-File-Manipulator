@@ -8,12 +8,11 @@ from TextSearchDialog import *
 
 class SecondTabContent(BaseTabContent):
     def __init__(self, parent=None):
-        self.main_window = parent
-        
-        self.ini_file_manager = IniFileManager('tab2_preferences.ini')
-        self.model = JsonArrayModel(self.ini_file_manager, self.init_text())
-        self.text_edit = None
-        
+        self.main_window = parent        
+        self.ini_file_manager = ini_file_manager        
+        #IniFileManager('tab2_preferences.ini')       
+        self.model = JsonArrayModel(self.ini_file_manager.get_last_tab2_working_file_path(), self.init_text())
+        self.text_edit = None        
         super().__init__(self.model, self.text_edit)        
         self.init_ui()
 
@@ -31,6 +30,7 @@ class SecondTabContent(BaseTabContent):
         self.tree_synced_label = QLabel("Tree Synced:", self)  # Create a text label for "Status"
         self.tree_synced_label.setFixedWidth(button_width - 75)
         
+        self.tree_synced = True        
         self.tree_synced_indicator = QWidget(self)  # Create a widget to represent the LED
         self.tree_synced_indicator.setFixedSize(10, 10)  # Set size to small (like an LED)
 
@@ -170,6 +170,7 @@ class SecondTabContent(BaseTabContent):
     # Function to update the indicator color (red or green)
     def update_tree_synced_indicator(self, green_if_true):
         logger.debug("2nd tab update_tree_synced_indicator() ENTER")
+        self.tree_synced = green_if_true
         palette = self.tree_synced_indicator.palette()
         
         if green_if_true:
@@ -239,9 +240,10 @@ class SecondTabContent(BaseTabContent):
         
         # Set tree from text
         try:
-            #update model from txt_widget:
-            self.text_changed_signal()
+            self.blockSignals()
+            self.update_model_from_text_edit()
             self.update_tree_from_model()
+            self.unblockSignals()
             
         except json.JSONDecodeError as e:
             QMessageBox.critical(self, "Error", f"Failed to parse JSON from text window: {e}")
@@ -353,11 +355,11 @@ class SecondTabContent(BaseTabContent):
         logger.debug("2nd tab sync from Tree Window EXIT")
 
     def update_model_from_text_edit(self):
-        logger.debug("1st Tab update_model_from_text_edit() enter")        
+        logger.debug("2nd Tab update_model_from_text_edit() enter")        
         self.update_tree_synced_indicator(False)
         new_text = self.text_edit.toPlainText()
         self.model.set_text(new_text)
-        logger.debug("1st Tab update_model_from_text_edit() exit") 
+        logger.debug("2nd Tab update_model_from_text_edit() exit") 
 
     def populate_tree(self, data, parent=None):
         logger.debug("2nd tab populate_tree() ENTER")

@@ -1,4 +1,5 @@
 from imports import *
+from IniFileManager import *
 
 global INIT_BASE_TEXT
 global INIT_STARSHIP_TEXT    
@@ -12,13 +13,14 @@ class DataModel(QObject):
     modelChanged = pyqtSignal()
     
     
-    def __init__(self, ini_file_manager):
+    def __init__(self, last_working_file_path):
         logger.debug("DataModel(QObject).__init__ ENTER")
         super().__init__()
         self.model_data = None
         
-        # Check if a file exists in the ini manager's last saved path
-        self.last_file_path = ini_file_manager.get_last_working_file_path()
+        #self.last_file_path = ini_file_manager.get_last_working_file_path()
+        self.last_file_path = last_working_file_path
+        
         logger.debug("DataModel(QObject).__init__ EXIT")
 
     # Accessor stubs
@@ -39,10 +41,10 @@ class DataModel(QObject):
             
 
 class JsonArrayModel(DataModel):
-    def __init__(self, ini_file_manager, INIT_TEXT = None):
+    def __init__(self, last_working_file_path, INIT_TEXT = None):
         logger.debug("JsonArrayModel(DataModel).__init__ ENTER")
         self.INIT_TEXT=INIT_TEXT
-        super().__init__(ini_file_manager)
+        super().__init__(last_working_file_path)
         self.init_model_data()
         
         logger.debug("JsonArrayModel(DataModel).__init__ EXIT") 
@@ -112,90 +114,3 @@ class JsonArrayModel(DataModel):
             
         logger.debug("__set_model_with_json_data() EXIT")  
         
-class IniFileManager:
-    def __init__(self, ini_file=None):
-        """
-        Initializes the IniFileManager class.
-        :param ini_file: The path to the .ini file.
-        """
-        # Set the ini file path to be in the same directory as the script
-        self.ini_file = os.path.join(os.path.dirname(__file__), ini_file)
-        self.config = configparser.ConfigParser()
-        
-        #config = configparser.ConfigParser(allow_no_value=True)
-
-        # Check if ini file exists, if not create a new one
-        if os.path.exists(self.ini_file):
-            self.config.read(self.ini_file)
-        else:
-            self.create_empty_ini_file()
-
-        # Initialize the working file path from the ini file if it exists
-        self.working_file_path = self.config.get('Preferences', 'working_file_path', fallback='')
-
-    def create_empty_ini_file(self):
-        """Creates an empty ini file if it doesn't exist."""
-        self.config['Preferences'] = {'working_file_path': ''}
-        with open(self.ini_file, 'w') as configfile:
-            self.config.write(configfile)
-
-    def store_current_working_file_path(self, file_path):
-        """
-        Stores the given file path in the ini file.
-        :param file_path: The full path of the working file to store.
-        """
-        self.config['Preferences'] = {'working_file_path': file_path}
-        with open(self.ini_file, 'w') as configfile:
-            self.config.write(configfile)
-        self.working_file_path = file_path
-
-    def get_last_working_file_path(self):
-        """
-        Retrieves the last stored working file path from the ini file.
-        :return: The last working file path or an empty string if not found.
-        """
-        return self.working_file_path
-
-    def get_last_working_file_directory(self):
-        """
-        Retrieves the directory of the last stored working file path.
-        :return: The directory of the working file, or an empty string if the path is not set.
-        """
-        if self.working_file_path:
-            return os.path.dirname(self.working_file_path)
-        return ''
-
-    def get_last_working_file_name(self):
-        """
-        Retrieves the file name of the last stored working file path.
-        :return: The file name of the working file, or an empty string if the path is not set.
-        """
-        if self.working_file_path:
-            return os.path.basename(self.working_file_path)
-        return ''
-
-    def get_reference_sentinel(self):
-        return self.config.get('Preferences', 'reference_sentinel', fallback='')
-        
-    def get_reference_hauler(self):
-        return self.config.get('Preferences', 'reference_hauler', fallback='')
-
-    def get_reference_living(self):
-        return self.config.get('Preferences', 'reference_living', fallback='')
-
-    def get_reference_explorer(self):
-        return self.config.get('Preferences', 'reference_explorer', fallback='')
-
-    def get_reference_shuttle(self):
-        return self.config.get('Preferences', 'reference_shuttle', fallback='')
-       
-    def get_reference_fighter(self):
-        return self.config.get('Preferences', 'reference_fighter', fallback='')
-
-    def get_reference_solar(self):
-        return self.config.get('Preferences', 'reference_solar', fallback='')        
-
-    def get_reference_royal(self):
-        return self.config.get('Preferences', 'reference_royal', fallback='')        
-
-      
