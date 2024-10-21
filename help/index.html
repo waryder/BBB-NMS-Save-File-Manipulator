@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+			<title>BBB NMS Save File Manipulator - Site Map</title>
+			<style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        ul.tree, ul.tree ul {
+            list-style-type: none;
+            padding-left: 20px;
+        }
+        ul.tree ul {
+            margin-left: 15px;
+        }
+        .tree li {
+            margin: 5px 0;
+            position: relative;
+        }
+        .tree li::before {
+            content: "";
+            position: absolute;
+            top: -7px;
+            left: -15px;
+            border-left: 1px solid #000;
+            border-bottom: 1px solid #000;
+            width: 15px;
+            height: 15px;
+        }
+		
+        .tree li::after {
+            position: absolute;
+            content: "";
+            top: 8px;
+            left: -15px;
+            border-left: 1px solid #000;
+            border-top: 1px solid #000;
+            width: 15px;
+            height: 100%;
+        }
+        /* Remove lines for last child */
+        .tree li:last-child::after {
+            display: none;
+        }
+        /* Style links */
+        a {
+            text-decoration: none;
+            color: #007BFF;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+		
+		.center-box {
+            width: 60%;
+            margin: 0 auto;
+            border: 0px solid #000;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+		
+		a[href="#"] {
+            pointer-events: none; /* Makes the link non-clickable */
+            font-weight: bold;    /* Bolds the text */
+            color: black;         /* Change color to black or any other */
+        }
+			</style>
+		</head>
+		<body id="top">
+			<div class="center-box">
+				<h1>BBB NMS Save File Manipulator - Help</h1>
+				<ul class="tree">
+					<li><a href="overview.html">Application Overview</a></li>
+					<li>
+						<a href="#">Base Processing Tab</a>
+						<ul>
+							<li>
+								<a href="#">File Menu</a><BR>
+								Open, Save, Save As - Typical file operations, in this case specific to saving off the complete base data represented in the tab. For example, I might name one of these files
+				"Save Slot 1 Bases".							<BR>
+								<BR>
+							</li>
+							<li>
+								<a href="#">Help Menu</a><BR>
+							    You are looking at it!<BR>
+								<BR>
+							</li>
+							<li>
+								<a href="#">Tree Window Functionality</a>
+								<ul>
+									<li>
+										<a href="#">"Sync from Text Window" Button</a><BR>
+								Syncs over data from the Text Edit box on the right. For performance reasons it is not prudent to update the tree on each key stroke in the text edit box. So instead we mark a status Led
+						telling you a sync is needed, and then you can decide when you want do a sync.											<BR>
+													<BR>
+									</li>
+									<li>
+										<a href="#">"Tree Synced" LED</a><BR>
+													
+							Indicates if the tree needs to be synched from the Text Edit box on the right. If Green, they are synced. If Red they are not synced.												<BR>
+														<BR>
+									</li>		
+									<li>
+													<a href="#">"Sort By Gal, Sys, Name" Button</a><BR>
+												
+							Sorts all top level Base Nodes by Galaxy, then by System within Galaxy,and then alphbetically by Name within the System. 
+							This function is really what motivated the entire application. In one click you have your bases organized in some way that makes sense.														<BR>
+																<BR>
+									</li>											
+									<li>
+													<a href="#">"Background Processing" LED</a><BR>
+												
+								Indicates if there is background processing happening. This app is intended to be able to work with very large files, but certain operations can cause lag
+								and slowness
+								in the app until they complete. (This was true especially early in development; at this point I have revised most operations observed to cause lag, however...) 
+								If this LED turns yellow YOU MAY STILL attempt further app use, but if you find you are not getting an immediate response to new inputs you may need to wait until
+								the LED turns green again. When the LED is green the app is in an idle state with little processing happening. (For techies: it's counting the number of child threads for the app
+								and thresholds determined via observation)																<BR>
+																		<BR/>
+									</li>						
+									<li>
+										<a href="#">Tree Right Click Menu</a>
+										<ul>
+											<li>
+												<a href="#">Common to all Tree Nodes</a>
+												<ul>
+													<li>
+														<a href="#">Highlight Text in Box</a><BR>
+											Will highlight and grab focus on the data source line corrisponding to right clicked tree node, in the text window on the right hand side.																						<BR>
+																								<BR/>
+													</li>
+													<li>
+														<a href="#">Toggle Expansion 2 Levels</a><BR><BR>
+										This will toggle node expansion. If the the node starts out closed, it will expand two levels deep from the right clicked node. If the node was already opened, it's just going to 
+										close the right clicked node.																							<BR>
+																									<BR/>
+													</li>
+													<li>
+														<a href="#">Delete Node</a><BR>
+										Deletes the right clicked node.																								<BR>
+																								<BR/>
+													</li>
+												</ul>
+											</li>
+											<li>
+												<a href="#">Specific to top level Base Nodes</a>
+												<ul>
+													<li>
+														<a href="#">Back Up a Base</a><BR>
+											Allows saving off a single base. The main thought for this feature within this tool is really to be able to easily move bases from one save to another.
+											It's obviously not going to complete with other save file editors for organizational feature richness in this area.																									<BR>
+																												<BR>
+													</li>
+												</ul>
+											</li>
+											<li>
+												<a href="#">Specific to the top most Array Node ONLY</a>
+												<ul>
+													<li>
+														<a href="#">Restore a Base</a><BR>
+				Will allow you to pick a previously backed up base file and then add a base node to the top of the tree.																											<BR>
+																							<BR>
+													</li>
+												</ul>
+											</li>
+										</ul>
+									</li>
+									<li>
+								<a href="#">Tree Drag and Drop Functionality</a><BR>
+Tree data nodes may be dragged and dropped to manually reorder within the tree. Tree view changed are automatically synced to the text window. Child nodes will be 
+prevented from moving unless they have the same data type in their parent nodes.
+Dragging upward amoungst direct siblings will drop the dragged node above above the targetted drop target.  
+Dragging downward amoungst direct siblings will drop the dragged node below the targetted drop target. If you drop to a target under a different parent, the draggd node will always
+drop below the drop target. The primary tested purpose for this is to allow manual reordering of the highest level base tree nodes.																								<BR>
+											<BR>
+									</li>
+								</ul>	
+							</li>
+							<li>
+								<a href="#">Text Edit Window Functionality</a>
+								<ul>
+									<li>
+										<a href="#">Some Button</a><BR>
+								Some description	<BR>
+													<BR>
+									</li>
+								</ul>			
+							</li>	
+								
+								
+							
+							
+							
+							
+							
+						</ul>
+					</li>
+					<li>
+						<a href="#">Starship Processing Tab</a>
+						<ul>
+							<li>Menu A
+								<ul>
+									<li>
+										<a href="#">Function A1</a>
+									</li>
+									<li>
+										<a href="#">Function A2</a>
+									</li>
+								</ul>
+							</li>
+							<li>Menu B
+								<ul>
+									<li>
+										<a href="#">Function B1</a>
+									</li>
+									<li>
+										<a href="#">Function B2</a>
+									</li>
+								</ul>
+							</li>
+						</ul>
+					</li>
+
+
+
+
+
+
+
+
+				
+				</ul>																	
+			<a href="#top">Back to the Top</a>
+		</div>
+	</body>
+</html>

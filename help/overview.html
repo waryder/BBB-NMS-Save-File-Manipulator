@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+			<title>Application Overview - BBB NMS Save File Manipulator</title>
+			<style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        a {
+            text-decoration: none;
+            color: #007BFF;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .center-box {
+            width: 60%;
+            margin: 0 auto;
+            border: 0px solid #000;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+    </style>
+		</head>
+		<body>
+			<div class="center-box">
+				<h1>BBB NMS Save File Manipulator Overview and Purpose</h1>
+				<p>
+					<a href="index.html">Back to Site Map</a>
+				</p>
+				<p>
+	Welcome to the BBB NMS Save File Manipulator application.
+	</p>
+				<p>
+DISCLAIMERS: I cannot be held liable for any damage this app causes. Period. I have been a software engineer for over 20 years and while I have a confidence in my work, I also
+know end users will find every flaw in even the best engineered applications, whereas I am a one man show over here. :) I recommend that you save off back up copies of your save files before you use any editor at all, and be 
+aware 
+that BBB NMS Save File Manipulator must really be used by technical experts only. If you are not super comfortable with JSON files, file manipulation, and all aspects of what you see
+in the app, just stop and do not use it! If you do find any errors I need to know about, I am BigBuffaloBill over on Discord. But please DO NOT write and tell me I wrecked your game! My answer will be "no problem; 
+just use the backup file I told you to make and go restore yourself." :) I do use this application regularly myself at this point.
+</p>
+				<p>
+This BBB NMS Save File Manipulator application is an attempt to plug some holes in fucntionality that I wanted to have related to NMS save file editing. First and foremost,  
+the project started because I wanted to be able to sort bases by galaxy and system. It is primarily a JSON file editor and in fact, it will attempt to use and some features will work on...
+any valid JSON data that is entered; it just may choke on any features that have been provided assuming the data will be as intended: NMS base data. 
+</p>
+				<p>
+I found that while I was testing the app,
+there were numbers of things I just wanted to be able to do as related to the original purpose. I did not want to step on toes and so my intent was to duplicate as
+little funtionality as possible available in the other major apps, those being goatfungus/NMSSaveEditor (https://github.com/goatfungus/NMSSaveEditor), 
+zencq/NomNom (https://github.com/zencq/NomNom), and Dr Kaii's NMS Companion (https://www.nexusmods.com/nomanssky/mods/1879). In fact, the easiest
+way to pull in the original base data into my app will be with NMS Save Editor (covered more later).
+</p>
+				<p>
+Current Features at a high level:
+</p>
+				<p>
+					<ul>
+						<li>
+Base or Starship Data pasted from another save editor, into the text window to the right of each tab, will load the tree view.
+</li>
+						<li>
+Tree data nodes may be dragged and dropped to manually reorder within the tree. Tree view changes are automatically synced to the text window. Child nodes will be 
+prevented from moving unless they have the same data type in their parent nodes.
+Dragging upward amoungst direct siblings will drop the dragged node above above the targetted drop target.  
+Dragging downward amoungst direct siblings will drop the dragged node below the targetted drop target. If you drop to a target under a different parent, the draggd node will always
+drop below the drop target.
+</li>
+						<li>You can freely edit the save data in the text window at will, similar to using any other basic text editor. Keep in mind no sytax checking is done. 
+						If you break thedata formatting over there, it's broken. That said, you can use this tool and never have to manually edit JSON text.
+</li>
+						<li>The "Tree Synched" LED indcates if the tree view data is consistent with the text view. This is green when they are in sync. If text data has been manually modified, The "Sync from Text Window" button will
+need to be pressed before the tree data will represent the latest data in the text window.
+</li>
+						<li>The Background Processing LED indicates if there is background processing happening. This app is intended to be able to work with very large files, but certain operations will cause lag and slowness
+in the app until they complete. If this LED turns yellow you can still attempt further app use, but if you find you are not getting an immediate response to new inputs you may need to wait until
+the LED turns green again. When the LED is green the app is in an idle state with little processing happening.
+</li>
+						<li>Further features will be dicussed as driven by description of the various menu items. Go back to the main help index to step through that material.
+</p>
+</ul>
+<BR>
+						<p>
+							<a href="index.html">Back to Site Map</a>
+						</p>
+						<!-- Add more detailed overview content here -->
+					</div>
+				</body>
+			</html>
