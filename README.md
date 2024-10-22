@@ -11,9 +11,11 @@ BBB NMS Save File Manipulator is a tool designed to help users manipulate No Man
 3. Extract the zip file to a folder on your computer.
 4. Open a terminal in the folder where you extracted the files (the same folder where `setup.py` is located).
 5. Run the following command to install the application:
-
 ```bash
-pip install .
-
-6. To run the application, use: bbb_nms_sfm
+>pip install .
+```
+6. To run the application, use:
+```bash
+>bbb_nms_sfm
+```
 
