@@ -14,3 +14,6 @@ BBB NMS Save File Manipulator is a tool designed to help users manipulate No Man
 
 ```bash
 pip install .
+
+6. To run the application, use: bbb_nms_sfm
+
