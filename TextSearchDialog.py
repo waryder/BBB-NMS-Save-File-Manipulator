@@ -14,8 +14,8 @@ class TextSearchDialog(QDialog):  # Change QWidget to QDialog
         self.line_edit.setPlaceholderText("Enter search term")
 
         # Create buttons for search and cancel
-        self.searchUp_button = QPushButton("Next Up", self)
-        self.searchDown_button = QPushButton("Next Down", self)
+        self.searchUp_button = QPushButton("Search Backward", self)
+        self.searchDown_button = QPushButton("Search Forward", self)
         self.cancel_button = QPushButton("Close", self)
 
         # Layout to hold widgets

@@ -70,8 +70,17 @@
 		<body id="top">
 			<div class="center-box">
 				<h1>BBB NMS Save File Manipulator - Help</h1>
+				DISCLAIMERS: I cannot be held liable for any damage this app causes. Period. I have been a software engineer for over 20 years and while I have a confidence in my work, 
+				I also know end users will find every flaw in even the best engineered applications, whereas I am a one man show over here. :) I recommend that you save off back up copies 
+				of your save files before you use any editor at all, and be aware that BBB NMS Save File Manipulator must really be used by technical experts only. If you are not super 
+				comfortable with JSON files, file manipulation, and all aspects of what you see in the app, just stop and do not use it! If you do find any errors I need to know about, 
+				I am BigBuffaloBill over on Discord. But please DO NOT write and tell me I wrecked your game! My answer will be "no problem; just use the backup file I told you to make
+				and go restore yourself." :) I do use this application regularly myself at this point, but I make backups just in case!!
+				
+				
 				<ul class="tree">
-					<li><a href="overview.html">Application Overview</a></li>
+					<li><a href="overview.html"><span style="font-weight: bold;">Application Overview</a></span></li>
+					<li><a href="typical_usage_flow.html"><span style="font-weight: bold;">Typical Usage Flow</a></span></li>					
 					<li>
 						<a href="#">Base Processing Tab</a>
 						<ul>
@@ -178,60 +187,166 @@ drop below the drop target. The primary tested purpose for this is to allow manu
 								</ul>	
 							</li>
 							<li>
-								<a href="#">Text Edit Window Functionality</a>
+								<a href="#">Text Area Window Functionality</a>
 								<ul>
 									<li>
-										<a href="#">Some Button</a><BR>
-								Some description	<BR>
-													<BR>
+										<a href="#">"Copy to Clipboard" Button"</a><BR>
+										This will copy the entirety of the text in the text area window, to your system clipboard as if you had done a select all, and copy. This is the easiest way
+										to grab all your changes and paste into the save editor of your choice for final output to the live game.
+										<BR>
+										<BR>
+									</li>
+									<li>
+										<a href="#">"Pretty Print" Button"</a><BR>
+										Reformats the bases Json in the text window in a more organized way.	
+										<BR>
+										<BR>
+									</li>
+									<li>
+										<a href="#">Text Area Right Click Menu</a><BR>
+										In this window the functionality will be pretty standard to any text editor. Of note, there is a search text feature. 
+										<BR>
+										<BR>
 									</li>
 								</ul>			
-							</li>	
-								
-								
-							
-							
-							
-							
-							
+							</li>
 						</ul>
 					</li>
 					<li>
 						<a href="#">Starship Processing Tab</a>
 						<ul>
-							<li>Menu A
+						<li>
+								<a href="#">File Menu</a><BR>
+								Please see the common information as provided up above in the 'Base Processing Tab' Section. <BR>
+								<BR>
+							</li>
+							<li>
+								<a href="#">Help Menu</a><BR>
+							    You are looking at it!<BR>
+								<BR>
+							</li>
+							<li>
+								<a href="#">Tree Window Functionality</a><BR>
 								<ul>
 									<li>
-										<a href="#">Function A1</a>
+										<a href="#">Common Functionality</a><BR>
+											As with most other detail in this "Starship Processing Tab" help section, much of the functionality is common to the information you may find up above,
+											but in this case used in a context of Starship data instead of Base data. I will highlight the one major 
+											difference next: the "Upgrade Starships" Button.<BR><BR>
 									</li>
 									<li>
-										<a href="#">Function A2</a>
-									</li>
+										<a href="#">"Upgrade Starships" Button</a><BR>
+										The functionality of this button will be to Upgrade all of your Starships as pasted into the text window, with one click. Read on to understand
+										process and setup.<BR><BR>
+										<ul>
+											<li>
+												<a href="#">General Functionality</a><BR>
+													The way it works is, for each Starship, your Starship Name and Seed are saved off. The Starship Seed is a hex data value that is used by
+													the game to specify all aesthetic aspects of your Starship. Build parts, color, physical configuration. We then replace each Starship's complete 
+													data with upgraded reference Starship data for the same type (Fighter, Sentinel, Hauler, etc) of Starship as the original. We then overwrite
+													the Name and Seed of the reference data with your orginal ship's data. In this way you end up with what is basically the same ship, but with all
+													the upgrades applied to it. (Please read on...)<BR>
+											<BR>
+											</li>
+											<li>
+												<a href="#">Reference Ship Data</a><BR>
+													For Each ship type of Explorer, Fighter, Hauler, Living, Royal, Sentinel, Shuttle, Solar (other ship types not yet tested, YMMV),
+													there is a reference file that lives in the same
+													directory as the program files, called respectfully: reference_explorer.json, reference_fighter.json, reference_hauler.json, reference_living.json,
+													reference_royal.json,
+													reference_sentinel.json, reference_shuttle.json, and reference_Solar.json. These come with the data I use to upgrade my own ships, but they each contain
+													the Json for a standard starship as you can grab from the other save editors. If you want to apply your own upgrades you would just copy the Json data
+													for a starship you want to use, and paste it into the appropriate reference file for the ship type. From that point on your data would be used for that
+													Starship type. <BR>													
+												<BR>
+											</li>
+											<li>
+												<a href="#">Actual Button Usage</a><BR>
+													When you hit the button you will be presented a dialog box allowing you to pick the starships you wish to upgrade. Only those startships indicated will
+													be upgraded. Just check off those you want to upgrade and hit enter. The results will be propegated to the Tree and Text windows.<BR>
+													<BR>
+													<span style="color: red; font-weight: bold;">***IMPORTANT***: Do NOT attempt to upgrade custom built or expedition ships
+													(Iron Vulture, Starborn Runner, etc)!!! I'll say it again: DO NOT ATTMEPT TO
+													UPGRADE CUSTOM BUILT OR EXPEDITION SHIPS!!!</span> 
+													These ships use
+													some additonal mechanism to determine physical characteristics of the ship beyond just a seed value, and honestly I'm not sure what that is. But 
+													I do know that 
+													<span style="color: red; font-weight: bold;">if you use this application to attempt to upgrade a custom built or expedition ship, 
+													you will end up with a standard hunk of crap looking ship as a result!</span><BR>
+													
+													
+												<BR>
+											</li>
+											
+											
+											
+											
+											
+										</ul>
+
+									</li>		
 								</ul>
+							</li>				
+
+
+
+							<li>
+								<a href="#">Text Area Window Functionality</a><BR>
+									Please see the common information as provided up above in the 'Base Processing Tab' Section. <BR>	
 							</li>
-							<li>Menu B
-								<ul>
-									<li>
-										<a href="#">Function B1</a>
-									</li>
-									<li>
-										<a href="#">Function B2</a>
-									</li>
-								</ul>
-							</li>
+
+
+
+							
 						</ul>
 					</li>
-
-
-
-
-
-
-
-
 				
 				</ul>																	
 			<a href="#top">Back to the Top</a>
 		</div>
 	</body>
 </html>
+
+<!--
+# MIT License
+#
+# Copyright (c) [Year] [Your Name or Your Company] <youremail@example.com>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# 1. The above copyright notice and this permission notice shall be included
+#    in all copies or substantial portions of the Software.
+#
+# 2. Attribution Requirement: Any use of this code, in whole or in part,
+#    must retain the following attribution notice in the source code comments:
+#    
+#    This code includes portions of the software originally developed by
+#    [Your Name or Your Company] <youremail@example.com>, available under the MIT License.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
+# This software makes use of PyQt5, which is licensed under the GPL v3 License.
+# The PyQt5 library is a third-party library that is not covered under the 
+# MIT License governing this software. As required by the GPL v3 License, 
+# the source code for this software is made available, and you are free to
+# modify and redistribute it under the terms of the GPL v3 License.
+#
+# You can find more details on the PyQt5 license here: https://www.riverbankcomputing.com/software/pyqt/license
+# To comply with the GPL v3 License, you must include the full source code and this 
+# license notice with any redistributions of this software that include PyQt5.
+-->
+
+
+    
+

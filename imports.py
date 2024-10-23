@@ -44,7 +44,7 @@ def verbose(self, message, *args, **kwargs):
 logging.Logger.verbose = verbose
 
 # Set up logging to include VERBOSE level messages
-logging.basicConfig(level=app_log_level, format='line %(lineno)d - %(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=app_log_level, format='%(filename)s # line %(lineno)d # %(asctime)s # %(levelname)s # %(message)s')
 
 # Get a logger instance
 logger = logging.getLogger(__name__)

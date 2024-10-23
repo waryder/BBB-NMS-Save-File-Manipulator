@@ -268,6 +268,7 @@ class SecondTabContent(BaseTabContent):
         for starship_el in model_json:
             starship_names.append(starship_el['Name'])
        
+        selected_checkboxes = []
         dialog = WhichStarshipsToUpgradeDialog(starship_names)
         if dialog.exec_() == QDialog.Accepted:
             # Show the selected items
@@ -275,76 +276,77 @@ class SecondTabContent(BaseTabContent):
             #QMessageBox.information(None, "Selected Items", f"Checked Options: {', '.join(selected_items)}")    
              
         #for starship_el in model_json:
-        for checkbox in selected_checkboxes:
-            starship_el = model_json[checkbox.property('starshipListIdx')]            
-            
-            name = copy.deepcopy(starship_el['Name'])
-            #need the second element of ['Seed'] here:
-            seed = copy.deepcopy(starship_el['Resource']['Seed'][1])
-            resource_filename = starship_el['Resource']['Filename']
-            
-            logger.debug(f"***name before: {name}") 
-            logger.debug(f"   seed before: {seed}") 
-                        
-            reference = ""
-            
-            if "SENTINEL" in resource_filename:
-                reference = self.return_json_from_file('reference_sentinel.json')
-                logger.verbose(f"   ship_type: SENTINEL")
-            
-            elif "DROPSHIP" in resource_filename:
-                reference = self.return_json_from_file('reference_hauler.json')
-                logger.verbose(f"   ship_type: DROPSHIP")
-            
-            elif "BIOSHIP" in resource_filename: 
-                reference = self.return_json_from_file('reference_living.json')
-                logger.verbose(f"   ship_type: LIVING")
-
-            elif "SCIENTIFIC" in resource_filename:
-                reference = self.return_json_from_file('reference_explorer.json')
-                logger.verbose(f"   ship_type: EXPLORER")                    
-
-            elif "SHUTTLE" in resource_filename:                          
-                reference = self.return_json_from_file('reference_shuttle.json')
-                logger.verbose(f"   ship_type: SHUTTLE")
+        if selected_checkboxes:                
+            for checkbox in selected_checkboxes:
+                starship_el = model_json[checkbox.property('starshipListIdx')]            
                 
-            elif "FIGHTER" in resource_filename:
-                reference = self.return_json_from_file('reference_fighter.json')
-                logger.verbose(f"   ship_type: FIGHTER")
-            
-            elif "SAILSHIP" in resource_filename:
-                reference = self.return_json_from_file('reference_solar.json')
-                logger.verbose(f"   ship_type: SOLAR")
+                name = copy.deepcopy(starship_el['Name'])
+                #need the second element of ['Seed'] here:
+                seed = copy.deepcopy(starship_el['Resource']['Seed'][1])
+                resource_filename = starship_el['Resource']['Filename']
+                
+                logger.debug(f"***name before: {name}") 
+                logger.debug(f"   seed before: {seed}") 
+                            
+                reference = ""
+                
+                if "SENTINEL" in resource_filename:
+                    reference = self.return_json_from_file('reference_sentinel.json')
+                    logger.verbose(f"   ship_type: SENTINEL")
+                
+                elif "DROPSHIP" in resource_filename:
+                    reference = self.return_json_from_file('reference_hauler.json')
+                    logger.verbose(f"   ship_type: DROPSHIP")
+                
+                elif "BIOSHIP" in resource_filename: 
+                    reference = self.return_json_from_file('reference_living.json')
+                    logger.verbose(f"   ship_type: LIVING")
 
-            elif "S-CLASS" in resource_filename:
-                reference = self.return_json_from_file('reference_royal.json')
-                logger.verbose(f"   ship_type: ROYAL")
+                elif "SCIENTIFIC" in resource_filename:
+                    reference = self.return_json_from_file('reference_explorer.json')
+                    logger.verbose(f"   ship_type: EXPLORER")                    
+
+                elif "SHUTTLE" in resource_filename:                          
+                    reference = self.return_json_from_file('reference_shuttle.json')
+                    logger.verbose(f"   ship_type: SHUTTLE")
+                    
+                elif "FIGHTER" in resource_filename:
+                    reference = self.return_json_from_file('reference_fighter.json')
+                    logger.verbose(f"   ship_type: FIGHTER")
                 
-            else:
-                print ('ERROR');                
+                elif "SAILSHIP" in resource_filename:
+                    reference = self.return_json_from_file('reference_solar.json')
+                    logger.verbose(f"   ship_type: SOLAR")
+
+                elif "S-CLASS" in resource_filename:
+                    reference = self.return_json_from_file('reference_royal.json')
+                    logger.verbose(f"   ship_type: ROYAL")
+                    
+                else:
+                    print ('ERROR');                
+                    
+                #assuming we found a valid data for each starship. Shouldn't need to deep copy, really anywhere in here but something was screwing up, so it can't hurt anything either:
+                starship_el = copy.deepcopy(reference)
+                logger.verbose(f"   >>>name (reference ship's) after overwrite: {starship_el['Name']}")
+                logger.verbose(f"   >>>seed (reference ship's) after overwrite: {starship_el['Resource']['Seed']}")
                 
-            #assuming we found a valid data for each starship. Shouldn't need to deep copy, really anywhere in here but something was screwing up, so it can't hurt anything either:
-            starship_el = copy.deepcopy(reference)
-            logger.verbose(f"   >>>name (reference ship's) after overwrite: {starship_el['Name']}")
-            logger.verbose(f"   >>>seed (reference ship's) after overwrite: {starship_el['Resource']['Seed']}")
+                starship_el['Name'] = name
+                starship_el['Resource']['Seed'][1] = seed
+                
+                model_json[checkbox.property('starshipListIdx')] = starship_el
+                
+                #logger.verbose(json.dumps(starship_el,indent = 4) + ',')            
+                
+                logger.debug(f"   final name: {starship_el['Name']}")
+                logger.debug(f"   final seed: {starship_el['Resource']['Seed']}")
             
-            starship_el['Name'] = name
-            starship_el['Resource']['Seed'][1] = seed
-            
-            model_json[checkbox.property('starshipListIdx')] = starship_el
-            
-            #logger.verbose(json.dumps(starship_el,indent = 4) + ',')            
-            
-            logger.debug(f"   final name: {starship_el['Name']}")
-            logger.debug(f"   final seed: {starship_el['Resource']['Seed']}")
-        
-        #logger.verbose(json.dumps(model_json, indent = 4))    
-            
-        self.blockSignals()
-        self.model.set_json(model_json)
-        self.update_tree_from_model()
-        self.update_text_widget_from_model()
-        self.unblockSignals()        
+            #logger.verbose(json.dumps(model_json, indent = 4))    
+                
+            self.blockSignals()
+            self.model.set_json(model_json)
+            self.update_tree_from_model()
+            self.update_text_widget_from_model()
+            self.unblockSignals()        
 
         logger.debug("2nd tab upgrade_starships() EXIT")        
         

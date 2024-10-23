@@ -1,81 +1,31 @@
 #NMSHelpMenu.py
 
-from imports import *
+import sys
+import webbrowser
+from PyQt5.QtWidgets import QAction, QDialog
+import os
 
-class NMSHelpMenu:
-    def __init__(self, parent):
-        # Parent is the main window instance
-        self.parent = parent
+class NMSHelpMenu(QDialog):
+    def __init__(self, parent=None):
+        super(NMSHelpMenu, self).__init__(parent)
+        self.setWindowTitle("Help Menu")
+        
+    def create_help_menu(self, menu_bar):
+        # Create the Help menu
+        help_menu = menu_bar.addMenu("Help")
 
-    def create_help_menu(self, menubar):
-        # Add the "Help" menu
-        help_menu = menubar.addMenu('Help')
-
-        # Create "Help" action
-        help_action = QAction('Help', self.parent)
-        help_action.triggered.connect(self.show_help_dialog)
+        # Add Help action
+        help_action = QAction("Open Help", self)
+        help_action.triggered.connect(self.open_help)
         help_menu.addAction(help_action)
 
-        # Create "Documentation" action
-        doc_action = QAction('Documentation', self.parent)
-        doc_action.triggered.connect(self.show_help_dialog)
-        help_menu.addAction(doc_action)
-
-    def show_help_dialog(self):
-        # Open the help dialog (using QTextBrowser with navigation)
-        dialog = NMSHelpDialog(self.parent)  # This is now NMSHelpDialog
-        dialog.exec_()
+    def open_help(self):
+        # Get the path to the help/index.html file
+        help_file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "help/index.html"))
+        # Open the help file in the system's default browser
+        webbrowser.open(f"file://{help_file_path}")
 
 
-class NMSHelpDialog(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Help")
-
-        # Create the QTextBrowser for displaying help content
-        self.text_browser = QTextBrowser()
-
-        # Load the main help page content
-        self.load_main_page()
-
-        # Connect link clicks to handle navigation using anchorClicked
-        self.text_browser.anchorClicked.connect(self.handle_link)
-
-        # Set up the layout
-        layout = QVBoxLayout()
-        layout.addWidget(self.text_browser)
-        self.setLayout(layout)
-
-    def load_main_page(self):
-        self.text_browser.setHtml('''
-            <h1>Main Help Page</h1>
-            <p>Welcome to the main help section.</p>
-            <p><a href="section1">Go to Section 1</a></p>
-            <p><a href="section2">Go to Section 2</a></p>
-        ''')
-
-    def load_section1(self):
-        self.text_browser.setHtml('''
-            <h2>Section 1</h2>
-            <p>This is the content of Section 1.</p>
-            <p><a href="main">Back to Main Help</a></p>
-        ''')
-
-    def load_section2(self):
-        self.text_browser.setHtml('''
-            <h2>Section 2</h2>
-            <p>This is the content of Section 2.</p>
-            <p><a href="main">Back to Main Help</a></p>
-        ''')
-
-    def handle_link(self, url):
-        link = url.toString()
-        if link == "main":
-            self.load_main_page()
-        elif link == "section1":
-            self.load_section1()
-        elif link == "section2":
-            self.load_section2()
             
             
             
