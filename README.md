@@ -1,7 +1,17 @@
 # BBB NMS Save File Manipulator
 
 ## Overview
-BBB NMS Save File Manipulator is a tool designed to help users manipulate No Man's Sky save files. 
+BBB NMS Save File Manipulator is a tool designed to help users manipulate No Man's Sky save files. The primary value adds at this point are one click base sort, drag and drop reordering of bases and starships, and one click comprehensive starship upgrades to your whole fleet. 
+
+At this point this is a raw version maybe worthy of evaluation but I do not claim this is production ready. I am releasing and promoting only for the purpose of solciting testing and and review of the current state. I do provide screenshots and help files as a seperate zip file if that's all you would like to look at at first.
+
+DISCLAIMERS: I cannot be held liable for any damage this app causes. Period. I have been a software engineer for over 20 years and while I have a confidence in my work, 
+				I also know end users will find every flaw in even the best engineered applications, whereas I am a one man show over here. :) I recommend that you save off back up copies 
+				of your save files before you use any editor at all, and be aware that BBB NMS Save File Manipulator must really be used by technical experts only. If you are not super 
+				comfortable with JSON files, file manipulation, and all aspects of what you see in the app, just stop and do not use it! If you do find any errors I need to know about, 
+				I am BigBuffaloBill over on Discord. But please DO NOT write and tell me I wrecked your game! My answer will be "no problem; just use the backup file I told you to make
+				and go restore yourself." :) I do use this application regularly myself at this point, but I make backups just in case!!
+				
 
 ## Installation Instructions
 
