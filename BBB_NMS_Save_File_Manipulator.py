@@ -1,3 +1,8 @@
+import sys, os
+
+# needed so that after formal install, python can find all the files:
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from imports import *
 
 from NMSHelpMenu import NMSHelpMenu  

@@ -2,8 +2,9 @@ from setuptools import setup, find_packages
 
 setup(
     name='BBB-NMS-SAVE-FILE-MANIPULATOR',
-    version='0.1.0-alpha',
-    packages=find_packages(),
+    version='0.1.2-alpha',
+    include_package_data=True,
+    package_dir={"": "BBB_NMS_Save_File_Manipulator"},
     install_requires=[
         'MouseInfo==0.1.3',
         'psutil==6.0.0',
@@ -19,9 +20,12 @@ setup(
         'pytweening==1.2.0',
         'yappi==1.6.0',
     ],
+    package_data={
+        'BBB_NMS_Save_File_Manipulator': ['help/*'],  # Include all files in the help directory
+    },
     entry_points={
         'console_scripts': [
-            'bbb_nms_sfm = BBB_NMS_Save_File_Manipulator.BBB-NMS-Save-File-Manipulator:main',
+            'bbb_nms_sfm = BBB_NMS_Save_File_Manipulator.BBB_NMS_Save_File_Manipulator:main',
         ],
     },
 )
