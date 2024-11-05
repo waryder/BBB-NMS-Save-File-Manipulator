@@ -54,15 +54,6 @@ def get_new_QTreeWidgetItem():
     widget.setFlags(widget.flags() | Qt.ItemIsDragEnabled | Qt.ItemIsDropEnabled)  # Make item drag and droppable Qt.ItemIsEditable
     return widget
     
-def pretty_print_text_widget(model, parentWindow = None):
-    logger.debug("pretty_print_text_widget() ENTER")
-    
-    parentWindow.text_changed_signal()
-    parentWindow.update_text_widget_from_model()
-        
-    logger.debug("pretty_print_text_widget() EXIT")
-
-        
 def get_num_app_child_threads():
     logger.verbose("get_num_app_child_threads() ENTER")
     # Get the current process (your application)

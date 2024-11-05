@@ -25,7 +25,35 @@ class BaseTabContent(QWidget):
     def copy_to_clipboard(self, parentWindow = None):
         clipboard = QApplication.clipboard()
         clipboard.setText(self.text_edit.toPlainText())
-        QMessageBox.information(parentWindow, "Copied", "Text copied to clipboard!")  
+        QMessageBox.information(parentWindow, "Copied", "Text copied to clipboard!")
+
+    def paste_to_text_window(self, parentWindow=None):
+        # Show confirmation dialog
+        reply = QMessageBox.question(
+            parentWindow,
+            "Confirm Overwrite",
+            "About to OVERWRITE All Data In The Text Window! Continue?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+
+        # If user chooses 'Yes', proceed to paste from clipboard
+        if reply == QMessageBox.Yes:
+            clipboard = QApplication.clipboard()
+            clipboard_text = clipboard.text()
+            if clipboard_text:
+                self.text_edit.setPlainText(clipboard_text)
+                QMessageBox.information(parentWindow, "Pasted", "Text pasted from clipboard!")
+            else:
+                QMessageBox.warning(parentWindow, "Clipboard Empty", "No text found in the clipboard!")
+
+    def pretty_print_text_widget(model, parentWindow=None):
+        logger.debug("pretty_print_text_widget() ENTER")
+
+        parentWindow.text_changed_signal()
+        parentWindow.update_text_widget_from_model()
+
+        logger.debug("pretty_print_text_widget() EXIT")
 
     # Function to update the indicator color (red or green)
     def update_status_indicator_to_green(self, green_if_true, context):

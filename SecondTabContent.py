@@ -89,10 +89,13 @@ class SecondTabContent(BaseTabContent):
         self.right_button = QPushButton("Synch from Tree Window")
         self.right_button.setFixedWidth(button_width)
 ###        
-        self.copy_button = QPushButton("Copy to Clipboard")  # New button for copying text
-        self.copy_button.setFixedWidth(button_width)
-###        
-        self.pretty_print_button = QPushButton("Pretty Print")  # New button for copying text
+        self.export_button = QPushButton("Export to Clipboard")
+        self.export_button.setFixedWidth(button_width)
+###
+        self.import_button = QPushButton("Import from Clipboard")
+        self.import_button.setFixedWidth(button_width)
+###
+        self.pretty_print_button = QPushButton("Pretty Print")
         self.pretty_print_button.setFixedWidth(button_width)
 ###        
         self.text_edit = CustomTextEdit(self)
@@ -121,7 +124,8 @@ class SecondTabContent(BaseTabContent):
         #right_button_layout.setSpacing(2)
         
         #right_button_layout.addWidget(self.right_button)
-        right_button_layout.addWidget(self.copy_button)
+        right_button_layout.addWidget(self.import_button)
+        right_button_layout.addWidget(self.export_button)
         right_button_layout.addWidget(self.pretty_print_button)
         
         right_pane_layout.addLayout(right_button_layout)
@@ -153,8 +157,8 @@ class SecondTabContent(BaseTabContent):
         # Connect buttons to methods
         self.sync_from_text_window_button.clicked.connect(self.sync_from_text_window)
         self.upgrade_starships_button.clicked.connect(self.upgrade_starships)
-        #self.right_button.clicked.connect(self.sync_text_from_tree_window)
-        self.copy_button.clicked.connect(lambda: self.copy_to_clipboard(self))
+        self.import_button.clicked.connect(lambda: self.paste_to_text_window(self))
+        self.export_button.clicked.connect(lambda: self.copy_to_clipboard(self))
         self.pretty_print_button.clicked.connect(lambda: pretty_print_text_widget(self.model, self))
         
         # Update tree from model
