@@ -46,15 +46,18 @@
 			<p>
 				The general intended flow is as follows, although in use I have added features that allow much convenience in varied uses and processes. But generally:
 				<ul>
-					<li>Similar to what is described for a tool like the Blender NMS Base Building Plugin, you would need to go to the right spot in something like the Goatfungus Save Editor and grab either all base data,
-					or all starship date depending on which tab you are working in within the BBB NMS SFM, and then "Select All" text in the tab's text box and do a Paste to replace it. In other words you want the latest
-					Goatfungus data to be the only data in the text box.<BR><BR>
-					(Be advised that when you fire up this application for the first time, dummy example data is hardcoded so that the text windows are populated with something to look at. This data is for show 
-					and for evaluation of the tool but not intended to be used for anything.) 
+					<li>Similar to what is described for a tool like the Blender NMS Base Building Plugin, you would need to go to the right spot in something like the Goatfungus Save Editor and grab the data for the tab you
+						are using in BBB NMS SFM. You copy this data and then use the "Import from Clipboard" button to load it into BBB NMS SFM:
+					<ul>
+						<li>Base Tab: use all Json in BaseContext->PlayerStateData->PersistentPlayerBases.</li>
+						<li>Starship Tab: use all data in BaseContext->PlayerStateData->ShipOwnership.</li>
+					</ul><BR>
+					<B>(Be advised that when you fire up this application for the first time, dummy example data is hardcoded so that the text windows are populated with something to look at. This data is for show
+					and for evaluation of the tool but not intended to be used for anything.)</B><BR><BR>
 					</li>
-					<li>Then you will do whatever work needed in BBB NMS SFM.
+					<li>Then you will do whatever work needed in BBB NMS SFM.<BR><BR>
 					</li>		
-					<li>Then you will reverse the process, copy the data back out of the BBB NMS SFM and back into the Goatfungus or other save file editor to be saved in a live game context.
+					<li>Then you will reverse the process, use the 'Export to Clipboard" buttonb to copy the data back out of the BBB NMS SFM and back into the Goatfungus or other save file editor to be saved in a live game context.
 					</li>
 				</ul>		
 			</p>				

@@ -20,35 +20,37 @@ class SecondTabContent(BaseTabContent):
         self.search_dialog = None
 
         # Set static width for buttons
-        button_width = 140
+        #button_width = 140
                           
 #left pane:
         self.sync_from_text_window_button = QPushButton("Sync from Text Window")
-        self.sync_from_text_window_button.setFixedWidth(button_width)
+        self.sync_from_text_window_button.setFixedWidth(self.button_width)
 ###
         # Create the text label and indicator widget for Tree sync status
-        self.tree_synced_label = QLabel("Tree Synced:", self)  # Create a text label for "Status"
-        self.tree_synced_label.setFixedWidth(button_width - 75)
+        #self.tree_synced_label = QLabel("Tree Synced:", self)  # Create a text label for "Status"
+        #self.tree_synced_label.setFixedWidth(self.button_width - 75)
         
-        self.tree_synced = True        
-        self.tree_synced_indicator = QWidget(self)  # Create a widget to represent the LED
-        self.tree_synced_indicator.setFixedSize(10, 10)  # Set size to small (like an LED)
+        #self.tree_synced = True
+        #self.tree_synced_indicator = QWidget(self)  # Create a widget to represent the LED
+        #self.tree_synced_indicator.setFixedSize(10, 10)  # Set size to small (like an LED)
+        #self.tree_synced_indicator.setToolTip("Is tree synced from Text Window? Green=Yes. Red=No.")
 
         # Initially set the indicator to red (off) and make it circular
-        self.tree_synced_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
+        #self.tree_synced_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
 ###
         self.upgrade_starships_button = QPushButton("Upgrade Starships")
-        self.upgrade_starships_button.setFixedWidth(button_width)
+        self.upgrade_starships_button.setFixedWidth(self.button_width)
 ###    
         # Create the text label and indicator widget for Background Processing status
-        self.status_label = QLabel("Background Processing:", self)  # Create a text label for "Status"
-        self.status_label.setFixedWidth(button_width - 25)
+        #self.status_label = QLabel("Background Processing:", self)  # Create a text label for "Status"
+        #self.status_label.setFixedWidth(self.button_width - 25)
         
-        self.status_indicator = QWidget(self)  # Create a widget to represent the LED
-        self.status_indicator.setFixedSize(10, 10)  # Set size to small (like an LED)
+        #self.status_indicator = QWidget(self)  # Create a widget to represent the LED
+        #self.status_indicator.setFixedSize(10, 10)  # Set size to small (like an LED)
+        #self.status_indicator.setToolTip("Heavy Background Processing Occurring? Green=No. Yellow=Yes.")
 
         # Initially set the indicator to red (off) and make it circular
-        self.status_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
+        #self.status_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
 ###        
         # Create tree widget and text edit
         #self.tree_widget = QTreeWidget()
@@ -87,16 +89,16 @@ class SecondTabContent(BaseTabContent):
         
 #right pane: 
         self.right_button = QPushButton("Synch from Tree Window")
-        self.right_button.setFixedWidth(button_width)
+        self.right_button.setFixedWidth(self.button_width)
 ###        
         self.export_button = QPushButton("Export to Clipboard")
-        self.export_button.setFixedWidth(button_width)
+        self.export_button.setFixedWidth(self.button_width)
 ###
         self.import_button = QPushButton("Import from Clipboard")
-        self.import_button.setFixedWidth(button_width)
+        self.import_button.setFixedWidth(self.button_width)
 ###
         self.pretty_print_button = QPushButton("Pretty Print")
-        self.pretty_print_button.setFixedWidth(button_width)
+        self.pretty_print_button.setFixedWidth(self.button_width)
 ###        
         self.text_edit = CustomTextEdit(self)
                 
@@ -123,7 +125,6 @@ class SecondTabContent(BaseTabContent):
         right_button_layout.setAlignment(Qt.AlignLeft)
         #right_button_layout.setSpacing(2)
         
-        #right_button_layout.addWidget(self.right_button)
         right_button_layout.addWidget(self.import_button)
         right_button_layout.addWidget(self.export_button)
         right_button_layout.addWidget(self.pretty_print_button)
@@ -131,7 +132,6 @@ class SecondTabContent(BaseTabContent):
         right_pane_layout.addLayout(right_button_layout)
         right_pane_layout.addWidget(self.text_edit)
         right_pane_layout.addWidget(self.bottom_right_label)
-        
 
         right_container = QWidget()
         right_container.setLayout(right_pane_layout)
@@ -159,7 +159,7 @@ class SecondTabContent(BaseTabContent):
         self.upgrade_starships_button.clicked.connect(self.upgrade_starships)
         self.import_button.clicked.connect(lambda: self.paste_to_text_window(self))
         self.export_button.clicked.connect(lambda: self.copy_to_clipboard(self))
-        self.pretty_print_button.clicked.connect(lambda: pretty_print_text_widget(self.model, self))
+        self.pretty_print_button.clicked.connect(lambda: self.pretty_print_text_widget(self.model, self))
         
         # Update tree from model
         self.update_tree_from_model()
@@ -279,12 +279,17 @@ class SecondTabContent(BaseTabContent):
             selected_checkboxes = dialog.get_selected_items()
             #QMessageBox.information(None, "Selected Items", f"Checked Options: {', '.join(selected_items)}")    
              
+
+        upgraded_starship_names = ""
+
         #for starship_el in model_json:
         if selected_checkboxes:                
             for checkbox in selected_checkboxes:
                 starship_el = model_json[checkbox.property('starshipListIdx')]            
                 
                 name = copy.deepcopy(starship_el['Name'])
+                upgraded_starship_names += f"\u2713 {name}\n"
+
                 #need the second element of ['Seed'] here:
                 seed = copy.deepcopy(starship_el['Resource']['Seed'][1])
                 resource_filename = starship_el['Resource']['Filename']
@@ -348,9 +353,11 @@ class SecondTabContent(BaseTabContent):
                 
             self.blockSignals()
             self.model.set_json(model_json)
-            self.update_tree_from_model()
             self.update_text_widget_from_model()
-            self.unblockSignals()        
+            self.update_tree_from_model()
+            self.unblockSignals()
+
+            QMessageBox.information(None, "Starships Upgraded", "Your selected starships have been Upgraded:\n\n" + upgraded_starship_names)
 
         logger.debug("2nd tab upgrade_starships() EXIT")        
         
@@ -391,19 +398,7 @@ class SecondTabContent(BaseTabContent):
         self.text_edit.setPlainText(self.model.get_text())
         #self.unblockSignals()
         logger.debug("2nd tab  update_text_widget_from_model() exit")
-  
-    def update_tree_from_model(self):
-        logger.debug("2nd tab update_tree_from_model() called")
-        
-        json_data = self.load_json_from_model()
-        if json_data is not None:            
-            self.blockSignals()
-            self.clear_tree_view()
-            self.populate_tree_from_json(json_data)
-            self.unblockSignals()
-            
-            logger.debug("2nd tab Tree view updated with model data.")            
-            
+
     def update_model_from_tree(self):
         logger.debug(f"update_model_from_tree() ENTER")
         # To start from the root and traverse the whole tree:

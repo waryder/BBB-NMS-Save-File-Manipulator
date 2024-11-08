@@ -1,13 +1,39 @@
 from imports import *
 
 class BaseTabContent(QWidget):
-    
-    
     def __init__(self, model, text_edit):
         super().__init__()
         self.model = model
         self.text_edit = text_edit
-                        
+
+        # Set static width for buttons
+        self.button_width = 140
+
+        ###
+        # Create the text label and indicator widget for Tree sync status
+        self.tree_synced_label = QLabel("Tree Synced:", self)  # Create a text label for "Status"
+        self.tree_synced_label.setFixedWidth(self.button_width - 75)
+
+        self.tree_synced = True
+        self.tree_synced_indicator = QWidget(self)  # Create a widget to represent the LED
+        self.tree_synced_indicator.setFixedSize(10, 10)  # Set size to small (like an LED)
+        self.tree_synced_indicator.setToolTip("Is tree synced from Text Window? Green=yes. Red=no.")
+
+        # Initially set the indicator to red (off) and make it circular
+        self.tree_synced_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
+
+        ###
+        # Create the text label and indicator widget for Background Processing status
+        self.status_label = QLabel("Background Processing:", self)  # Create a text label for "Status"
+        self.status_label.setFixedWidth(self.button_width - 25)
+
+        self.status_indicator = QWidget(self)  # Create a widget to represent the LED
+        self.status_indicator.setFixedSize(10, 10)  # Set size to small (like an LED)
+        self.status_indicator.setToolTip("Heavy Background Processing Occurring? Green=No. Yellow=Yes.")
+
+        # Initially set the indicator to red (off) and make it circular
+        self.status_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
+
     def update_text_widget_from_model(self):
         pass
 
@@ -43,15 +69,20 @@ class BaseTabContent(QWidget):
             clipboard_text = clipboard.text()
             if clipboard_text:
                 self.text_edit.setPlainText(clipboard_text)
+                parentWindow.sync_from_text_window()
                 QMessageBox.information(parentWindow, "Pasted", "Text pasted from clipboard!")
             else:
                 QMessageBox.warning(parentWindow, "Clipboard Empty", "No text found in the clipboard!")
 
-    def pretty_print_text_widget(model, parentWindow=None):
+    def pretty_print_text_widget(self, model, parentWindow=None):
         logger.debug("pretty_print_text_widget() ENTER")
 
-        parentWindow.text_changed_signal()
+        #grab the current data from the text window in case any changes were made:
+        parentWindow.update_model_from_text_edit()
+        #reload the text window from the model, which will result in the pretty print reformatting:
         parentWindow.update_text_widget_from_model()
+        #now update the tree window to make sure allviews are consistent:
+        parentWindow.update_tree_from_model()
 
         logger.debug("pretty_print_text_widget() EXIT")
 
@@ -95,10 +126,23 @@ class BaseTabContent(QWidget):
         
         #wait 2 seconds on the first run:
         QTimer.singleShot(2000, run)
-        logger.verbose("set_led_based_on_app_thread_load() EXIT") 
-        
-        
-# MIT License
+        logger.verbose("set_led_based_on_app_thread_load() EXIT")
+
+    def update_tree_from_model(self):
+        logger.debug("1st tab update_tree_from_model() called")
+
+        json_data = self.load_json_from_model()
+        if json_data is not None:
+            self.blockSignals()
+            self.clear_tree_view()
+            self.populate_tree_from_json(json_data)
+            self.unblockSignals()
+            self.update_tree_synced_indicator(True)
+
+            logger.debug("1st tab Tree view updated with model data.")
+
+
+        # MIT License
 #
 # Copyright (c) 2024 BigBuffaloBill - Bill Ryder <me@billryder.com>
 #

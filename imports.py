@@ -78,22 +78,6 @@ def get_galaxy_system_planet_from_full_addr(galactic_addr_in):
     
     return [galactic_address[gal_idx_slice], galactic_address[system_idx_slice], galactic_address[2]]  
 
-"""
-def global_exception_handler(exc_type, exc_value, exc_traceback):
-    if issubclass(exc_type, KeyboardInterrupt):
-        # Let KeyboardInterrupt exceptions pass through without logging
-        sys.__excepthook__(exc_type, exc_value, exc_traceback)
-        return
-        
-    
-    # Print the error and traceback
-    print(f"Unhandled exception: {exc_value}")
-    traceback.print_exception(exc_type, exc_value, exc_traceback)
-    
-# Set the global exception handler
-sys.excepthook = global_exception_handler
-"""     
-    
 
 def safe_remove_qtreewidget_node(item):
     # Recursively delete all children of the item first
@@ -114,7 +98,6 @@ def safe_remove_qtreewidget_node(item):
         
             if index != -1:
                 tree_widget.takeTopLevelItem(index)
-                
                 
 def init_galaxies():
     GALAXIES = {}

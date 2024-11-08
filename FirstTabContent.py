@@ -19,35 +19,37 @@ class FirstTabContent(BaseTabContent):
         self.search_dialog = None
 
         # Set static width for buttons
-        button_width = 140
+        #button_width = 140
                           
 #left pane:
         self.sync_from_text_window_button = QPushButton("Sync from Text Window")
-        self.sync_from_text_window_button.setFixedWidth(button_width)
+        self.sync_from_text_window_button.setFixedWidth(self.button_width)
 ###
         # Create the text label and indicator widget for Tree sync status
-        self.tree_synced_label = QLabel("Tree Synced:", self)  # Create a text label for "Status"
-        self.tree_synced_label.setFixedWidth(button_width - 75)
+        #self.tree_synced_label = QLabel("Tree Synced:", self)  # Create a text label for "Status"
+        #self.tree_synced_label.setFixedWidth(self.button_width - 75)
         
-        self.tree_synced = True
-        self.tree_synced_indicator = QWidget(self)  # Create a widget to represent the LED
-        self.tree_synced_indicator.setFixedSize(10, 10)  # Set size to small (like an LED)
+        #self.tree_synced = True
+        #self.tree_synced_indicator = QWidget(self)  # Create a widget to represent the LED
+        #self.tree_synced_indicator.setFixedSize(10, 10)  # Set size to small (like an LED)
+        #self.tree_synced_indicator.setToolTip("Is tree synced from Text Window? Green=yes. Red=no.")
 
         # Initially set the indicator to red (off) and make it circular
-        self.tree_synced_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
+        #self.tree_synced_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
 ###
         self.sort_bases_by_gal_sys_name_button = QPushButton("Sort By Gal, Sys, Name")
-        self.sort_bases_by_gal_sys_name_button.setFixedWidth(button_width)
+        self.sort_bases_by_gal_sys_name_button.setFixedWidth(self.button_width)
 ###    
         # Create the text label and indicator widget for Background Processing status
-        self.status_label = QLabel("Background Processing:", self)  # Create a text label for "Status"
-        self.status_label.setFixedWidth(button_width - 25)
+        #self.status_label = QLabel("Background Processing:", self)  # Create a text label for "Status"
+        #self.status_label.setFixedWidth(self.button_width - 25)
         
-        self.status_indicator = QWidget(self)  # Create a widget to represent the LED
-        self.status_indicator.setFixedSize(10, 10)  # Set size to small (like an LED)
+        #self.status_indicator = QWidget(self)  # Create a widget to represent the LED
+        #self.status_indicator.setFixedSize(10, 10)  # Set size to small (like an LED)
+        #self.status_indicator.setToolTip("Heavy Background Processing Occurring? Green=No. Yellow=Yes.")
 
         # Initially set the indicator to red (off) and make it circular
-        self.status_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
+        #self.status_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
 ###        
         # Create tree widget and text edit
         #self.tree_widget = QTreeWidget()
@@ -86,13 +88,16 @@ class FirstTabContent(BaseTabContent):
         
 #right pane: 
         self.right_button = QPushButton("Synch from Tree Window")
-        self.right_button.setFixedWidth(button_width)
+        self.right_button.setFixedWidth(self.button_width)
 ###        
-        self.copy_button = QPushButton("Copy to Clipboard")  # New button for copying text
-        self.copy_button.setFixedWidth(button_width)
+        self.export_button = QPushButton("Export to Clipboard")
+        self.export_button.setFixedWidth(self.button_width)
+        ###
+        self.import_button = QPushButton("Import from Clipboard")
+        self.import_button.setFixedWidth(self.button_width)
 ###        
         self.pretty_print_button = QPushButton("Pretty Print")  # New button for copying text
-        self.pretty_print_button.setFixedWidth(button_width)
+        self.pretty_print_button.setFixedWidth(self.button_width)
 ###        
         self.text_edit = CustomTextEdit(self)
                 
@@ -118,9 +123,9 @@ class FirstTabContent(BaseTabContent):
         right_button_layout = QHBoxLayout()
         right_button_layout.setAlignment(Qt.AlignLeft)
         #right_button_layout.setSpacing(2)
-        
-        #right_button_layout.addWidget(self.right_button)
-        right_button_layout.addWidget(self.copy_button)
+
+        right_button_layout.addWidget(self.import_button)
+        right_button_layout.addWidget(self.export_button)
         right_button_layout.addWidget(self.pretty_print_button)
         
         right_pane_layout.addLayout(right_button_layout)
@@ -152,8 +157,9 @@ class FirstTabContent(BaseTabContent):
         self.sync_from_text_window_button.clicked.connect(self.sync_from_text_window)
         self.sort_bases_by_gal_sys_name_button.clicked.connect(self.sort_bases_by_gal_sys_name)
         #self.right_button.clicked.connect(self.sync_text_from_tree_window)
-        self.copy_button.clicked.connect(lambda: self.copy_to_clipboard(self))
-        self.pretty_print_button.clicked.connect(lambda: pretty_print_text_widget(self.model, self))
+        self.import_button.clicked.connect(lambda: self.paste_to_text_window(self))
+        self.export_button.clicked.connect(lambda: self.copy_to_clipboard(self))
+        self.pretty_print_button.clicked.connect(lambda: self.pretty_print_text_widget(self.model, self))
         
         # Update tree from model
         self.update_tree_from_model()
@@ -249,23 +255,12 @@ class FirstTabContent(BaseTabContent):
         self.tree_widget.expand_tree_to_level(1)
         self.update_tree_synced_indicator(True)            
         print("1st Tab Sync from Text Window EXIT")
-        
             
     def sort_bases_by_gal_sys_name(self):
         logger.debug("1st tab Sort Bases clicked")
         self.main_window.background_processing_signal.emit(4, "1st Tab")
-        
         model_json = self.model.get_json()
-       
-        """
-        #Sort model_json in place based on the desired key
-        model_json.sort(key=lambda el: (
-            int(get_galaxy_system_planet_from_full_addr(el['GalacticAddress'])[GALAXY_FROM_GALACTIC_ADDR_IDX], 16),  # galaxy (characters 5 and 6)
-            int(get_galaxy_system_planet_from_full_addr(el['GalacticAddress'])[SYSTEM_FROM_GALACTIC_ADDR_IDX], 16),  # system (characters 2 to 4)
-            el['Name'] # base_name
-        ))
-        """
-        
+
         model_json.sort(key=lambda el: (
             int(get_galaxy_system_planet_from_full_addr(el['GalacticAddress'])[GALAXY_FROM_GALACTIC_ADDR_IDX], 16) if el.get('GalacticAddress') else 0,  # default galaxy value
             int(get_galaxy_system_planet_from_full_addr(el['GalacticAddress'])[SYSTEM_FROM_GALACTIC_ADDR_IDX], 16) if el.get('GalacticAddress') else 0,  # default system value
@@ -280,12 +275,13 @@ class FirstTabContent(BaseTabContent):
 
             # Print the sorting values used
             print(f"Debug key values: Galaxy: {galaxy_value}, System: {system_value}, Name: {name_value}")
-        
 
         self.blockSignals()
+        self.update_text_widget_from_model()
         self.update_tree_from_model()
-        self.update_text_widget_from_model()        
         self.unblockSignals()
+
+        QMessageBox.information(self, "Bases Sorted", "Base data has been sorted successfully!")
 
     def sync_text_from_tree_window(self):
         logger.debug("1st tab sync from Tree Window ENTER")
@@ -325,18 +321,6 @@ class FirstTabContent(BaseTabContent):
         #self.unblockSignals()
         logger.debug("1st Tab update_text_widget_from_model() exit")
   
-    def update_tree_from_model(self):
-        logger.debug("1st tab update_tree_from_model() called")
-        
-        json_data = self.load_json_from_model()
-        if json_data is not None:            
-            self.blockSignals()
-            self.clear_tree_view()
-            self.populate_tree_from_json(json_data)
-            self.unblockSignals()
-            
-            logger.debug("1st tab Tree view updated with model data.")            
-            
     def update_model_from_tree(self):
         logger.debug(f"update_model_from_tree() ENTER")
         # To start from the root and traverse the whole tree:
