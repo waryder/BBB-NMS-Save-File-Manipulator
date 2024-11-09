@@ -1,10 +1,19 @@
 #!/bin/bash
 
+# Check if $1 is empty
+if [ -z "$1" ]; then
+  echo "Error: You must include a file name as the first arguementMissing argument. Please provide a value for \$1."
+  exit 1
+fi
+
 #make the exe:
 rm -rf dist
 rm -rf .venv
 rm -rf build
-pyinstaller --onefile --add-data "C:\MBIN_PROJECTS\Working_Projects\BBB-NMS-SFM-Project\help;help" BBB_NMS_Save_File_Manipulator.py
+rm -rf __pycache__.py
+rm -rf __pycache__
+rm -rf __init__.py
+pyinstaller --onefile --add-data "C:\MBIN_PROJECTS\Working_Projects\BBB-NMS-SFM-Project\help;help" --hidden-import imports BBB_NMS_Save_File_Manipulator.py
 mv dist/BBB_NMS_Save_File_Manipulator.exe dist/$1.exe
 
 #let's make the zip:
