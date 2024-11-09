@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QSplitter, QTabWidget,
                              QAbstractItemView, QDialog, QLineEdit, QInputDialog, QMenu, QHeaderView,
                              QPlainTextEdit, QTextBrowser)
 from PyQt5.QtGui import (QClipboard, QDragEnterEvent, QDropEvent, QDragMoveEvent, QDrag, QTextCursor,
-                        QColor, QPalette, QKeySequence)
+                        QColor, QPalette, QKeySequence, QFont)
 from PyQt5.QtCore import Qt, QThread # Import the Qt namespace
 from PyQt5 import QtCore, QtGui, QtWidgets
 

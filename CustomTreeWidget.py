@@ -345,16 +345,11 @@ class CustomTreeWidget(QTreeWidget):
         base_name = json_data['Name']
         text_data = json.dumps(json_data, indent=4)
         
-        
         # Open the save file dialog
         options = QFileDialog.Options()
         
-        #file_path, _ = QFileDialog.getSaveFileName(None, "Save File", base_name, "NMS Base Files (*.nms_base.json);;All Files (*)", options=options)
-        
         #mainWindow is active window; path will include the name of the last 'bases' save file at this point:
-        path_string = QApplication.instance().activeWindow().ini_file_manager.get_last_working_file_path()
-        #chop off the file_name so we have just the path:
-        path_string = os.path.dirname(path_string)
+        path_string = QApplication.instance().activeWindow().ini_file_manager.get_base_pathdir()
         #assume we want to use the base name for the file name:
         path_string += f"\\{base_name}"
         

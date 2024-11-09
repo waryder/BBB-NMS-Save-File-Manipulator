@@ -16,9 +16,7 @@ class DataModel(QObject):
     def __init__(self, last_working_file_path):
         logger.debug("DataModel(QObject).__init__ ENTER")
         super().__init__()
-        self.model_data = None
-        
-        #self.last_file_path = ini_file_manager.get_last_working_file_path()
+        self.model_data = None        
         self.last_file_path = last_working_file_path
         
         logger.debug("DataModel(QObject).__init__ EXIT")
@@ -53,18 +51,19 @@ class JsonArrayModel(DataModel):
         logger.debug("init_model_data() ENTER")
         new_model_data = None
         
-        if self.last_file_path and os.path.exists(self.last_file_path):
-            # If the file exists, load its contents
-            try:
-                with open(self.last_file_path, 'r') as file:
-                    new_model_data = json.loads(file.read())
-            except Exception as e:
-                print(f"Failed to load text from {self.last_file_path}: {e}")
-                new_model_data = json.loads(self.INIT_TEXT)
-        else:
+#for now we're going to just assume start with demo data:
+#        if self.last_file_path and os.path.exists(self.last_file_path):
+#            # If the file exists, load its contents
+#            try:
+#                with open(self.last_file_path, 'r') as file:
+#                    new_model_data = json.loads(file.read())
+#            except Exception as e:
+#                print(f"Failed to load text from {self.last_file_path}: {e}")
+#                new_model_data = json.loads(self.INIT_TEXT)
+#        else:
             # Fall back to INIT_TEXT if no file path is found or the file doesn't exist
-            new_model_data = json.loads(self.INIT_TEXT)            
             
+        new_model_data = json.loads(self.INIT_TEXT)
         self.__set_self_with_json_data(new_model_data)    
         
         logger.debug("init_model_data() EXIT")

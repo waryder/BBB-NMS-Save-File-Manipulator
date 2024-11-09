@@ -6,12 +6,17 @@ class IniFileManager:
         Initializes the IniFileManager class.
         :param ini_file: The path to the .ini file.
         """
+
         # Set the ini file path to be in the same directory as the script
-        self.ini_file = os.path.join(os.path.dirname(__file__), ini_file)
+        self.base_path_dir = None
+        if hasattr(sys, "_MEIPASS"):
+            self.base_path_dir = os.path.join(sys._MEIPASS)
+        else:
+            self.base_path_dir = os.path.dirname(__file__)
+
+        self.ini_file = os.path.join(self.base_path_dir, ini_file)
         self.config = configparser.ConfigParser()
         
-        #config = configparser.ConfigParser(allow_no_value=True)
-
         # Check if ini file exists, if not create a new one
         if os.path.exists(self.ini_file):
             self.config.read(self.ini_file)
@@ -20,8 +25,10 @@ class IniFileManager:
 
         # Initialize the working file path from the ini file if it exists
         self.tab1_working_file_path = self.config.get('Preferences', 'tab1_working_file_path', fallback='')
-        self.tab2_working_file_path = self.config.get('Preferences', 'tab2_working_file_path', fallback='')        
+        self.tab2_working_file_path = self.config.get('Preferences', 'tab2_working_file_path', fallback='')
         
+    def get_base_pathdir(self):
+        return self.base_path_dir
 
     def create_empty_ini_file(self):
         """Creates an empty ini file if it doesn't exist."""
@@ -142,8 +149,7 @@ class IniFileManager:
             except Exception as e:
                 QMessageBox.critical(QApplication.instance().activeWindow(), "Error", f"Failed to open file: {e}")
         
-        return output        
-                
+        return output                      
 
     def save_file(self, tab, data):
         """Saves the file using the last saved path, or prompts if no path is set."""
@@ -160,7 +166,6 @@ class IniFileManager:
             try:
                 with open(last_file_path, 'w') as f:
                     f.write(data)
-                    #f.write(self.model.get_text())
 
                 # Show a confirmation message
                 QMessageBox.information(QApplication.instance().activeWindow(), 'File Saved', f'File saved at: {last_file_path}')

@@ -17,13 +17,25 @@ class WhichStarshipsToUpgradeDialog(QDialog):
         # Create layout for checkboxes
         layout = QVBoxLayout()
 
+        label = QLabel("Please do not select any custom built Starships!!\nThis upgrade method will kill them!\n")
+        # Make the label text bold
+        font = QFont()
+        font.setBold(True)
+        label.setFont(font)
+        label.setStyleSheet("padding-left: 10px;")
+        layout.addWidget(label)
+
         # Create 12 checkboxes and add to layout
         self.checkboxes = []
         for index, starship_name in enumerate(self.starship_names):
             checkbox = QCheckBox(f"{starship_name}")
             checkbox.setProperty('starshipListIdx', index)
+            checkbox.setStyleSheet("padding-left: 20px;")
             self.checkboxes.append(checkbox)
             layout.addWidget(checkbox)
+
+        lineSpaceLabel = QLabel("")
+        layout.addWidget(lineSpaceLabel)
 
         # Create OK and Cancel buttons
         button_layout = QHBoxLayout()
