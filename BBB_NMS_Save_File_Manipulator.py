@@ -3,12 +3,13 @@ import sys, os
 # needed so that after formal install, python can find all the files:
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from imports import *
-
 from NMSHelpMenu import NMSHelpMenu  
 from FirstTabContent import FirstTabContent
 from SecondTabContent import SecondTabContent
+from ThirdTabContent import ThirdTabContent
+from DataModels import *
 from IniFileManager import *
+from LoadDataDialog import LoadDataDialog
 
 def global_exception_handler(exc_type, exc_value, exc_traceback):
     if issubclass(exc_type, KeyboardInterrupt):
@@ -23,34 +24,142 @@ def global_exception_handler(exc_type, exc_value, exc_traceback):
 # Set the global exception handler
 sys.excepthook = global_exception_handler
 
+
+class DataLoaderThread(QThread):
+    loading_complete = pyqtSignal(object)  # Signal emitted when loading is complete
+
+    def __init__(self, last_working_file_path, init_text):
+        super().__init__()
+        self.last_working_file_path = last_working_file_path
+        self.init_text = init_text
+        self.model = None  # Optional: if you want to store it as an attribute
+
+    def run(self):
+        # Load the data (simulate loading delay or heavy computation)
+        self.model = JsonArrayModel(self.last_working_file_path, INIT_TEXT=self.init_text)
+        self.loading_complete.emit(self.model)  # Emit the loaded model
+
+
 class MainWindow(QMainWindow):    
-    background_processing_signal = pyqtSignal(int, str)    
+    background_processing_signal = pyqtSignal(int, str)
+
     def __init__(self):
         logger.debug("MainWindow(QMainWindow).__init__ ENTER")
-        self.ini_file_manager = ini_file_manager 
         super().__init__()
-        
+        self.ini_file_manager = ini_file_manager
+        self.model = None
+
+        loaded_text = ""
+        load_dialog = LoadDataDialog()
+        if load_dialog.exec_() == QDialog.Accepted:  # Only proceed if "Load" button was clicked (dialog accepted)
+            loaded_text = load_dialog.get_text()
+
+        if loaded_text:
+            # Show the custom text-only loading dialog
+            self.thinking_dialog = TextOnlyLoadingDialog("Loading data, please wait...", self)
+            self.thinking_dialog.show()
+
+            # Process events to ensure it renders fully
+            QApplication.processEvents()
+
+            # Create and start the background thread
+            self.loader_thread = DataLoaderThread(
+                self.ini_file_manager.get_last_tab1_working_file_path(),
+                init_text=loaded_text
+            )
+
+            self.loader_thread.loading_complete.connect(self.on_loading_complete)
+            self.loader_thread.start()
+
+        else:
+            QMessageBox.information(None, "Notification", "No JSON data received; Application will exit!")
+            QApplication.quit()  # Uncomment to clean up QT
+            sys.exit()  # Immediately exit the program
+
+        self.import_button = QPushButton("Import 'BaseContext' Json from Clipboard")
+        self.import_button.setFixedWidth(250)
+
+        self.export_button = QPushButton("Export 'BaseContext' Json to Clipboard")
+        self.export_button.setFixedWidth(250)
+
+        # Create the tab widget
         self.tabs = QTabWidget()
 
+        # Create and add tabs
         self.tab1 = FirstTabContent(self)
         self.tab2 = SecondTabContent(self)
+        self.tab3 = ThirdTabContent(self)
         self.background_processing_signal.connect(self.tab1.set_led_based_on_app_thread_load)
-        self.background_processing_signal.connect(self.tab2.set_led_based_on_app_thread_load)        
+        self.background_processing_signal.connect(self.tab2.set_led_based_on_app_thread_load)
 
         self.tabs.addTab(self.tab1, 'Base Processing')
         self.tabs.addTab(self.tab2, 'Starship Processing')
+        self.tabs.addTab(self.tab3, 'Inventory Processing')
 
         self.tabs.tabBarClicked.connect(self.before_tab_change)
         self.tabs.currentChanged.connect(self.after_tab_change)
 
-        self.setCentralWidget(self.tabs)
+        # Create a main layout and central widget
+        main_layout = QVBoxLayout()
+        central_widget = QWidget(self)
+
+        # Create a horizontal layout for the buttons
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self.import_button)
+        button_layout.addWidget(self.export_button)
+        button_layout.setAlignment(Qt.AlignLeft)
+
+        # Add the button layout to the main layout
+        main_layout.addLayout(button_layout)
+        main_layout.addWidget(self.tabs)  # Add the tab widget below the buttons
+
+        # Set the layout for the central widget and set it as the central widget of the main window
+        central_widget.setLayout(main_layout)
+        self.setCentralWidget(central_widget)
+
+        # Set up window properties
         self.setWindowTitle('BBB NMS Save File Manipulator')
         self.setGeometry(400, 250, 1500, 800)
 
+        # Create menu bar
         self.create_menu_bar()
-        
+
+        self.import_button.clicked.connect(self.import_button_clicked)
+        self.export_button.clicked.connect(self.export_button_clicked)
+
+        # Emit signal for background processing
         self.background_processing_signal.emit(5, "Main Window")
-        logger.debug("MainWindow(QMainWindow).__init__ EXIT")        
+        logger.debug("MainWindow(QMainWindow).__init__ EXIT")
+
+    def import_button_clicked(self):
+        # Show confirmation dialog
+        reply = QMessageBox.question(
+            self,
+            "Confirm Overwrite",
+            "About to OVERWRITE All Current Json Data! Continue?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+
+        # If user chooses 'Yes', proceed to paste from clipboard
+        if reply == QMessageBox.Yes:
+            clipboard = QApplication.clipboard()
+            clipboard_text = clipboard.text()
+            if clipboard_text:
+                self.model.set_text(clipboard_text)
+                QMessageBox.information(self, "Pasted", "Json Data Inported from clipboard!")
+            else:
+                QMessageBox.warning(self, "Clipboard Empty", "No data found in the clipboard!")
+
+    def export_button_clicked(self):
+        clipboard = QApplication.clipboard()
+        clipboard.setText(self.model.get_text())
+        QMessageBox.information(self, "Copied", "Json Data copied to clipboard!")
+
+    def on_loading_complete(self, model):
+        # Close the dialog and set the model once loading is complete
+        self.thinking_dialog.close()
+        self.model = model
 
     def create_menu_bar(self):
         menu_bar = self.menuBar()
@@ -84,7 +193,6 @@ class MainWindow(QMainWindow):
         active_tab.text_edit.setPlainText(result) 
         active_tab.sync_from_text_window()
         active_tab.unblockSignals()
-        
     
     def save_file(self):
         active_tab = self.tabs.currentWidget()
@@ -220,7 +328,8 @@ if __name__ == '__main__':
     sys.exit(exit_code)  # Ensure the program terminates correctly
     
     
-    
+
+
     
     
 # MIT License

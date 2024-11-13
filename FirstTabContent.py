@@ -2,15 +2,15 @@
 from BaseTabContent import *
 from CustomTreeWidget import *
 from CustomTextEdit import *
-from DataModels import *
 from TextSearchDialog import *
 from IniFileManager import *
+from DataModels import *
 
 class FirstTabContent(BaseTabContent):
     def __init__(self, parent=None):
         self.main_window = parent        
         self.ini_file_manager = ini_file_manager 
-        self.model = JsonArrayModel(self.ini_file_manager.get_last_tab1_working_file_path(), self.init_text())
+        self.model = JsonArrayModel(self.ini_file_manager.get_last_tab1_working_file_path(), model_context='tab1')
         self.text_edit = None       
         super().__init__(self.model, self.text_edit)        
         self.init_ui()
@@ -124,8 +124,8 @@ class FirstTabContent(BaseTabContent):
         right_button_layout.setAlignment(Qt.AlignLeft)
         #right_button_layout.setSpacing(2)
 
-        right_button_layout.addWidget(self.import_button)
-        right_button_layout.addWidget(self.export_button)
+        #right_button_layout.addWidget(self.import_button)
+        #right_button_layout.addWidget(self.export_button)
         right_button_layout.addWidget(self.pretty_print_button)
         
         right_pane_layout.addLayout(right_button_layout)
@@ -143,8 +143,8 @@ class FirstTabContent(BaseTabContent):
         self.splitter.addWidget(right_container)
 
         # Set initial splitter size ratios (optional)
-        self.splitter.setStretchFactor(0, 5)  # Left pane takes more space
-        self.splitter.setStretchFactor(1, 5)  # Right pane takes less space
+        self.splitter.setStretchFactor(0, 5)
+        self.splitter.setStretchFactor(1, 7)
 
         # Set the splitter as the main layout for the widget
         main_layout = QVBoxLayout()
@@ -395,8 +395,13 @@ class FirstTabContent(BaseTabContent):
     def load_json_from_model(self):
         try:
             json_text = self.model.get_text()
+
+            #if json_text:
             json_data = json.loads(json_text)
             return json_data
+            #else:
+            #    return ""
+
         except json.JSONDecodeError as e:
             logging.error(f"Failed to parse JSON: {e}")
             return None        
@@ -479,10 +484,18 @@ class FirstTabContent(BaseTabContent):
                         base_name = "Unnamed Freighter Base"
                     
                     galactic_addr = json_data['GalacticAddress']
+
+                    print(f"base name: {base_name}, galactic_addr: {galactic_addr}")
+
                     galaxy = get_galaxy_system_planet_from_full_addr(galactic_addr)[GALAXY_FROM_GALACTIC_ADDR_IDX]
+                    if(galaxy):
+                        galaxy_name = GALAXIES[int(galaxy, 16)]
+                    else:
+                        galaxy_name = ""
+
                     system = get_galaxy_system_planet_from_full_addr(galactic_addr)[SYSTEM_FROM_GALACTIC_ADDR_IDX]
                     
-                    item.setText(0, f"[{base_count - 1}] Dict ({size}) Gal name: {GALAXIES[int(galaxy, 16)]}, Sys: {system}, Base: {base_name}")
+                    item.setText(0, f"[{base_count - 1}] Dict ({size}) Gal name: {galaxy_name}, Sys: {system}, Base: {base_name}")
                 else:
                     item.setText(0, f"Dict ({size})")                
                                 

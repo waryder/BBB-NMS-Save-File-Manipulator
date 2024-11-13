@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QSplitter, QTabWidget,
                              QVBoxLayout, QHBoxLayout, QWidget, QLabel, QAction,
                              QTreeWidget, QTreeWidgetItem, QPushButton, QFileDialog, QMessageBox,
                              QAbstractItemView, QDialog, QLineEdit, QInputDialog, QMenu, QHeaderView,
-                             QPlainTextEdit, QTextBrowser)
+                             QPlainTextEdit, QTextBrowser, QSpacerItem, QSizePolicy, QProgressDialog)
 from PyQt5.QtGui import (QClipboard, QDragEnterEvent, QDropEvent, QDragMoveEvent, QDrag, QTextCursor,
                         QColor, QPalette, QKeySequence, QFont)
 from PyQt5.QtCore import Qt, QThread # Import the Qt namespace
@@ -362,6 +362,27 @@ def init_galaxies():
 
 GALAXIES = init_galaxies()    
 
+
+
+class TextOnlyLoadingDialog(QDialog):
+    def __init__(self, message="Loading data, please wait...", parent=None):
+        super().__init__(parent)
+
+        # Set up the dialog properties
+        self.setWindowTitle("BBB NMS Save File Manipulator")
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setMinimumSize(300, 100)
+
+        # Remove close and help buttons to prevent user interaction
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint & ~Qt.WindowContextHelpButtonHint)
+
+        # Set up layout and message
+        layout = QVBoxLayout()
+        label = QLabel(message)
+        label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(label)
+
+        self.setLayout(layout)
 
 # MIT License
 #

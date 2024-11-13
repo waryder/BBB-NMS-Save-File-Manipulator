@@ -7,11 +7,11 @@ from TextSearchDialog import *
 from IniFileManager import *
 from DataModels import *
 
-class SecondTabContent(BaseTabContent):
+class ThirdTabContent(BaseTabContent):
     def __init__(self, parent=None):
         self.main_window = parent        
         self.ini_file_manager = ini_file_manager        
-        self.model = JsonArrayModel(self.ini_file_manager.get_last_tab1_working_file_path(), model_context='tab2')
+        self.model = JsonArrayModel(self.ini_file_manager.get_last_tab1_working_file_path(), model_context='tab3')
         self.text_edit = None        
         super().__init__(self.model, self.text_edit)        
         self.init_ui()
@@ -173,23 +173,23 @@ class SecondTabContent(BaseTabContent):
     
     # Function to update the indicator color (red or green)
     def update_tree_synced_indicator(self, green_if_true):
-        logger.debug("2nd tab update_tree_synced_indicator() ENTER")
+        logger.debug("3rd tab update_tree_synced_indicator() ENTER")
         self.tree_synced = green_if_true
         palette = self.tree_synced_indicator.palette()
         
         if green_if_true:
-            logger.debug("2nd tab green")
+            logger.debug("3rd tab green")
             self.tree_synced_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
         else:
-            logger.debug("2nd tab red")
+            logger.debug("3rd tab red")
             self.tree_synced_indicator.setStyleSheet(f"background-color: red; border-radius: 4px;")
             
         self.tree_synced_indicator.setPalette(palette)
         self.tree_synced_indicator.update()
-        logger.debug("2nd tab update_tree_synced_indicator() EXIT")    
+        logger.debug("3rd tab update_tree_synced_indicator() EXIT")
        
     def show_context_menu(self, position):
-        logger.debug("2nd tab show_context_menu() ENTER")
+        logger.debug("3rd tab show_context_menu() ENTER")
         # Create the default context menu
         context_menu = self.text_edit.createStandardContextMenu()
 
@@ -201,28 +201,28 @@ class SecondTabContent(BaseTabContent):
 
         # Show the context menu
         context_menu.exec_(self.text_edit.mapToGlobal(position))
-        logger.debug("2nd tab show_context_menu() ENTER")
+        logger.debug("3rd tab show_context_menu() ENTER")
         
     def search_text(self):       
-        logger.debug("2nd tab search_text() ENTER")
+        logger.debug("3rd tab search_text() ENTER")
         self.search_dialog = TextSearchDialog(self)
         self.search_dialog.show()
-        logger.debug("2nd tab search_text() EXIT")
+        logger.debug("3rd tab search_text() EXIT")
 
     def blockSignals(self):
-        logger.debug("2nd tab blockSignals() ENTER")
+        logger.debug("3rd tab blockSignals() ENTER")
         
         self.text_edit.blockSignals(True)
         self.tree_widget.blockSignals(True)
         self.model.blockSignals(True)
-        logger.debug("2nd tab blockSignals() ENTER")
+        logger.debug("3rd tab blockSignals() ENTER")
         
     def unblockSignals(self):
-        logger.debug("2nd tab unblockSignals() ENTER")
+        logger.debug("3rd tab unblockSignals() ENTER")
         self.text_edit.blockSignals(False)
         self.tree_widget.blockSignals(False)
         self.model.blockSignals(False)
-        logger.debug("2nd tab unblockSignals() ENTER")        
+        logger.debug("3rd tab unblockSignals() ENTER")
         
     def repaint_tree(self):
         logger.debug(f"repainting tree...")
@@ -240,7 +240,7 @@ class SecondTabContent(BaseTabContent):
 
     def sync_from_text_window(self):
         print("Sync from Text Window ENTER")
-        self.main_window.background_processing_signal.emit(4, "2nd Tab")
+        self.main_window.background_processing_signal.emit(4, "3rd Tab")
         
         # Set tree from text
         try:
@@ -263,8 +263,8 @@ class SecondTabContent(BaseTabContent):
             return json.loads(file.read())
         
     def upgrade_starships(self):
-        logger.debug("2nd tab upgrade_starships() ENTER")
-        self.main_window.background_processing_signal.emit(4, "2nd Tab")
+        logger.debug("3rd tab upgrade_starships() ENTER")
+        self.main_window.background_processing_signal.emit(4, "3rd Tab")
         
         model_json = copy.deepcopy(self.model.get_json())
         
@@ -359,23 +359,23 @@ class SecondTabContent(BaseTabContent):
 
             QMessageBox.information(None, "Starships Upgraded", "Your selected starships have been Upgraded:\n\n" + upgraded_starship_names)
 
-        logger.debug("2nd tab upgrade_starships() EXIT")        
+        logger.debug("3rd tab upgrade_starships() EXIT")
         
     def sync_text_from_tree_window(self):
-        logger.debug("2nd tab sync from Tree Window ENTER")
+        logger.debug("3rd tab sync from Tree Window ENTER")
         self.update_model_from_tree()
         self.update_text_widget_from_model()        
-        logger.debug("2nd tab sync from Tree Window EXIT")
+        logger.debug("3rd tab sync from Tree Window EXIT")
 
     def update_model_from_text_edit(self):
-        logger.debug("2nd Tab update_model_from_text_edit() enter")        
+        logger.debug("3rd Tab update_model_from_text_edit() enter")
         self.update_tree_synced_indicator(False)
         new_text = self.text_edit.toPlainText()
         self.model.set_text(new_text)
-        logger.debug("2nd Tab update_model_from_text_edit() exit") 
+        logger.debug("3rd Tab update_model_from_text_edit() exit")
 
     def populate_tree(self, data, parent=None):
-        logger.debug("2nd tab populate_tree() ENTER")
+        logger.debug("3rd tab populate_tree() ENTER")
         if parent is None:
             parent = self.tree_widget.invisibleRootItem()
 
@@ -390,21 +390,21 @@ class SecondTabContent(BaseTabContent):
                 parent.addChild(item)
                 self.populate_tree(value, item)
                 
-        logger.debug("2nd tab populate_tree() EXIT")                    
+        logger.debug("3rd tab populate_tree() EXIT")
 
     def update_text_widget_from_model(self):
-        logger.debug("2nd tab  update_text_widget_from_model() enter")
+        logger.debug("3rd tab  update_text_widget_from_model() enter")
         #self.blockSignals()
         self.text_edit.setPlainText(self.model.get_text())
         #self.unblockSignals()
-        logger.debug("2nd tab  update_text_widget_from_model() exit")
+        logger.debug("3rd tab  update_text_widget_from_model() exit")
 
     def update_model_from_tree(self):
         logger.debug(f"update_model_from_tree() ENTER")
         # To start from the root and traverse the whole tree:
         tree_data = self.tree_widget_data_to_json()
        
-        logger.verbose(f"2nd tab tree string: {tree_data}")
+        logger.verbose(f"3rd tab tree string: {tree_data}")
         self.model.set_json(tree_data)
         
     def tree_widget_data_to_json(self, node_in = None): 
@@ -485,18 +485,18 @@ class SecondTabContent(BaseTabContent):
             return None        
             
     def clear_tree_view(self):
-        logger.debug("2nd tab clear_tree_view() Called.")
+        logger.debug("3rd tab clear_tree_view() Called.")
         self.tree_widget.clear()        
 
     def populate_tree_from_json(self, json_data, parent_tree_node=None):
         #return
-        logger.debug("2nd tab populate_tree_from_json() ENTER")
+        logger.debug("3rd tab populate_tree_from_json() ENTER")
 
-        starship_count = 0
+        storage_container_count = 0
         line_count = 0
         
         def parse_item(json_data, parent_tree_node, level):
-            nonlocal starship_count
+            nonlocal storage_container_count
             nonlocal line_count
             logger.verbose(f"**start level:{level}")
             
@@ -555,10 +555,10 @@ class SecondTabContent(BaseTabContent):
                 #to the top level node label text:
                 
                 if(level == 1 ):
-                    starship_count += 1
-                    starship_name = json_data['Name']
+                    storage_container_count += 1
+                    storage_container_name = json_data['Name']
                     
-                    item.setText(0, f"[{starship_count - 1}] Dict ({size}) Starship: {starship_name}")
+                    item.setText(0, f"[{storage_container_count - 1}] Dict ({size}) Container Name: {storage_container_name}")
                 else:
                     item.setText(0, f"Dict ({size})")                
 
@@ -644,18 +644,16 @@ class SecondTabContent(BaseTabContent):
                 
                 #item.setFlags(item.flags() | Qt.ItemIsEditable)  # Make item editable
                 parent_tree_node.addChild(item)
-
                 
-            logger.verbose(f"**end level {level}")   
-
+            logger.verbose(f"**end level {level}")
         
         parent_tree_node = self.tree_widget.invisibleRootItem()
         parse_item(json_data, parent_tree_node, 0)
         
         self.tree_widget.expand_tree_to_level(1)
-        self.bottom_left_label.setText(f"Number of Starships: {starship_count}")
+        self.bottom_left_label.setText(f"Number of Storage Containers: {storage_container_count}")
         
-        logger.debug("2nd tab populate_tree_from_json() EXIT") 
+        logger.debug("3rd tab populate_tree_from_json() EXIT")
   
 
     def init_text(self):

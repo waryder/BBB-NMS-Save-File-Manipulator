@@ -1,22 +1,24 @@
 from imports import *
 from IniFileManager import *
+from pympler import asizeof
 
 global INIT_BASE_TEXT
 global INIT_STARSHIP_TEXT    
 
 # Parent Class: DataModel
 class DataModel(QObject):
+    model_data = None
+
     # Define the signal to be emitted when text changes (can be inherited)
     # (Dude I don't know. Python wants this out here even though it is treated like an instance variable
     # when declared this way. ChatGPT couldn't explain it to me. Just know: this thing is treated like
     # an instance variable for the life of the app:
     modelChanged = pyqtSignal()
-    
-    
+
     def __init__(self, last_working_file_path):
         logger.debug("DataModel(QObject).__init__ ENTER")
         super().__init__()
-        self.model_data = None        
+
         self.last_file_path = last_working_file_path
         
         logger.debug("DataModel(QObject).__init__ EXIT")
@@ -39,13 +41,18 @@ class DataModel(QObject):
             
 
 class JsonArrayModel(DataModel):
-    def __init__(self, last_working_file_path, INIT_TEXT = None):
+    def __init__(self, last_working_file_path, model_context = 'main', INIT_TEXT = None):
         logger.debug("JsonArrayModel(DataModel).__init__ ENTER")
+
+        #should come in 'main', 'tab1', 'tab2', 'tab3' ...
+        self.model_context = model_context
+
         self.INIT_TEXT=INIT_TEXT
         super().__init__(last_working_file_path)
+
+        #leave blank for now at start. Wait for user to load something:
         self.init_model_data()
-        
-        logger.debug("JsonArrayModel(DataModel).__init__ EXIT") 
+        logger.debug("JsonArrayModel(DataModel).__init__ EXIT")
         
     def init_model_data(self):
         logger.debug("init_model_data() ENTER")
@@ -62,62 +69,104 @@ class JsonArrayModel(DataModel):
 #                new_model_data = json.loads(self.INIT_TEXT)
 #        else:
             # Fall back to INIT_TEXT if no file path is found or the file doesn't exist
-            
-        new_model_data = json.loads(self.INIT_TEXT)
-        self.__set_self_with_json_data(new_model_data)    
-        
+        if(self.INIT_TEXT):
+            print("self.INIT_TEXT NOT empty")
+            new_model_data = json.loads(self.INIT_TEXT)
+            self.set_json(new_model_data)
+        else:
+            print("self.INIT_TEXT empty")
+
+        print(f"model_context: {self.model_context}, Size of data: {asizeof.asizeof(self.model_data)}")
+
         logger.debug("init_model_data() EXIT")
 
     # Override the stubbed accessor functions
     def get_text(self):
         logger.debug("get_text() ENTER")
-        logger.debug("get_text() EXIT")
-        return json.dumps(self.model_data, indent=4)
+
+        if not DataModel.model_data:
+            return ""
+
+        return json.dumps(self.get_json(), indent=4)
 
     def set_text(self, text):
         logger.debug("set_text() ENTER")
+
         json_loads = json.loads(text)
-        self.__set_self_with_json_data(json_loads)
+        self.set_json(json_loads)
             
         logger.debug("set_text EXIT")    
 
     def get_json(self):
         logger.debug("get_json() ENTER")
+
+        if not DataModel.model_data:
+            return ""
+
+        if (self.model_context == 'main'):
+            return DataModel.model_data
+        elif (self.model_context == 'tab1'):
+            return DataModel.model_data["PlayerStateData"]["PersistentPlayerBases"]
+        elif (self.model_context == 'tab2'):
+            return DataModel.model_data["PlayerStateData"]["ShipOwnership"]
+        elif (self.model_context == 'tab3'):
+            containers = []
+            for i in range(1, 11): #generates 1 - 10
+                containers.append(DataModel.model_data["PlayerStateData"][f"Chest{i}Inventory"])
+
+            #These seem to be unnamed. Let's give them a name just for display within the app here. We'll undo this on the way out:
+            containers.append(DataModel.model_data["PlayerStateData"][f"CookingIngredientsInventory"])
+            containers[10]['Name'] = 'Cooking Ingredients'
+            containers.append(DataModel.model_data["PlayerStateData"][f"FishPlatformInventory"])
+            containers[11]['Name'] = 'Fish Platform'
+
+            return containers
+        else:
+            return #error
+
         logger.debug("get_json() EXIT")
-        return self.model_data
-        
+
     def set_json(self, json_array):
         logger.debug("set_json() ENTER")
-        self.__set_self_with_json_data(json_array)
-        logger.debug("set_json() EXIT") 
+
+        if (self.model_context == 'main'):
+            DataModel.model_data = json_array
+
+        elif (self.model_context == 'tab1'):
+            DataModel.model_data["PlayerStateData"]["PersistentPlayerBases"] = json_array
+
+        elif (self.model_context == 'tab2'):
+            DataModel.model_data["PlayerStateData"]["ShipOwnership"] = json_array
+
+        elif (self.model_context == 'tab3'):
+            for i in range(1, 11):  # generates 1 - 10
+                DataModel.model_data["PlayerStateData"][f"Chest{i}Inventory"] = json_array[i]
+
+            # These seem to be unnamed. We gave them a name just for display within the app here.
+            # We're undoing this on the way out now:
+            DataModel.model_data["PlayerStateData"]["CookingIngredientsInventory"] = json_array[10]
+            DataModel.model_data["PlayerStateData"]["CookingIngredientsInventory"]['Name'] = ""
+            DataModel.model_data["PlayerStateData"]["FishPlatformInventory"] = json_array[11]
+            DataModel.model_data["PlayerStateData"]["FishPlatformInventory"]['Name'] = ""
+
+        DataModel.modelChanged.emit()
+        logger.debug("set_json() EXIT")
 
     def add_base(self, nms_base_json_array):
         logger.debug("add_base() ENTER")
-        
-        self.model_data.insert(0, nms_base_json_array)
-        self.modelChanged.emit()
-        logger.debug("add_base() EXIT") 
-        
-    def __set_self_with_json_data(self, json_array):
-        logger.debug("__set_model_with_json_data() ENTER")
-        
-        if json_array != self.model_data:
-            self.model_data = json_array
-            
-            #this was causing issues:
-            #we need all values to be treated as strings:
-            #self.convert_values_to_strings_in_place(self.model_data)
-            
-            
-            self.modelChanged.emit()
-            
-        logger.debug("__set_model_with_json_data() EXIT")  
-        
+
+        # only valid for the base tab:
+        if (model_context == 'tab1'):
+            DataModel.model_data["PlayerStateData"]["PersistentPlayerBases"].insert(0, nms_base_json_array)
+            DataModel.modelChanged.emit()
+        else:
+            return  # error
+
+        logger.debug("add_base() EXIT")
 
 
 
-
-# MIT License
+    # MIT License
 #
 # Copyright (c) 2024 BigBuffaloBill - Bill Ryder <me@billryder.com>
 #
