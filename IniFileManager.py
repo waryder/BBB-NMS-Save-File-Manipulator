@@ -6,37 +6,18 @@ class IniFileManager:
         Initializes the IniFileManager class.
         :param ini_file: The path to the .ini file.
         """
+        INI_FILE_NAME = "app_preferences.ini"
+        self.ensure_persistent_file(INI_FILE_NAME)
+        self.ini_file = os.path.join(self.get_persistent_dir(), INI_FILE_NAME)
 
-        # Set the ini file path to be in the same directory as the script
-        self.base_path_dir = None
-        if hasattr(sys, "_MEIPASS"):
-            self.base_path_dir = os.path.join(sys._MEIPASS)
-        else:
-            self.base_path_dir = os.path.dirname(__file__)
-
-        self.ini_file = os.path.join(self.base_path_dir, ini_file)
         self.config = configparser.ConfigParser()
-        
-        # Check if ini file exists, if not create a new one
-        if os.path.exists(self.ini_file):
-            self.config.read(self.ini_file)
-        else:
-            self.create_empty_ini_file()
+        self.config.read(self.ini_file)
 
         # Initialize the working file path from the ini file if it exists
         self.tab1_working_file_path = self.config.get('Preferences', 'tab1_working_file_path', fallback='')
         self.tab2_working_file_path = self.config.get('Preferences', 'tab2_working_file_path', fallback='')
+        self.last_file_path = False
         
-    def get_base_pathdir(self):
-        return self.base_path_dir
-
-    def create_empty_ini_file(self):
-        """Creates an empty ini file if it doesn't exist."""
-        self.config['Preferences'] = {'tab1_working_file_path': ''}
-        self.config['Preferences'] = {'tab2_working_file_path': ''}
-        with open(self.ini_file, 'w') as configfile:
-            self.config.write(configfile)
-
     def store_current_tab1_working_file_path(self, file_path):
         """
         Stores the given file path in the ini file.
@@ -75,7 +56,89 @@ class IniFileManager:
         Retrieves the last stored working file path from the ini file.
         :return: The last working file path or an empty string if not found.
         """
-        return self.tab2_working_file_path        
+        return self.tab2_working_file_path
+
+    def init_inventory_sorter_defaults(
+            self,
+            source_checkboxes,
+            target_checkboxes,
+            target_combo_boxes):
+
+        for key, checkbox in source_checkboxes.items():
+            # Check if the key is already stored in the INI
+            if f"{key}_source_checkbox" not in self.config['Preferences']:
+                # Save the current state (checked/unchecked) of the checkbox
+                self.config['Preferences'][f"{key}_source_checkbox"] = str(checkbox.isChecked())
+
+        for key, checkbox in target_checkboxes.items():
+            # Check if the key is already stored in the INI
+            if f"{key}_target_checkbox" not in self.config['Preferences']:
+                # Save the current state (checked/unchecked) of the checkbox
+                self.config['Preferences'][f"{key}_target_checkbox"] = str(checkbox.isChecked())
+
+        for key, combobox in target_combo_boxes.items():
+            print(f"{key}_ {combobox}")
+
+            #Check if the key is already stored in the INI
+            if f"{key}_target_combobox" not in self.config['Preferences']:
+                # Save the current state (checked/unchecked) of the checkbox
+                self.config['Preferences'][f"{key}_target_combobox"] = combobox.lineEdit().text()
+
+        with open(self.ini_file, 'w') as configfile:
+            self.config.write(configfile)
+
+    def store_inventory_sorter_defaults(
+        self,
+        source_checkboxes,
+        target_checkboxes,
+        target_combo_boxes):
+
+        #make sure all values have been initialized:
+        self.init_inventory_sorter_defaults(
+            source_checkboxes,
+            target_checkboxes,
+            target_combo_boxes)
+
+        for key, checkbox in source_checkboxes.items():
+            self.config['Preferences'][f"{key}_source_checkbox"] = str(checkbox.isChecked())
+
+        for key, checkbox in target_checkboxes.items():
+            self.config['Preferences'][f"{key}_target_checkbox"] = str(checkbox.isChecked())
+
+        for key, combobox in target_combo_boxes.items():
+            self.config['Preferences'][f"{key}_target_combobox"] = combobox.lineEdit().text()
+
+        with open(self.ini_file, 'w') as configfile:
+            self.config.write(configfile)
+
+    def get_inventory_sorter_defaults(
+            self,
+            source_checkboxes,
+            target_checkboxes,
+            target_combo_boxes):
+
+        #make sure all values have been initialized
+        #we don't really need this here since we have fallbacks, but I just
+        #want to make sure at every opportunity the ini file has what
+        #it should in it in case an end user has messed with it:
+        self.init_inventory_sorter_defaults(
+            source_checkboxes,
+            target_checkboxes,
+            target_combo_boxes)
+
+        for key, checkbox in source_checkboxes.items():
+            checkbox.setChecked(self.config.getboolean('Preferences', f"{key}_source_checkbox", fallback='False'))
+
+        for key, checkbox in target_checkboxes.items():
+            checkbox.setChecked(self.config.getboolean('Preferences', f"{key}_target_checkbox", fallback='False'))
+
+        for key, combobox in target_combo_boxes.items():
+            #I need to modify this guy to set the checkboxes in the multiselect combo box and not just as it does now: just the line edit text string. Requires either modification or different use
+            # of combobox.
+            combobox.setCheckedItemsFromText(self.config.get('Preferences', f"{key}_target_combobox", fallback='Product (Crafted or Special Items)'))
+
+        with open(self.ini_file, 'w') as configfile:
+            self.config.write(configfile)
 
     def get_last_tab1_working_file_directory(self):
         """
@@ -115,20 +178,16 @@ class IniFileManager:
 
     def open_file(self, tab):
         options = QFileDialog.Options()
-        
-        initial_directory = ""
-        # Get the last working directory from the ini manager
-        if tab == "tab1":
-            initial_directory = self.get_last_tab1_working_file_directory() or os.getcwd()
-        elif tab == "tab2":
-            initial_directory = self.get_last_tab2_working_file_directory() or os.getcwd()
-        
+        initial_directory = self.get_persistent_dir()
+
         # Open file dialog starting from the last working directory
-        file_name, _ = QFileDialog.getOpenFileName(QApplication.instance().activeWindow(), 
-                                                   "Open File", 
-                                                   initial_directory,  # Set the initial directory
-                                                   "JSON Files (*.json);;All Files (*)", 
-                                                   options=options)
+        file_name, _ = QFileDialog.getOpenFileName(
+            QApplication.instance().activeWindow(),
+            "Open File",
+            f"{initial_directory}/*.nms_sfm_BaseContext.json",  # Set the initial directory with the default file name
+            "JSON Files (*.json);;All Files (*)",
+            options=options
+        )
         
         output = ""
         if file_name:
@@ -136,15 +195,8 @@ class IniFileManager:
                 # Open the selected file and read its contents
                 with open(file_name, 'r') as file:
                     output = file.read()
-                    #self.model.set_text(file.read())
-                    #self.update_tabs_from_model()
 
-                # Store the new file path in the ini manager
-                if tab == "tab1":
-                    self.store_current_tab1_working_file_path(file_name)
-                elif tab == "tab2":
-                    self.store_current_tab2_working_file_path(file_name)
-                #self.ini_file_manager.store_current_working_file_path(file_name)
+                self.last_file_path = file_name
                 
             except Exception as e:
                 QMessageBox.critical(QApplication.instance().activeWindow(), "Error", f"Failed to open file: {e}")
@@ -154,13 +206,8 @@ class IniFileManager:
     def save_file(self, tab, data):
         """Saves the file using the last saved path, or prompts if no path is set."""
         # Get the last working file path from the ini manager
-        last_file_path = ""
-        if tab == "tab1":
-            last_file_path = self.get_last_tab1_working_file_path()
-        elif tab == "tab2":
-            last_file_path = self.get_last_tab2_working_file_path()
-        #last_file_path = self.ini_file_manager.get_last_working_file_path()
-        
+        last_file_path = self.last_file_path
+
         if last_file_path and os.path.exists(last_file_path):
             # If there's a valid path, save directly
             try:
@@ -175,40 +222,71 @@ class IniFileManager:
             # If no path is set or the file doesn't exist, use "Save As" behavior
             self.save_file_as(tab, data)  # Fallback to "Save As" behavior if no previous file path
 
-
     def save_file_as(self, tab, data):
         """Implements the Save As functionality allowing the user to specify a file location."""
         # Get the preferences from the ini manager for the default save path
-        last_working_path = ""
-        if tab == "tab1":
-            last_working_path = self.get_last_tab1_working_file_path()
-        elif tab == "tab2":
-            last_working_path = self.get_last_tab2_working_file_path()
-                
-        save_file_name = QFileDialog.getSaveFileName(
+        last_working_path = self.get_persistent_dir()
+
+        # if tab == "tab1":
+        #     last_working_path = self.get_last_tab1_working_file_path()
+        # elif tab == "tab2":
+        #     last_working_path = self.get_last_tab2_working_file_path()
+
+        save_file_name, _ = QFileDialog.getSaveFileName(
             QApplication.instance().activeWindow(),
-            'Save As', 
-            last_working_path
+            'Save As',
+            f"{last_working_path}/default.nms_sfm_BaseContext.json",  # Set the initial directory with default file name
+            "JSON Files (*.json);;All Files (*)"  # File filters
         )
 
-        if save_file_name[0]:
+        if save_file_name:
             try:
                 # Save the file content
-                with open(save_file_name[0], 'w') as f:
+                with open(save_file_name, 'w') as f:
                     f.write(data)
-                    #f.write(self.model.get_text())
+
+                self.last_file_path = save_file_name
 
                 # Show a confirmation message
-                QMessageBox.information(QApplication.instance().activeWindow(), 'File Saved As', f'File saved at: {save_file_name[0]}')
+                QMessageBox.information(QApplication.instance().activeWindow(), 'File Saved As', f'File saved at: {save_file_name}')
 
                 # Store the file path in the ini manager after saving
-                if tab == "tab1":
-                    self.store_current_tab1_working_file_path(save_file_name[0])
-                elif tab == "tab2":
-                    self.store_current_tab2_working_file_path(save_file_name[0])
+                # if tab == "tab1":
+                #     self.store_current_tab1_working_file_path(save_file_name[0])
+                # elif tab == "tab2":
+                #     self.store_current_tab2_working_file_path(save_file_name[0])
             
             except Exception as e:
-                QMessageBox.critical(QApplication.instance().activeWindow(), "Error", f"Failed to save file: {e}") 
+                QMessageBox.critical(QApplication.instance().activeWindow(), "Error", f"Failed to save file: {e}")
+
+    def get_persistent_dir(self):
+        """Get the persistent directory based on the OS."""
+        if sys.platform == "win32":
+            return os.path.join(os.getenv("APPDATA"), APP_NAME)
+        elif sys.platform == "darwin":
+            return os.path.join(os.path.expanduser("~"), "Library", "Application Support", APP_NAME)
+        else:
+            return os.path.join(os.path.expanduser("~"), f".{APP_NAME}")
+
+    def ensure_persistent_file(self, filename):
+        """Ensure the data file is copied to a persistent directory."""
+        persistent_dir = self.get_persistent_dir()
+        if not os.path.exists(persistent_dir):
+            os.makedirs(persistent_dir)
+
+        persistent_file = os.path.join(persistent_dir, filename)
+
+        # Determine source file
+        if hasattr(sys, "_MEIPASS"):
+            source_file = os.path.join(sys._MEIPASS, filename)
+        else:
+            source_file = os.path.join(os.path.dirname(__file__), filename)
+
+        # Copy file if it doesn't exist
+        if not os.path.exists(persistent_file):
+            shutil.copy(source_file, persistent_file)
+
+        return persistent_file
 
 ini_file_manager = IniFileManager('app_preferences.ini')                
 

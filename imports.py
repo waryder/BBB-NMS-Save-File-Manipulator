@@ -1,15 +1,18 @@
-import sys, os, pdb, logging, json, traceback, configparser, copy 
+import sys, os, pdb, logging, json, traceback, configparser, copy, builtins, shutil
 import pyautogui, yappi, psutil, threading, traceback, concurrent.futures
 from PyQt5.QtCore import pyqtSignal, QObject, Qt, QMimeData, QTimer, QEvent
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QSplitter, QTabWidget,
                              QVBoxLayout, QHBoxLayout, QWidget, QLabel, QAction,
                              QTreeWidget, QTreeWidgetItem, QPushButton, QFileDialog, QMessageBox,
                              QAbstractItemView, QDialog, QLineEdit, QInputDialog, QMenu, QHeaderView,
-                             QPlainTextEdit, QTextBrowser, QSpacerItem, QSizePolicy, QProgressDialog)
+                             QPlainTextEdit, QTextBrowser, QSpacerItem, QSizePolicy, QProgressDialog,
+                             QCheckBox, QComboBox, QScrollArea, QGridLayout)
 from PyQt5.QtGui import (QClipboard, QDragEnterEvent, QDropEvent, QDragMoveEvent, QDrag, QTextCursor,
-                        QColor, QPalette, QKeySequence, QFont)
-from PyQt5.QtCore import Qt, QThread # Import the Qt namespace
+                        QColor, QPalette, QKeySequence, QFont, QStandardItemModel, QStandardItem)
+from PyQt5.QtCore import Qt, QEventLoop, QTimer, QThread # Import the Qt namespace
 from PyQt5 import QtCore, QtGui, QtWidgets
+
+APP_NAME = "BBB NMS Save File Manipulator" #for purposes of things like Directory Names
 
 #Qt indexs into Tree Node Custom Data:
 QT_DATA_SAVE_NODES_DATA_STRUCT = Qt.UserRole
@@ -27,7 +30,7 @@ global GALAXIES
 
 #************
 # CURRENT LOGGER LEVEL:
-app_log_level = logging.ERROR 
+app_log_level = logging.ERROR
     
 #************
 
@@ -49,6 +52,21 @@ logging.basicConfig(level=app_log_level, format='%(filename)s # line %(lineno)d 
 # Get a logger instance
 logger = logging.getLogger(__name__)
 
+def json_loads_with_exception_check(text):
+    try:
+        json_array = json.loads(text)
+    except Exception as e:
+        QMessageBox.critical(
+            None,  # No parent for the dialog
+            "Error",  # Title of the dialog
+            f"Text Input was not valid JSON data. Data Load failed and has been aborted. Check your data format and try again! ({str(e)})"
+            # Message to display
+        )
+
+        return False
+    return json_array
+
+#these functions should be moved somewhere appropriate...
 def get_new_QTreeWidgetItem():
     widget = QTreeWidgetItem()
     widget.setFlags(widget.flags() | Qt.ItemIsDragEnabled | Qt.ItemIsDropEnabled)  # Make item drag and droppable Qt.ItemIsEditable
@@ -61,7 +79,6 @@ def get_num_app_child_threads():
     num_threads = len(current_process.threads())
     logger.verbose("get_num_app_child_threads() EXIT, num threads: {num_threads}")
     return num_threads
-
 
 #some values are preceeded by '0x' and some are not:    
 def get_galaxy_system_planet_from_full_addr(galactic_addr_in):
@@ -76,8 +93,7 @@ def get_galaxy_system_planet_from_full_addr(galactic_addr_in):
     system_idx_slice = slice(3, 6)
     planet_idx = 2
     
-    return [galactic_address[gal_idx_slice], galactic_address[system_idx_slice], galactic_address[2]]  
-
+    return [galactic_address[gal_idx_slice], galactic_address[system_idx_slice], galactic_address[2]]
 
 def safe_remove_qtreewidget_node(item):
     # Recursively delete all children of the item first
@@ -98,7 +114,7 @@ def safe_remove_qtreewidget_node(item):
         
             if index != -1:
                 tree_widget.takeTopLevelItem(index)
-                
+
 def init_galaxies():
     GALAXIES = {}
     GALAXIES[0] = 'Euclid'
@@ -360,9 +376,7 @@ def init_galaxies():
 
     return GALAXIES 
 
-GALAXIES = init_galaxies()    
-
-
+GALAXIES = init_galaxies()
 
 class TextOnlyLoadingDialog(QDialog):
     def __init__(self, message="Loading data, please wait...", parent=None):
@@ -384,6 +398,9 @@ class TextOnlyLoadingDialog(QDialog):
 
         self.setLayout(layout)
 
+
+
+
 # MIT License
 #
 # Copyright (c) [Year] [Your Name or Your Company] <youremail@example.com>
@@ -400,7 +417,7 @@ class TextOnlyLoadingDialog(QDialog):
 #
 # 2. Attribution Requirement: Any use of this code, in whole or in part,
 #    must retain the following attribution notice in the source code comments:
-#    
+#
 #    This code includes portions of the software originally developed by
 #    [Your Name or Your Company] <youremail@example.com>, available under the MIT License.
 #
@@ -413,13 +430,13 @@ class TextOnlyLoadingDialog(QDialog):
 # THE SOFTWARE.
 #
 # This software makes use of PyQt5, which is licensed under the GPL v3 License.
-# The PyQt5 library is a third-party library that is not covered under the 
-# MIT License governing this software. As required by the GPL v3 License, 
+# The PyQt5 library is a third-party library that is not covered under the
+# MIT License governing this software. As required by the GPL v3 License,
 # the source code for this software is made available, and you are free to
 # modify and redistribute it under the terms of the GPL v3 License.
 #
 # You can find more details on the PyQt5 license here: https://www.riverbankcomputing.com/software/pyqt/license
-# To comply with the GPL v3 License, you must include the full source code and this 
+# To comply with the GPL v3 License, you must include the full source code and this
 # license notice with any redistributions of this software that include PyQt5.
 
 

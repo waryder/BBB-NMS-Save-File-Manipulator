@@ -1,10 +1,15 @@
 from imports import *
+from DataViews import *
+from init_text import INIT_TEXT
 
 class BaseTabContent(QWidget):
-    def __init__(self, model, text_edit):
+    def __init__(self, parent, model_context, text_edit):
         super().__init__()
-        self.model = model
+        self.parent = parent
+        self.model = parent.model
         self.text_edit = text_edit
+        self.model_context = model_context
+        self.view = JsonArrayView(self.model, self.model_context)
 
         # Set static width for buttons
         self.button_width = 140
@@ -22,31 +27,34 @@ class BaseTabContent(QWidget):
         # Initially set the indicator to red (off) and make it circular
         self.tree_synced_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
 
-        ###
-        # Create the text label and indicator widget for Background Processing status
-        self.status_label = QLabel("Background Processing:", self)  # Create a text label for "Status"
-        self.status_label.setFixedWidth(self.button_width - 25)
-
-        self.status_indicator = QWidget(self)  # Create a widget to represent the LED
-        self.status_indicator.setFixedSize(10, 10)  # Set size to small (like an LED)
-        self.status_indicator.setToolTip("Heavy Background Processing Occurring? Green=No. Yellow=Yes.")
-
-        # Initially set the indicator to red (off) and make it circular
-        self.status_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
-
-    def update_text_widget_from_model(self):
-        pass
-
     def text_changed_signal(self):
         logger.debug("1st Tab text_changed_signal() enter")        
         self.update_tree_synced_indicator(False)
-        logger.debug("1st Tab text_changed_signal() exit") 
-        
+        logger.debug("1st Tab text_changed_signal() exit")
+
+    def handle_text_edit_changed_signal(self):
+        self.blockSignals()
+        self.sync_tree_from_text_window()
+        self.unblockSignals()
+
+    def handle_tree_changed_signal(self):
+        self.blockSignals()
+        self.sync_text_from_tree_window()
+        self.unblockSignals()
+
     def blockSignals(self):
-        pass
-        
+        logger.debug("blockSignals() ENTER")
+        self.text_edit.blockSignals(True)
+        self.tree_widget.blockSignals(True)
+        self.model.blockSignals(True)
+        logger.debug("blockSignals() ENTER")
+
     def unblockSignals(self):
-        pass  
+        logger.debug("unblockSignals() ENTER")
+        self.text_edit.blockSignals(False)
+        self.tree_widget.blockSignals(False)
+        self.model.blockSignals(False)
+        logger.debug("unblockSignals() ENTER")
 
     def copy_to_clipboard(self, parentWindow = None):
         clipboard = QApplication.clipboard()
@@ -69,7 +77,7 @@ class BaseTabContent(QWidget):
             clipboard_text = clipboard.text()
             if clipboard_text:
                 self.text_edit.setPlainText(clipboard_text)
-                parentWindow.sync_from_text_window()
+                parentWindow.sync_tree_from_text_window()
                 QMessageBox.information(parentWindow, "Pasted", "Text pasted from clipboard!")
             else:
                 QMessageBox.warning(parentWindow, "Clipboard Empty", "No text found in the clipboard!")
@@ -87,20 +95,21 @@ class BaseTabContent(QWidget):
         logger.debug("pretty_print_text_widget() EXIT")
 
     # Function to update the indicator color (red or green)
-    def update_status_indicator_to_green(self, green_if_true, context):
-        logger.debug(f"update_status_indicator_to_green() ENTER, green?: {green_if_true}, context: {context}")
-        palette = self.status_indicator.palette()
+    def update_status_indicator_to_green(self, green_if_true):
+        logger.debug(f"update_status_indicator_to_green() ENTER, green?: {green_if_true}")
+        palette = self.parent.status_indicator.palette()
         
         if green_if_true:
             logger.verbose("green")
-            self.status_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
+            self.parent.status_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
         else:
             logger.verbose("yellow")
-            self.status_indicator.setStyleSheet(f"background-color: {YELLOW_LED_COLOR}; border-radius: 4px;")
+            self.parent.status_indicator.setStyleSheet(f"background-color: {YELLOW_LED_COLOR}; border-radius: 4px;")
             
-        self.status_indicator.setPalette(palette)
-        self.status_indicator.update()
-        logger.verbose("update_status_indicator_to_green() EXIT")  
+        self.parent.status_indicator.setPalette(palette)
+        self.parent.status_indicator.update()
+
+        logger.verbose("update_status_indicator_to_green() EXIT")
 
     def set_led_based_on_app_thread_load(self, max_threads = 3, context="none"):
         logger.debug(f"set_led_based_on_app_thread_load() ENTER, max_threads: {max_threads}, context: {context}")
@@ -115,23 +124,63 @@ class BaseTabContent(QWidget):
                 
             if num_threads > max_threads:
                 #set the led yellow:
-                self.update_status_indicator_to_green(False, context)
+                self.update_status_indicator_to_green(False)
                 
                 QTimer.singleShot(2000, run)
                 logger.verbose("1st tab set_led_based_on_app_thread_load() EXIT, yellow\n")
             else:    
                 #set the led green:        
-                self.update_status_indicator_to_green(True,context)
+                self.update_status_indicator_to_green(True)
                 logger.verbose("1st tab set_led_based_on_app_thread_load() EXIT, green\n")            
         
         #wait 2 seconds on the first run:
         QTimer.singleShot(2000, run)
         logger.verbose("set_led_based_on_app_thread_load() EXIT")
 
-    def update_tree_from_model(self):
-        logger.debug("1st tab update_tree_from_model() called")
+    def model_changed(self):
+        logger.debug(f"Model Changed.")
 
-        json_data = self.load_json_from_model()
+        # Set tree from text
+        try:
+            self.blockSignals()
+            self.update_text_widget_from_model()
+            self.update_tree_from_model()
+            self.tree_widget.expand_tree_to_level(1)
+            self.unblockSignals()
+            self.update_tree_synced_indicator(True)
+
+        except json.JSONDecodeError as e:
+            QMessageBox.critical(self, "Error", f"Failed to parse JSON from text window: {e}")
+
+        logger.verbose(f"Now: {self.view.get_text()}")
+
+    def sync_tree_from_text_window(self):
+        self.main_window.background_processing_signal.emit(4, self.model_context)
+        self.update_model_from_text_edit()
+        self.update_tree_from_model()
+        self.tree_widget.expand_tree_to_level(1)
+        self.update_tree_synced_indicator(True)
+
+    def sync_text_from_tree_window(self):
+        logger.debug("sync from Tree Window ENTER")
+        self.update_model_from_tree()
+        self.update_text_widget_from_model()
+        logger.debug("sync from Tree Window EXIT")
+
+    def update_model_from_text_edit(self):
+        logger.debug("update_model_from_text_edit() enter")
+        self.update_tree_synced_indicator(False)
+        new_text = self.text_edit.toPlainText()
+        self.blockSignals()
+        self.view.set_text(new_text)
+        self.unblockSignals()
+
+        logger.debug("update_model_from_text_edit() exit")
+
+    def update_tree_from_model(self):
+        logger.debug("update_tree_from_model() called")
+        json_data = self.view.get_json()
+
         if json_data is not None:
             self.blockSignals()
             self.clear_tree_view()
@@ -139,10 +188,65 @@ class BaseTabContent(QWidget):
             self.unblockSignals()
             self.update_tree_synced_indicator(True)
 
-            logger.debug("1st tab Tree view updated with model data.")
+            logger.debug("Tree view updated with model data.")
+        else:
+            logger.error("no data from model")
+
+    # Function to update the indicator color (red or green)
+    def update_tree_synced_indicator(self, green_if_true):
+        logger.debug("update_tree_synced_indicator() ENTER")
+        self.tree_synced = green_if_true
+        palette = self.tree_synced_indicator.palette()
+
+        if green_if_true:
+            logger.debug("1st tab green")
+            self.tree_synced_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
+        else:
+            logger.debug("1st tab red")
+            self.tree_synced_indicator.setStyleSheet(f"background-color: red; border-radius: 4px;")
+
+        self.tree_synced_indicator.setPalette(palette)
+        self.tree_synced_indicator.update()
+        QApplication.processEvents()
+        logger.debug("update_tree_synced_indicator() EXIT")
+
+    def populate_tree(self, data, parent=None):
+        logger.debug("populate_tree() ENTER")
+        if parent is None:
+            parent = self.tree_widget.invisibleRootItem()
+
+        if isinstance(data, dict):
+            for key, value in data.items():
+                item = QTreeWidgetItem([key])
+                parent.addChild(item)
+                self.populate_tree(value, item)
+        elif isinstance(data, list):
+            for index, value in enumerate(data):
+                item = QTreeWidgetItem([f"Item {index}"])
+                parent.addChild(item)
+                self.populate_tree(value, item)
+
+        logger.debug("populate_tree() EXIT")
+
+    def update_text_widget_from_model(self):
+        logger.debug("update_text_widget_from_model() enter")
+        self.text_edit.setPlainText(self.view.get_text())
+        logger.debug("update_text_widget_from_model() exit")
+
+    def update_model_from_tree(self):
+        logger.debug("update_model_from_tree() ENTER")
+        # To start from the root and traverse the whole tree:
+        tree_data = self.tree_widget_data_to_json()
+        logger.verbose(f"tree string: {tree_data}")
+        self.blockSignals()
+        self.view.set_json(tree_data)
+        self.unblockSignals()
+
+        logger.debug("update_model_from_tree() EXIT")
 
 
-        # MIT License
+
+    # MIT License
 #
 # Copyright (c) 2024 BigBuffaloBill - Bill Ryder <me@billryder.com>
 #

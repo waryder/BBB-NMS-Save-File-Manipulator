@@ -1,12 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-
 a = Analysis(
     ['BBB_NMS_Save_File_Manipulator.py'],
     pathex=[],
     binaries=[],
-    datas=[('C:\\MBIN_PROJECTS\\Working_Projects\\BBB-NMS-SFM-Project\\help', 'help')],
-    hiddenimports=['imports'],
+    datas=[
+        ('C:\\MBIN_PROJECTS\\Working_Projects\\BBB-NMS-SFM-Project\\help', 'help'),
+        ('C:\\MBIN_PROJECTS\\Working_Projects\\BBB-NMS-SFM-Project\\images', 'images'),
+    ],
+    hiddenimports=['imports'],  # Ensure 'imports' is a valid module
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

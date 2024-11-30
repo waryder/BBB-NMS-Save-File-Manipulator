@@ -36,19 +36,26 @@ class DeleteTreeNodesSelectedDialog(QDialog):
         layout.addLayout(button_layout)
 
         # Set the dialog layout
-        self.setLayout(layout) 
-
+        self.setLayout(layout)
 
 class CustomTreeWidget(QTreeWidget):
     def __init__(self, parent=None):
         super(CustomTreeWidget, self).__init__(parent)
         
         #we expect parent to be the first tab object here:
-        self.first_tab_obj = parent        
-        self.setDragDropMode(QAbstractItemView.InternalMove)
-        self.setDragEnabled(True)
-        self.setAcceptDrops(True)
-        self.setDropIndicatorShown(True)
+        self.parent = parent
+
+        #print(f"Is {type(parent)} != {parent.parent.tab3}")
+        #print(type(parent.parent))
+        if (type(parent).__name__ != "ThirdTabContent"):
+        #    print("true")
+
+            self.setDragDropMode(QAbstractItemView.InternalMove)
+            self.setDragEnabled(True)
+            self.setAcceptDrops(True)
+            self.setDropIndicatorShown(True)
+        #else:
+        #    print("false")
         
         # Enable the custom context menu on the tree widget
         self.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -204,24 +211,34 @@ class CustomTreeWidget(QTreeWidget):
             # Create a context menu
             menu = QMenu(self)
             
-            highlight_in_text_box_action = menu.addAction("Highlight In Text Box")
-            highlight_in_text_box_action.triggered.connect(lambda: self.highlight_in_text_box(item))
+            action = menu.addAction("Highlight In Text Box")
+            action.triggered.connect(lambda: self.highlight_in_text_box(item))
             
-            toggle_expand_action = menu.addAction("Toggle Expansion 2 Levels")
-            toggle_expand_action.triggered.connect(lambda: self.toggle_node_expansion(item))
-            
-            #if top level array we want to add a menu item:
-            if(self.count_parents(item) == 0): #is top level    
-                toggle_expand_action = menu.addAction("Restore a Base")
-                toggle_expand_action.triggered.connect(lambda: self.restore_a_base(item))            
-            
-            is_a_base = item.data(0, QT_DATA_IS_BASE)
-            if is_a_base: 
-                toggle_expand_action = menu.addAction("Backup a Base")
-                toggle_expand_action.triggered.connect(lambda: self.backup_a_base(item))
-            
-            delete_action = menu.addAction("Delete Node")
-            delete_action.triggered.connect(lambda: self.delete_node(item))
+            action = menu.addAction("Toggle Expansion 2 Levels")
+            action.triggered.connect(lambda: self.toggle_node_expansion(item))
+
+            if (self.parent == self.parent.parent.tab1):
+                #if top level array we want to add a menu item:
+                if(self.count_parents(item) == 0): #is top level
+                    action = menu.addAction("Restore a Base")
+                    action.triggered.connect(lambda: self.restore_a_base(item))
+
+                is_a_base = item.data(0, QT_DATA_IS_BASE)
+                if is_a_base:
+                    action = menu.addAction("Backup a Base")
+                    action.triggered.connect(lambda: self.backup_a_base(item))
+
+            if(self.parent == self.parent.parent.tab1 or self.parent == self.parent.parent.tab2):
+                action = menu.addAction("Delete Node")
+                action.triggered.connect(lambda: self.delete_node(item))
+
+            if (self.parent == self.parent.parent.tab3):
+                if (self.count_parents(item) == 1):  # is top level
+                    action = menu.addAction("Backup this Inventory")
+                    action.triggered.connect(lambda: self.backup_an_inventory(item))
+
+                    action = menu.addAction("Replace Items from Backup")
+                    action.triggered.connect(lambda: self.replace_an_inventory(item))
 
             # Show the context menu at the position of the right-click
             menu.exec_(global_position) 
@@ -234,7 +251,10 @@ class CustomTreeWidget(QTreeWidget):
         # Show the dialog and capture the response (OK or Cancel)
         if dialog.exec_() == QDialog.Accepted:
             logger.debug("OK button clicked")
-            self.first_tab_obj.blockSignals()
+            self.parent.update_tree_synced_indicator(False)
+            self.parent.set_led_based_on_app_thread_load()
+
+            self.parent.blockSignals()
             
             for item in self.right_button_selected_nodes:
                 # Check if the item has a parent
@@ -245,8 +265,6 @@ class CustomTreeWidget(QTreeWidget):
                     
                     #parent.removeChild(item)
                     safe_remove_qtreewidget_node(item)
-                    
-                    
                 else:
                     # If no parent, the item is a top-level node
                     index = self.indexOfTopLevelItem(item)
@@ -255,21 +273,26 @@ class CustomTreeWidget(QTreeWidget):
 
             # Clear the selection list after deletion
             self.right_button_selected_nodes.clear()
-            self.first_tab_obj.update_status_indicator_to_green(False)
-            
-            self.first_tab_obj.sync_text_from_tree_window()
-            
-            #leaving this up to the end user with the next live line of code
-            #self.first_tab_obj.update_tree_from_model()
-            self.first_tab_obj.update_tree_synced_indicator(False)            
-            self.first_tab_obj.unblockSignals()
+
+            self.tree_nodes_changed_emits()
+            self.parent.unblockSignals()
             
         else:
             logger.debug("Cancel button clicked")
 
         logger.debug("delete_tree_nodes_selected() EXIT")
-        
    
+    def tree_nodes_changed_emits(self):
+        QApplication.processEvents()
+        # we need everything updated because otherwise the custom top node labels end up messed up:
+        # parent is a tab
+        # parent.parent is the main window
+        # let's tell everyone the tree changed:
+        self.parent.parent.tree_changed_signal.emit()
+
+        # now we come back and say the text changed so that the tree widget is repopulated:
+        self.parent.parent.text_edit_changed_signal.emit()
+
     def count_parents(self, node):
         count = 0
         parent = node.parent()
@@ -282,7 +305,7 @@ class CustomTreeWidget(QTreeWidget):
     
     def highlight_in_text_box(self, item):
         logger.verbose("highlight_in_text_box() ENTER") 
-        text_edit = self.first_tab_obj.text_edit
+        text_edit = self.parent.text_edit
         line_num = item.data(0, QT_DATA_LINE_COUNT)
         logger.verbose(f"line_num: {line_num}")
         
@@ -341,7 +364,7 @@ class CustomTreeWidget(QTreeWidget):
         logger.debug("backup_a_base() ENTER")
         #QMessageBox.information(self, "Title", "Got request to save off a base!")
         
-        json_data = self.first_tab_obj.tree_widget_data_to_json(item)
+        json_data = self.parent.tree_widget_data_to_json(item)
         base_name = json_data['Name']
         text_data = json.dumps(json_data, indent=4)
         
@@ -349,7 +372,7 @@ class CustomTreeWidget(QTreeWidget):
         options = QFileDialog.Options()
         
         #mainWindow is active window; path will include the name of the last 'bases' save file at this point:
-        path_string = QApplication.instance().activeWindow().ini_file_manager.get_base_pathdir()
+        path_string = QApplication.instance().activeWindow().ini_file_manager.get_persistent_dir()
         #assume we want to use the base name for the file name:
         path_string += f"\\{base_name}"
         
@@ -368,14 +391,22 @@ class CustomTreeWidget(QTreeWidget):
                 QMessageBox.critical(None, "Error", f"Failed to save file: {str(e)}")
         
         logger.debug("backup_a_base() EXIT")
-        
+
     def restore_a_base(self, item):
         logger.debug("restore_a_base() ENTER")
         file_content = None
         
         options = QFileDialog.Options()
         options |= QFileDialog.ReadOnly
-        file_path, _ = QFileDialog.getOpenFileName(None, "Restore A Base To First Position In Tree", "", "NMS Base Files (*.nms_base.json);;All Files (*)", options=options)
+
+        path_string = QApplication.instance().activeWindow().ini_file_manager.get_persistent_dir()
+
+        file_path, _ = QFileDialog.getOpenFileName(
+            None,
+            "Restore A Base To First Position In Tree",
+            path_string,
+            "NMS Base Files (*.nms_base.json);;All Files (*)",
+            options = options)
         
         if file_path:
             try:
@@ -388,9 +419,13 @@ class CustomTreeWidget(QTreeWidget):
                 error_dialog.setText(f"Error reading file: {str(e)}")
                 error_dialog.exec_()
                 
-        if file_content:              
+        if file_content:
+            self.parent.update_tree_synced_indicator(False)
+            self.parent.set_led_based_on_app_thread_load()
+
             nms_base_json = json.loads(file_content)
-            self.first_tab_obj.model.add_base(nms_base_json)
+            self.parent.view.add_base(nms_base_json)
+
             dialog = QMessageBox()
             dialog.setText(f"New Base Added To Tree!")
             dialog.exec_()
@@ -398,13 +433,109 @@ class CustomTreeWidget(QTreeWidget):
             dialog = QMessageBox()
             dialog.setText(f"File Data May Not Exist. New Base Could NOT Be Added To Tree!")
             
-        logger.debug("restore_a_base() EXIT")   
-        
+        logger.debug("restore_a_base() EXIT")
+
+    def backup_an_inventory(self, item):
+        logger.debug("backup_an_inventory() ENTER")
+        # QMessageBox.information(self, "Title", "Got request to save off a base!")
+
+        json_data = self.parent.tree_widget_data_to_json(item)
+        inventory_name = json_data['Name']
+        text_data = json.dumps(json_data, indent=4)
+
+        # Open the save file dialog
+        options = QFileDialog.Options()
+
+        # mainWindow is active window; path will include the name of the last 'bases' save file at this point:
+        path_string = QApplication.instance().activeWindow().ini_file_manager.get_persistent_dir()
+        # assume we want to use the base name for the file name:
+        path_string += f"\\{inventory_name}"
+
+        file_path, _ = QFileDialog.getSaveFileName(
+            None, "Save File",
+            path_string,
+            "NMS Inventory Files (*.nms_inventory.json);;All Files (*)")
+
+        # If a file path is selected, save the string to the file
+        if file_path:
+            try:
+                with open(file_path, 'w') as file:
+                    file.write(text_data)
+                QMessageBox.information(None, "Success", "File saved successfully!")
+            except Exception as e:
+                QMessageBox.critical(None, "Error", f"Failed to save file: {str(e)}")
+
+        logger.debug("backup_an_inventory() EXIT")
+
+    def replace_an_inventory(self, item):
+        logger.debug("replace_an_inventory() ENTER")
+        file_content = None
+
+        options = QFileDialog.Options()
+        options |= QFileDialog.ReadOnly
+
+        path_string = QApplication.instance().activeWindow().ini_file_manager.get_persistent_dir()
+
+        file_path, _ = QFileDialog.getOpenFileName(
+            None,
+            "Replace Inventory Contents",
+            path_string,
+            "NMS Inventory Files (*.nms_inventory.json);;All Files (*)",
+            options = options)
+
+        if file_path:
+            try:
+                with open(file_path, 'r') as file:
+                    file_content = file.read()  # Reads the entire file as a string
+
+            except Exception as e:
+                # If there's an error reading the file, show an error message
+                error_dialog = QMessageBox()
+                error_dialog.setText(f"Error reading file: {str(e)}")
+                error_dialog.exec_()
+
+        if file_content:
+            self.parent.update_tree_synced_indicator(False)
+            self.parent.set_led_based_on_app_thread_load()
+
+            nms_inventory_json = json.loads(file_content)
+            self.parent.view.replace_inventory(nms_inventory_json, item)
+            dialog = QMessageBox()
+            dialog.setText(f"Inventory Contents Replaced!")
+            dialog.exec_()
+        else:
+            dialog = QMessageBox()
+            dialog.setText(f"File Data May Not Exist. New Base Could NOT Be Added To Tree!")
+
+        logger.debug("replace_an_inventory() EXIT")
+
+    def set_node_first_in_tree(self, node, new_parent):
+        if node and new_parent:
+            # Step 1: Remove freighter_node from its current parent, if it has one
+            current_parent = node.parent()
+            if current_parent:
+                index = current_parent.indexOfChild(node)
+                if index != -1:
+                    current_parent.takeChild(index)
+            else:
+                # If the freighter_node is a top-level item, remove it from the tree widget
+                tree_widget = node.treeWidget()
+                if tree_widget:
+                    index = tree_widget.indexOfTopLevelItem(node)
+                    if index != -1:
+                        tree_widget.takeTopLevelItem(index)
+
+            # Step 2: Insert freighter_node at the top of new_parent's children
+            new_parent.insertChild(0, node)
+
     def dropEvent(self, event):
         logger.debug("==================== DROP EVENT START ====================")
-        
-        self.first_tab_obj.set_led_based_on_app_thread_load()
-        
+        #super().dropEvent(event)  # Call the base class dropEvent to handle basic drop logic
+        #QApplication.processEvents()  # Process pending UI events to refresh the interface
+
+        self.parent.update_tree_synced_indicator(False)
+        self.parent.set_led_based_on_app_thread_load()
+
         # Get the item being dragged
         dragged_item = self.currentItem()
         if not dragged_item:
@@ -486,25 +617,26 @@ class CustomTreeWidget(QTreeWidget):
 
         # Log the entire tree structure after the move
         logger.verbose("Tree structure after move:")
-        self.log_tree_structure()  
+        self.log_tree_structure()
+
+
+        QApplication.processEvents()  # Process pending UI events to refresh the interface
 
         #Let us handle the updates so we know what's going on
-        self.first_tab_obj.blockSignals() 
+        #self.parent.blockSignals()
         
-        logger.verbose(f"Model Text before update_model_from_tree(): {self.first_tab_obj.model.get_text()}")
+        #logger.verbose(f"Model Text before update_model_from_tree(): {self.parent.view.get_text()}")
         #update the model from the new Tree structure
-        self.first_tab_obj.update_model_from_tree()
-        logger.verbose(f"Model Text after update_model_from_tree(): {self.first_tab_obj.model.get_text()}")
-        
-        #update the text widget
-        self.first_tab_obj.update_text_widget_from_model()    
-        self.first_tab_obj.unblockSignals()
-        self.setCurrentItem(item)
+        #self.parent.update_model_from_tree()
+        #logger.verbose(f"Model Text after update_model_from_tree(): {self.parent.view.get_text()}")
+
+        self.tree_nodes_changed_emits()
+
+        #self.setCurrentItem(item)
 
         logger.debug("==================== DROP EVENT END ====================")
         self.log_tree_structure()
-        
-        
+
     def wouldBeLastChild(self, dragged_item):  
         parent1 = dragged_item.parent()
         if(parent1.childCount() == 1):
@@ -555,8 +687,7 @@ class CustomTreeWidget(QTreeWidget):
             #just stick it in below. End user can move drag it again within same parent to reposition:
             new_index = new_parent.indexOfChild(drop_target) + 1
             
-        return new_index    
-        
+        return new_index
  
     def refresh_view(self, item): 
         logger.debug("Refreshing view")

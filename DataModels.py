@@ -3,7 +3,7 @@ from IniFileManager import *
 from pympler import asizeof
 
 global INIT_BASE_TEXT
-global INIT_STARSHIP_TEXT    
+global INIT_STARSHIP_TEXT
 
 # Parent Class: DataModel
 class DataModel(QObject):
@@ -15,40 +15,28 @@ class DataModel(QObject):
     # an instance variable for the life of the app:
     modelChanged = pyqtSignal()
 
-    def __init__(self, last_working_file_path):
+    def __init__(self):
         logger.debug("DataModel(QObject).__init__ ENTER")
         super().__init__()
 
-        self.last_file_path = last_working_file_path
-        
         logger.debug("DataModel(QObject).__init__ EXIT")
 
     # Accessor stubs
-    def init_model_data(self):
-        raise NotImplementedError("Subclasses must implement 'get_text'")
-    
-    def get_text(self):
-        raise NotImplementedError("Subclasses must implement 'get_text'")
+    def get_data(self):
+        raise NotImplementedError("Subclasses must implement 'get_data'")
 
-    def set_text(self, text):
-        raise NotImplementedError("Subclasses must implement 'set_text'")
-
-    def get_json(self):
-        raise NotImplementedError("Subclasses must implement 'get_json'")
-
-    def set_json(self, json_array):
-        raise NotImplementedError("Subclasses must implement 'set_json'")        
-            
+    def set_data(self, json_array):
+        raise NotImplementedError("Subclasses must implement 'set_data'")
 
 class JsonArrayModel(DataModel):
-    def __init__(self, last_working_file_path, model_context = 'main', INIT_TEXT = None):
+    def __init__(self, model_context = 'main', INIT_TEXT = None):
         logger.debug("JsonArrayModel(DataModel).__init__ ENTER")
 
         #should come in 'main', 'tab1', 'tab2', 'tab3' ...
         self.model_context = model_context
 
         self.INIT_TEXT=INIT_TEXT
-        super().__init__(last_working_file_path)
+        super().__init__()
 
         #leave blank for now at start. Wait for user to load something:
         self.init_model_data()
@@ -56,117 +44,75 @@ class JsonArrayModel(DataModel):
         
     def init_model_data(self):
         logger.debug("init_model_data() ENTER")
-        new_model_data = None
-        
-#for now we're going to just assume start with demo data:
-#        if self.last_file_path and os.path.exists(self.last_file_path):
-#            # If the file exists, load its contents
-#            try:
-#                with open(self.last_file_path, 'r') as file:
-#                    new_model_data = json.loads(file.read())
-#            except Exception as e:
-#                print(f"Failed to load text from {self.last_file_path}: {e}")
-#                new_model_data = json.loads(self.INIT_TEXT)
-#        else:
-            # Fall back to INIT_TEXT if no file path is found or the file doesn't exist
+
+        # Fall back to INIT_TEXT if no file path is found or the file doesn't exist
         if(self.INIT_TEXT):
-            print("self.INIT_TEXT NOT empty")
-            new_model_data = json.loads(self.INIT_TEXT)
-            self.set_json(new_model_data)
+            new_model_data = json_loads_with_exception_check(self.INIT_TEXT)
+
+            if not new_model_data:
+                sys.exit(1)
+
+            self.set_data(new_model_data)
         else:
             print("self.INIT_TEXT empty")
 
-        print(f"model_context: {self.model_context}, Size of data: {asizeof.asizeof(self.model_data)}")
+        #print(f"model_context: {self.model_context}, Size of data: {asizeof.asizeof(self.model_data)}")
 
         logger.debug("init_model_data() EXIT")
 
-    # Override the stubbed accessor functions
-    def get_text(self):
-        logger.debug("get_text() ENTER")
-
-        if not DataModel.model_data:
-            return ""
-
-        return json.dumps(self.get_json(), indent=4)
-
-    def set_text(self, text):
-        logger.debug("set_text() ENTER")
-
-        json_loads = json.loads(text)
-        self.set_json(json_loads)
-            
-        logger.debug("set_text EXIT")    
-
-    def get_json(self):
+    def get_data(self):
         logger.debug("get_json() ENTER")
 
         if not DataModel.model_data:
-            return ""
+            return None
 
-        if (self.model_context == 'main'):
-            return DataModel.model_data
-        elif (self.model_context == 'tab1'):
-            return DataModel.model_data["PlayerStateData"]["PersistentPlayerBases"]
-        elif (self.model_context == 'tab2'):
-            return DataModel.model_data["PlayerStateData"]["ShipOwnership"]
-        elif (self.model_context == 'tab3'):
-            containers = []
-            for i in range(1, 11): #generates 1 - 10
-                containers.append(DataModel.model_data["PlayerStateData"][f"Chest{i}Inventory"])
-
-            #These seem to be unnamed. Let's give them a name just for display within the app here. We'll undo this on the way out:
-            containers.append(DataModel.model_data["PlayerStateData"][f"CookingIngredientsInventory"])
-            containers[10]['Name'] = 'Cooking Ingredients'
-            containers.append(DataModel.model_data["PlayerStateData"][f"FishPlatformInventory"])
-            containers[11]['Name'] = 'Fish Platform'
-
-            return containers
-        else:
-            return #error
+        return DataModel.model_data
 
         logger.debug("get_json() EXIT")
 
-    def set_json(self, json_array):
-        logger.debug("set_json() ENTER")
+    def set_data(self, json_array):
+        logger.debug("set_data() ENTER")
 
-        if (self.model_context == 'main'):
-            DataModel.model_data = json_array
+        """
+        traceback.print_stack()
+        
+        print("####################")
+        print(f"json_array is of type: {type(json_array)}")
+        print(f"The size of the variable is: {sys.getsizeof(json_array)} bytes")
+        #if isinstance(json_array, list):
+        print(f"The number of items in the list is: {len(json_array)}")
+        print("####################")
+        """
 
-        elif (self.model_context == 'tab1'):
-            DataModel.model_data["PlayerStateData"]["PersistentPlayerBases"] = json_array
+        DataModel.model_data = json_array
 
-        elif (self.model_context == 'tab2'):
-            DataModel.model_data["PlayerStateData"]["ShipOwnership"] = json_array
-
-        elif (self.model_context == 'tab3'):
-            for i in range(1, 11):  # generates 1 - 10
-                DataModel.model_data["PlayerStateData"][f"Chest{i}Inventory"] = json_array[i]
-
-            # These seem to be unnamed. We gave them a name just for display within the app here.
-            # We're undoing this on the way out now:
-            DataModel.model_data["PlayerStateData"]["CookingIngredientsInventory"] = json_array[10]
-            DataModel.model_data["PlayerStateData"]["CookingIngredientsInventory"]['Name'] = ""
-            DataModel.model_data["PlayerStateData"]["FishPlatformInventory"] = json_array[11]
-            DataModel.model_data["PlayerStateData"]["FishPlatformInventory"]['Name'] = ""
-
-        DataModel.modelChanged.emit()
-        logger.debug("set_json() EXIT")
-
-    def add_base(self, nms_base_json_array):
-        logger.debug("add_base() ENTER")
-
-        # only valid for the base tab:
-        if (model_context == 'tab1'):
-            DataModel.model_data["PlayerStateData"]["PersistentPlayerBases"].insert(0, nms_base_json_array)
-            DataModel.modelChanged.emit()
-        else:
-            return  # error
-
-        logger.debug("add_base() EXIT")
+        self.modelChanged.emit()
+        logger.debug("set_data() EXIT")
 
 
+"""
+def _getInventoryIds():
+    return [
+        "Inventory",  # Exosuit, I think
+        "FreighterInventory",
+        "ShipOwnership",
+        "VehicleOwnership",
+        "FishBaitBoxInventory",
+        "CookingIngredientsInventory",
+        "Chest1Inventory",
+        "Chest2Inventory",
+        "Chest3Inventory",
+        "Chest4Inventory",
+        "Chest5Inventory",
+        "Chest6Inventory",
+        "Chest7Inventory",
+        "Chest8Inventory",
+        "Chest9Inventory",
+        "Chest10Inventory"
+    ]
+"""
 
-    # MIT License
+# MIT License
 #
 # Copyright (c) 2024 BigBuffaloBill - Bill Ryder <me@billryder.com>
 #

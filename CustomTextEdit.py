@@ -5,6 +5,7 @@ class CustomTextEdit(QPlainTextEdit):
         super(CustomTextEdit, self).__init__(parent)
         self.parent_tab = parent  # Reference to the parent tab object
         self.setLineWrapMode(QPlainTextEdit.NoWrap)
+        #self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
 
     def keyPressEvent(self, event):
         # Check if Ctrl+V or Cmd+V (on macOS) is pressed

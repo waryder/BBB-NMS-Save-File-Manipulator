@@ -17,7 +17,7 @@ class WhichStarshipsToUpgradeDialog(QDialog):
         # Create layout for checkboxes
         layout = QVBoxLayout()
 
-        label = QLabel("Please do not select any custom built Starships!!\nThis upgrade method will kill them!\n")
+        label = QLabel("Please do not select any custom built or expedition Starships!!\nThis upgrade method will kill them!\n")
         # Make the label text bold
         font = QFont()
         font.setBold(True)
