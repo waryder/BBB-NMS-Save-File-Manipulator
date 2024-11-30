@@ -31,5 +31,5 @@ cd build/to_be_zipped
 cd ../..
 
 mv build/$1.zip dist
-
+rm -rf build
 
