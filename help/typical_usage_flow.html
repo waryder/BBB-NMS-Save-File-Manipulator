@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+			<title>Typical Usage Flow - BBB NMS Save File Manipulator</title>
+			<style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        a {
+            text-decoration: none;
+            color: #007BFF;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .center-box {
+            width: 60%;
+            margin: 0 auto;
+            border: 0px solid #000;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+		</style>
+	</head>
+	<body>
+		<div class="center-box">
+			<h1>BBB NMS Save File Manipulator Typical Usage Flow</h1>
+			<p>
+				<a href="index.html">Back to the Help Index</a>
+			</p>
+			<p>
+			DISCLAIMERS: I cannot be held liable for any damage this app causes. Period. I have been a software engineer for over 20 years and while I have a confidence in my work, I also
+			know end users will find every flaw in even the best engineered applications, whereas I am a one man show over here. :) I recommend that you save off back up copies of your save files before you use any editor at all, and be 
+			aware 
+			that BBB NMS Save File Manipulator must really be used by technical experts only. If you are not super comfortable with JSON files, file manipulation, and all aspects of what you see
+			in the app, just stop and do not use it! If you do find any errors I need to know about, I am BigBuffaloBill over on Discord. But please DO NOT write and tell me I wrecked your game! My answer will be "no problem; 
+			just use the backup file I told you to make and go restore yourself." :) I do use this application regularly myself at this point, but I make backups just in case!!
+			</p>
+			<p>
+			Additionally, be advised that I will gloss over processes for getting the data out of another save file editor for use in this editor. This is by design as I really do not want anyone using this tool at its current
+			level of development, who does not have enough of a skill set yet to know what I mean when I say "go get the base or starship data out of the other save editor." That said...
+			</p>
+			<p>
+				The general intended flow is as follows, although in use I have added features that allow much convenience in varied uses and processes. But generally:
+				<ul>
+					<li>Similar to what is described for a tool like the Blender NMS Base Building Plugin, you would need to go to the right spot in something like the Goatfungus Save Editor and grab the data for the tab you
+						are using in BBB NMS SFM. You copy this data and then use the "Import from Clipboard" button to load it into BBB NMS SFM:
+					<ul>
+						<li>Base Tab: use all Json in BaseContext->PlayerStateData->PersistentPlayerBases.</li>
+						<li>Starship Tab: use all data in BaseContext->PlayerStateData->ShipOwnership.</li>
+					</ul><BR>
+					<B>(Be advised that when you fire up this application for the first time, dummy example data is hardcoded so that the text windows are populated with something to look at. This data is for show
+					and for evaluation of the tool but not intended to be used for anything.)</B><BR><BR>
+					</li>
+					<li>Then you will do whatever work needed in BBB NMS SFM.<BR><BR>
+					</li>		
+					<li>Then you will reverse the process, use the 'Export to Clipboard" buttonb to copy the data back out of the BBB NMS SFM and back into the Goatfungus or other save file editor to be saved in a live game context.
+					</li>
+				</ul>		
+			</p>				
+			<p>
+				<a href="index.html">Back to the Help Index</a>
+			</p>
+			<!-- Add more detailed overview content here -->
+		</div>
+	</body>
+</html>

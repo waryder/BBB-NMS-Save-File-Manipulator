@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+	<meta charset="UTF-8">
+		<title>Inventory Sort Button - BBB NMS Save File Manipulator</title>
+		<style>
+	body {
+		font-family: Arial, sans-serif;
+		padding: 20px;
+	}
+	a {
+		text-decoration: none;
+		color: #007BFF;
+	}
+	a:hover {
+		text-decoration: underline;
+	}
+
+	.center-box {
+		width: 60%;
+		margin: 0 auto;
+		border: 0px solid #000;
+		padding: 20px;
+		box-sizing: border-box;
+	}
+		</style>
+	</head>
+	<body>
+		<div class="center-box">
+			<h1>BBB NMS Save File Manipulator - The 'Inventory Sort' Button</h1>
+			<p>
+				<a href="index.html">Back to the Help Index</a>
+			</p>
+			<p>
+
+			<img width=800 src="../images/inventory_sort_dialog.png"></img>
+
+			</p>
+			<p>
+			The Inventory Sort Button will allow sorting of inventory items between different inventory storages. Use is fairly straight forward. The Source Inventories (See 1) specify those storages
+			where you want items to be taken from. The Target Inventories (See 2) are the storages where you would like items to be placed. The Catergories (See 3) specify which category of item should be sorted into
+			the Storage container on the same line. Down on the lower left is the 'Use All Unselected Storage Containers for Overflow' (See 4) which will be discussed later.
+			</p>
+			<p>
+			Use involves setting up the check boxes and then hitting the Execute Sort Button. At that point all items will be moved as indicated by the checkboxes. Items will be moved in this way:
+				<ul>
+					<li>For each Source (See 1), we go through the Targets and move all items that match the selected Categories (See 3) for that Target (See 2)</li>
+					<li>If I Target becomes full, the next Target in the list will be used.</li>
+					<li>If all checked storages becomes full, and "Use All Unselected..." box (See 4) is checked, we will use Storage Containers only as overflow (those items with 'Storage Container' actually in the name)
+					in reverse order, so for example Storage Container 10; if that one is full, Storage Container 9...and so on.</li>
+					<li>If all available Storage Containers available become full, processing stops.</li>
+					<li>We use this same logic, processing through each checked Source Inventory until we are through them all.</li>
+				</ul>
+
+			</p>
+			<p>
+			Finally, be aware that the last checkbox settings used during a completed inventory sort will be stored as the default settings for the next use. In other words next time you pull up the
+			dialog, you will see the same checkboxes checked as the last time you hit the 'Execute Sort' button.
+
+			<p>
+
+				<a href="index.html">Back to the Help Index</a>
+			</p>
+			<!-- Add more detailed overview content here -->
+		</div>
+	</body>
+</html>
+
+
+

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+	<meta charset="UTF-8">
+		<title>Inventory Sort Button - BBB NMS Save File Manipulator</title>
+		<style>
+	body {
+		font-family: Arial, sans-serif;
+		padding: 20px;
+	}
+	a {
+		text-decoration: none;
+		color: #007BFF;
+	}
+	a:hover {
+		text-decoration: underline;
+	}
+
+	.center-box {
+		width: 60%;
+		margin: 0 auto;
+		border: 0px solid #000;
+		padding: 20px;
+		box-sizing: border-box;
+	}
+		</style>
+	</head>
+	<body>
+		<div class="center-box">
+			<h1>BBB NMS Save File Manipulator - Grabbing the BaseContext Json data from Goatfungus</h1>
+			<p>
+				<a href="index.html">Back to the Help Index</a>
+			</p>
+			<p>
+
+			<img width=800 src="../images/save_editor.png"></img>
+
+			</p>
+			<p>
+			This is just a quick screenshot showing where you may copy from, and later paste the required data to move it in and out of a save editor. I have not yet asked for permission to use
+			the supplied screenshot and hope no one gets mad. I will seek permission before I would release it for general use.
+			</p>
+			<p>
+			The flow here is as follows from initially grabbing the data, through bringing the new data back to be saved back into the live game context:
+				<ul>
+					<li>Copying the data to be modified:</LI>
+					<li>Open the JSON editor and select Edit->Edit Raw JSON (see 1) </li>
+					<li>Highlight BaseContext on the left (see 2)</li>
+					<li>Put the cursor at the top left of the text window (see 3)</li>
+					<li>Hit CTRL+SHFT+End to select the full text.</li>
+					<li>Hit CTRL+C to COPY. The text is now copied to your clipboard for import into BBB-NMS-SFM<BR></li>
+					</ul>
+					After modification and bringing the new data back over<br>
+					<ul>
+					<li>Pasting the modified data back into the live game context; It's a repeat of above except for the last step:
+					<li>Open the JSON editor and select Edit->Edit Raw JSON (see 1) </li>
+					<li>Highlight BaseContext on the left (see 2)</li>
+					<li>Put the cursor at the top left of the text window (see 3)</li>
+					<li>Hit CTRL+SHFT+End to select the full text.</li>
+					<li>Now Hit CTRL-V to PASTE and replace the full text in the window with the data from your system clipboard</li>
+					<li>Now in Goatfungus, when you close out the JSON editor window you will get a popup asking to confirm saving. Hit yes</li>
+					<li>I always also go up to File and hit save again too</li>
+				</ul>
+
+			</p>
+			<p>
+			Finally, be aware that the last checkbox settings used during a completed inventory sort will be stored as the default settings for the next use. In other words next time you pull up the
+			dialog, you will see the same checkboxes checked as the last time you hit the 'Execute Sort' button.
+
+			<p>
+
+				<a href="index.html">Back to the Help Index</a>
+			</p>
+			<!-- Add more detailed overview content here -->
+		</div>
+	</body>
+</html>
+
+				
