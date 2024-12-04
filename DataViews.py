@@ -195,12 +195,6 @@ class JsonArrayView(QObject):
             #data = self.model.get_data()
 
             for i, data in enumerate(self.get_inventory_sources()):
-            #    if "No Name Provided In Data" in json_array[i]['Name']:
-            #        json_array[i]['Name'] = ""
-
-            #    if ":" in json_array[i]['Name']:
-            #        json_array[i]['Name'] = json_array[i]['Name'].split(':', 1)[-1]
-
                 data[i] = json_array[i]
 
             self.model.modelChanged.emit()
