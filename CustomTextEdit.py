@@ -10,8 +10,7 @@ class CustomTextEdit(QPlainTextEdit):
     def keyPressEvent(self, event):
         # Check if Ctrl+V or Cmd+V (on macOS) is pressed
         if event.matches(QKeySequence.Paste):
-            print("Text pasted via keyboard shortcut")
-            self.parent_tab.update_status_indicator_to_green(False, f"Cmd-V in {self.parent_tab.__class__.__name__}")  # Update indicator
+            self.parent_tab.update_status_indicator_to_green(False)  # Update indicator
             super(CustomTextEdit, self).keyPressEvent(event)  # Let the normal paste occur
         else:
             super(CustomTextEdit, self).keyPressEvent(event)
@@ -19,7 +18,6 @@ class CustomTextEdit(QPlainTextEdit):
     def event(self, event):
         # Capture all paste events (context menu and programmatically)
         if event.type() == QEvent.Clipboard:
-            print("Text pasted via paste event")
             self.parent_tab.update_status_indicator_to_green(False)  # Update indicator
         return super(CustomTextEdit, self).event(event)
         

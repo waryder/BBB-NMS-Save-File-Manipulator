@@ -47,14 +47,14 @@ class JsonArrayModel(DataModel):
 
         # Fall back to INIT_TEXT if no file path is found or the file doesn't exist
         if(self.INIT_TEXT):
-            new_model_data = json_loads_with_exception_check(self.INIT_TEXT)
+            new_model_data = self.json_loads_with_exception_check(self.INIT_TEXT)
 
             if not new_model_data:
                 sys.exit(1)
 
             self.set_data(new_model_data)
         else:
-            print("self.INIT_TEXT empty")
+            pass
 
         #print(f"model_context: {self.model_context}, Size of data: {asizeof.asizeof(self.model_data)}")
 
@@ -73,21 +73,33 @@ class JsonArrayModel(DataModel):
     def set_data(self, json_array):
         logger.debug("set_data() ENTER")
 
-        """
-        traceback.print_stack()
-        
-        print("####################")
-        print(f"json_array is of type: {type(json_array)}")
-        print(f"The size of the variable is: {sys.getsizeof(json_array)} bytes")
-        #if isinstance(json_array, list):
-        print(f"The number of items in the list is: {len(json_array)}")
-        print("####################")
-        """
+        # traceback.print_stack()
+        #
+        # print("####################")
+        # print(f"json_array is of type: {type(json_array)}")
+        # print(f"The size of the variable is: {sys.getsizeof(json_array)} bytes")
+        # #if isinstance(json_array, list):
+        # print(f"The number of items in the list is: {len(json_array)}")
+        # print("####################")
 
         DataModel.model_data = json_array
 
         self.modelChanged.emit()
         logger.debug("set_data() EXIT")
+
+    def json_loads_with_exception_check(self, text):
+        try:
+            json_array = json.loads(text)
+        except Exception as e:
+            QMessageBox.critical(
+                None,  # No parent for the dialog
+                "Error",  # Title of the dialog
+                f"Text Input was not valid JSON data. Data Load failed and has been aborted. Check your data format and try again! ({str(e)})"
+                # Message to display
+            )
+
+            return False
+        return json_array
 
 
 """

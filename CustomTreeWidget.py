@@ -45,18 +45,12 @@ class CustomTreeWidget(QTreeWidget):
         #we expect parent to be the first tab object here:
         self.parent = parent
 
-        #print(f"Is {type(parent)} != {parent.parent.tab3}")
-        #print(type(parent.parent))
         if (type(parent).__name__ != "ThirdTabContent"):
-        #    print("true")
-
             self.setDragDropMode(QAbstractItemView.InternalMove)
             self.setDragEnabled(True)
             self.setAcceptDrops(True)
             self.setDropIndicatorShown(True)
-        #else:
-        #    print("false")
-        
+
         # Enable the custom context menu on the tree widget
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         

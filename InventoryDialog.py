@@ -1,5 +1,5 @@
 from imports import *
-from PyQt5.QtGui import QTextDocument
+from global_functions import *
 
 from PyQt5.QtWidgets import QApplication, QComboBox, QCheckBox, QListWidget, QListWidgetItem, QStyledItemDelegate, QVBoxLayout, QWidget
 from MultiSelectComboBox import MultiSelectComboBox
@@ -7,6 +7,7 @@ from MultiSelectComboBox import MultiSelectComboBox
 class InventoryDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.parent = parent
 
         self.MAX_INVENTORY_CAPACITY = 100
         self.MAX_INVENTORY_SLOT_INDEX = {'X': 9, 'Y': 9}
@@ -19,25 +20,8 @@ class InventoryDialog(QDialog):
         #just for readability later, actual names are copies:
         self._target_storage_container_inv_names = self._source_storage_container_inv_names
 
-        # Dictionary of inventories
-        self.source_inventories = {
-            "Exosuit Inventory": "Inventory", "Freighter Inventory": "FreighterInventory", "Ship Inventories": "ShipOwnership_Inventory",
-            "Exo - Skiff Inventory": "FishPlatformInventory", "Bait Box Inventory": "FishBaitBox", "Cooking Ingredients Storage": "CookingIngredientsInventory",
-            self._source_storage_container_inv_names["NAME1"]: "Chest1Inventory", self._source_storage_container_inv_names["NAME2"]: "Chest2Inventory",
-            self._source_storage_container_inv_names["NAME3"]: "Chest3Inventory", self._source_storage_container_inv_names["NAME4"]: "Chest4Inventory",
-            self._source_storage_container_inv_names["NAME5"]: "Chest5Inventory", self._source_storage_container_inv_names["NAME6"]: "Chest6Inventory",
-            self._source_storage_container_inv_names["NAME7"]: "Chest7Inventory", self._source_storage_container_inv_names["NAME8"]: "Chest8Inventory",
-            self._source_storage_container_inv_names["NAME9"]: "Chest9Inventory", self._source_storage_container_inv_names["NAME10"]: "Chest10Inventory"
-        }
-
-        self.target_inventories = {
-            "Exosuit Inventory": "Inventory", "Freighter Inventory": "FreighterInventory",
-            self._source_storage_container_inv_names["NAME1"]: "Chest1Inventory", self._source_storage_container_inv_names["NAME2"]: "Chest2Inventory",
-            self._source_storage_container_inv_names["NAME3"]: "Chest3Inventory", self._source_storage_container_inv_names["NAME4"]: "Chest4Inventory",
-            self._source_storage_container_inv_names["NAME5"]: "Chest5Inventory", self._source_storage_container_inv_names["NAME6"]: "Chest6Inventory",
-            self._source_storage_container_inv_names["NAME7"]: "Chest7Inventory", self._source_storage_container_inv_names["NAME8"]: "Chest8Inventory",
-            self._source_storage_container_inv_names["NAME9"]: "Chest9Inventory", self._source_storage_container_inv_names["NAME10"]: "Chest10Inventory"
-        }
+        self.inventory_source_list = self.parent.view.get_inventory_source_list()
+        self.inventory_sources = self.parent.view.get_inventory_sources()
 
         self.categories = {
             "Product (Crafted or Special Items)":"Product", "Substance (Organic Resources)":"Substance", "Technology (Tech Upgrades)": "Technology",
@@ -48,7 +32,7 @@ class InventoryDialog(QDialog):
 
         self.parent = parent
         self.setWindowTitle("Inventory Sorter")
-        self.setMinimumSize(900, 600)
+        self.setMinimumSize(1075, 800)
 
         # Remove the question mark button from the dialog
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
@@ -63,8 +47,8 @@ class InventoryDialog(QDialog):
         lists_layout = QHBoxLayout()
         button_layout = QHBoxLayout()
 
-        lists_layout.addWidget(self.create_left_scroll_area())
-        lists_layout.addWidget(self.create_right_scroll_area())
+        lists_layout.addWidget(self.create_left_scroll_area(), stretch=43)
+        lists_layout.addWidget(self.create_right_scroll_area(), stretch=57)
 
         # Buttons at the bottom
         execute_button = QPushButton("Execute Sort")
@@ -87,7 +71,7 @@ class InventoryDialog(QDialog):
 
         self.setLayout(main_layout)
 
-        self.parent.ini_file_manager.get_inventory_sorter_defaults(
+        self.parent.ini_file_manager.apply_inventory_sorter_defaults_to_checkboxes(
             self.source_checkboxes,
             self.target_checkboxes,
             self.target_combo_boxes)
@@ -98,11 +82,14 @@ class InventoryDialog(QDialog):
         left_pane_layout.addWidget(QLabel("<b>Source Inventories</b>"))
 
         # Load the left_pane_layout with checkboxes
-        for key in self.source_inventories.keys():
-            checkbox = QCheckBox(key)  # Use the dictionary key as the checkbox label
-            checkbox.setFixedSize(200, 20)
+        for idx, inventory in enumerate(self.inventory_sources):
+            label = self.parent.view.get_storage_label_name_deep_copy(idx, inventory)
+            checkbox = QCheckBox(label)  # Use the dictionary key as the checkbox label
+            checkbox.setProperty("inventory_id", id(inventory))
+
+            checkbox.setFixedSize(400, 18)
             left_pane_layout.addWidget(checkbox)
-            self.source_checkboxes[key] = checkbox
+            self.source_checkboxes[idx] = checkbox
 
         left_scroll_area = QScrollArea()
         left_widget = QWidget()
@@ -126,12 +113,15 @@ class InventoryDialog(QDialog):
 
         row = 1
         # Add checkboxes and dropdowns in right pane
-        for key in self.target_inventories.keys():
-            checkbox = QCheckBox(key)
-            checkbox.setFixedSize(200, 20)
+        for idx, inventory in enumerate(self.inventory_sources):
+            label = self.parent.view.get_storage_label_name_deep_copy(idx, inventory)
+            checkbox = QCheckBox(label)  # Use the dictionary key as the checkbox label
+            checkbox.setProperty("inventory_id", id(inventory))
+
+            checkbox.setFixedSize(305, 18)
             combo_box = MultiSelectComboBox()  # QComboBox()
             combo_box.addItems(list(self.categories.keys()))
-            combo_box.setFixedSize(200, 20)
+            combo_box.setFixedSize(250, 18)
 
             combo_box.setToolTip(
 """Substance\t- Represents a resource or material, such as Oxygen, Ferrite Dust, etc.
@@ -144,8 +134,8 @@ Special\t\t- Represents unique items or those used for quests. These could be it
 
             right_pane_layout.addWidget(checkbox, row, 0)
             right_pane_layout.addWidget(combo_box, row, 1)
-            self.target_checkboxes[key] = checkbox  # Store the checkbox
-            self.target_combo_boxes[key] = combo_box
+            self.target_checkboxes[idx] = checkbox  # Store the checkbox
+            self.target_combo_boxes[idx] = combo_box
             row += 1
 
         right_scroll_area = QScrollArea()
@@ -196,19 +186,18 @@ Special\t\t- Represents unique items or those used for quests. These could be it
         return overflow_section_widget
 
     def log_to_file(self, message, mode='a'):
-        print(message)
-        with open("process_sort.log", mode) as log_file:  # Open in append mode
-            log_file.write(message + "\n")  # Append the message to the file
+        global_log_to_file(message, mode)
 
     def execute_sort(self): #Entry point for button:
         self.log_to_file("Execute Sort button clicked, execute_sort() Enter", "w")
         checkedValues = self.getcheckedValues()
+
         self.log_to_file(f"Checked boxes: {checkedValues}")
-        #paretn with be tab3 here:
+        #parent with be tab3 here:
         self.parent.update_tree_synced_indicator(False)
 
         #save off the last used settings for reuse next time around:
-        self.parent.ini_file_manager.store_inventory_sorter_defaults(
+        self.parent.ini_file_manager.store_configfile_inventory_sorter_defaults(
             self.source_checkboxes,
             self.target_checkboxes,
             self.target_combo_boxes)
@@ -218,12 +207,8 @@ Special\t\t- Represents unique items or those used for quests. These could be it
         #let everyone know the model has changed; updates all views:
         self.parent.model.modelChanged.emit()
 
-
-
         self.log_to_file("execute_sort() Exit")
         self.close()
-
-
 
     """
     The process_sort function organizes items from source inventories into 
@@ -266,27 +251,28 @@ Special\t\t- Represents unique items or those used for quests. These could be it
         self.log_to_file("process_sort() Enter")
         checkedSources = checkedValues['sources']
         checkedTargets = checkedValues['targets']
+        checkedCategories = checkedValues['categories']
 
-        if not checkedTargets or not checkedSources:
-            logger.error("Either No targets, or no sources were provided. Exiting process_sort.")
-            QMessageBox.information(None, "Info", "Either No targets, or no sources were provided. Exiting process_sort.")
+        if not checkedTargets or not checkedSources or not checkedCategories:
+            logger.error("Either No targets, no sources, or no categories were provided. Exiting process_sort.")
+            QMessageBox.information(None, "Info", "Either No targets, no sources, or no categories were provided. Exiting process_sort.")
             return
 
-        model_json = self.parent.model.get_data()
-
-        break_for_next_target = False
         for checkedTarget in checkedTargets:
-            if(break_for_next_target): #if we got here via breaks, reset the flag for the new iteration:
-                break_for_next_target = False
+            break_for_next_target = False
 
-            target_game_inventory_name = list(checkedTarget.keys())[0] #get this target's inventory name
-            target_game_categories = checkedTarget[target_game_inventory_name]
-            target_inventory_struct_idx = self.target_inventories[target_game_inventory_name] #get this target's data index into the game file data
-            target_game_inventory_validSlotIndices = model_json['PlayerStateData'][target_inventory_struct_idx]['ValidSlotIndices']
-            target_game_inventory_slots = model_json['PlayerStateData'][target_inventory_struct_idx]['Slots']
+            target_checkbox = checkedTarget[1]
+            target_model_inventory = self.parent.view.get_inventory_sources(target_checkbox.property('inventory_id'))
 
-            self.log_to_file(f"\n#######Target '{target_game_inventory_name}' Inventory Slot Count Before: {len(target_game_inventory_slots)}")
-            self.log_to_file(f"#######Target '{target_game_inventory_name}' Inventory Slot Data Before:\n {json.dumps(target_game_inventory_slots, indent=4)}\n\n")
+            target_game_inventory_name = target_model_inventory['Name']
+            #get categories at the same key into the current checkerTarget:
+            target_game_categories = checkedCategories.get(checkedTarget[0], [])
+
+            target_game_inventory_validSlotIndices = target_model_inventory['ValidSlotIndices']
+            target_game_inventory_slots = target_model_inventory['Slots']
+
+            self.log_to_file(f"\nTarget Start: '{checkedTarget}'")
+            self.log_to_file(f"Target '{target_game_inventory_name}' Inventory Slot Count Before: {len(target_game_inventory_slots)}\n")
 
             if(len(target_game_inventory_slots) >= self.MAX_INVENTORY_CAPACITY):
                 msg = (f"Target inventory '{target_game_inventory_name}' is full. Currently "
@@ -314,50 +300,40 @@ Special\t\t- Represents unique items or those used for quests. These could be it
             self.parent.view.resetValidSlotIndices(target_game_inventory_validSlotIndices)
 
             for checkedSource in checkedSources:
-                self.log_to_file(f"#######source: '{checkedSource}'")
+                self.log_to_file(f"source Start: '{checkedSource}'")
 
-                source_game_inventory_name = checkedSource
+                source_checkbox = checkedSource[1]
+                source_model_inventory = self.parent.view.get_inventory_sources(source_checkbox.property('inventory_id'))
 
-                if(target_game_inventory_name == source_game_inventory_name):
+                source_game_inventory_name = source_model_inventory['Name']
+                #source_game_inventory_validSlotIndices = source_model_inventory['ValidSlotIndices']
+
+                if(target_model_inventory == source_model_inventory):
                     self.log_to_file(f"target ({target_game_inventory_name}) and source: ({source_game_inventory_name}) are the same. Iterating to next source...")
                     continue  # for source
 
-                source_game_inventory_idx = self.source_inventories[source_game_inventory_name]  # get this sources's data index into the game file data
-                source_game_inventory_slots = model_json['PlayerStateData'][source_game_inventory_idx]['Slots']
+                source_game_inventory_slots = source_model_inventory['Slots']
 
                 self.log_to_file(
-                    f"\tSource {source_game_inventory_name} Inventory Slot Count Before: {len(source_game_inventory_slots)}\n")
-                self.log_to_file(
-                    f"\tSource {source_game_inventory_name} Inventory Slots Before:\n {json.dumps(source_game_inventory_slots, indent=4)}\n\n")
+                    f"Source '{source_game_inventory_name}' Inventory Slot Count Before: {len(source_game_inventory_slots)}\n")
 
                 ### within this source, move over any items that match each category:
 
-                self.log_to_file(f"\n###len(target_game_categories): {len(target_game_categories)}\n")
-                self.log_to_file(f"\ttarget_game_categories: {json.dumps(target_game_categories, indent=4)}\n")
+                self.log_to_file(f"\n###len(target_game_categories): {len(target_game_categories)}")
+                self.log_to_file(f"\ttarget_game_categories:\n{json.dumps(target_game_categories, indent=4)}\n")
 
                 for category in target_game_categories:
-                    self.log_to_file(f"\n###Source inventory name: '{source_game_inventory_name}', Category name: '{category}'")
-                    self.log_to_file(f"\tlen(source_game_inventory_slots): {len(source_game_inventory_slots)}")
-
+                    #[:] causes iteration over a shallow copy:
                     for slot in source_game_inventory_slots[:]:
-                        self.log_to_file(f"\ncategory name: '{category}', slot['Type']['InventoryType']: '{slot['Type']['InventoryType']}'")
-
                         if category == slot['Type']['InventoryType']:
-                            self.log_to_file(f"\n#####Got a match on inventory type: '{category}'")
-                            self.log_to_file(f"\tnum of slots in source before: {len(source_game_inventory_slots)}")
-                            self.log_to_file(f"\tnum of slots in target before: {len(target_game_inventory_slots)}")
+                            self.log_to_file(f"Got a match on inventory type: '{category}', Id: {slot['Id']}")
 
                             last_target_slot = None
                             if target_game_inventory_slots:  # target_game_inventory_slots not empty:
                                 #get the slot index values for the last filled slot in the target:
                                 last_target_slot = target_game_inventory_slots[-1]
 
-                                self.log_to_file(f"original last_target_slot: {last_target_slot}")
-                            else:
-                                self.log_to_file(f"original last_target_slot was empty")
-
                             # swap the slot data over to target and delete from source:
-                            self.log_to_file(f"item to move: {slot}")
                             source_game_inventory_slots.remove(slot) # Remove the current slot from source
                             target_game_inventory_slots.append(slot)
 
@@ -367,31 +343,26 @@ Special\t\t- Represents unique items or those used for quests. These could be it
                                 target_game_inventory_slots[-1]['Index']['X'] = 0
                                 target_game_inventory_slots[-1]['Index']['Y'] = 0
 
-                            self.log_to_file(f"\n#####new last_target_slot: {target_game_inventory_slots[-1]}")
-                            self.log_to_file(f"\tnum of slots in source after: {len(source_game_inventory_slots)}")
-                            self.log_to_file(f"\tnum of slots in target after: {len(target_game_inventory_slots)} \n")
-
                             if(len(target_game_inventory_slots) == self.MAX_INVENTORY_CAPACITY):
                                 break_for_next_target = True
                                 break #for slot
 
                     if(break_for_next_target):
                         self.log_to_file(
-                            f"\n#######Source '{source_game_inventory_name}' After (target is full):\n {json.dumps(source_game_inventory_slots, indent=4)}, count: {len(source_game_inventory_slots)}\n\n")
-
+                            f"Target is full; Target End, '{target_game_inventory_name}' Inventory Slot Count: {len(target_game_inventory_slots)}")
                         break #for category
 
-                self.log_to_file(
-                    f"\n#######Source '{source_game_inventory_name}' Inventory Slots After:\n {json.dumps(source_game_inventory_slots, indent=4)}, count: {len(source_game_inventory_slots)}\n\n")
-
                 if(break_for_next_target):
+                    self.log_to_file(
+                        f"\nSource End {source_game_inventory_name} due to full target; Inventory Slot Count: {len(source_game_inventory_slots)}\n")
                     break  # for source
 
-            self.log_to_file(
-                f"\n#######Target '{target_game_inventory_name}' Inventory Slots After:\n {json.dumps(target_game_inventory_slots, indent=4)}, count: {len(target_game_inventory_slots)}\n\n")
+                self.log_to_file(
+                    f"\nSource End {source_game_inventory_name} Inventory Slot Count After Sort: {len(source_game_inventory_slots)}. Going up to get next source if there is one...\n")
 
-            #self.log_to_file("process_sort(); Exiting after one source...")
-            #sys.exit(0) #for source
+            self.log_to_file(
+                f"Target End, '{target_game_inventory_name}' Inventory Slot Count After Target: {len(target_game_inventory_slots)}\n")
+
 
         self.log_to_file("process_sort() Exit")
 
@@ -411,76 +382,41 @@ Special\t\t- Represents unique items or those used for quests. These could be it
         self.log_to_file( f"\ngetcheckedValues() ENTER\n")
 
         # Get checked sources
-        checked_sources = [key for key, checkbox in self.source_checkboxes.items() if checkbox.isChecked()]
-        checked_targets = []
+        checked_sources = [(key, checkbox) for key, checkbox in self.source_checkboxes.items() if checkbox.isChecked()]
+        checked_targets = [(key, checkbox) for key, checkbox in self.target_checkboxes.items() if checkbox.isChecked()]
+        checked_categories = {}
 
-        # Get initially checked targets with their combo box values
-        for key, checkbox in self.target_checkboxes.items():
-            if checkbox.isChecked():  # Only process if the target is checked
-                combo_box = self.target_combo_boxes[key] # Get the associated combo box
+        for key, _ in checked_targets:
+            checked_categories[key] = self.target_combo_boxes[key].lineEdit().text().split(',')
 
-                # Get the comma-separated text from the combo box line edit
-                raw_categories = combo_box.lineEdit().text().split(',')
-
-                self.log_to_file(
-                    f"\n#######\n#######getcheckedValues() raw_categories: {json.dumps(raw_categories, indent=4)}\n#######\n#######\n\n")
-
-                # Trim whitespace from each category name
-                trimmed_categories = [category.strip() for category in raw_categories]
-
-                self.log_to_file(
-                    f"\n#######\n#######getcheckedValues() trimmed_categories: {json.dumps(trimmed_categories, indent=4)}\n#######\n#######\n\n")
-
-                # Map trimmed category names to their corresponding values in self.categories
-                resolved_categories = [self.categories[cat] for cat in trimmed_categories if cat in self.categories]
-
-                self.log_to_file(
-                    f"\n#######\n#######getcheckedValues() resolved_categories: {json.dumps(resolved_categories, indent=4)}\n#######\n#######\n\n")
-
-                # Add the result to checked_targets
-                checked_targets.append({
-                    key: resolved_categories  # Use resolved category values in the resulting structure
-                })
-
-        self.log_to_file(
-            f"\n#######\n#######getcheckedValues() checked targets: {json.dumps(checked_targets, indent=4)}\n#######\n#######\n\n")
-
-        # If overflow checkbox is checked, add unchecked storage containers in reverse order
+        # If overflow checkbox is checked, process storage containers in reverse order:
         if self.overflow_checkbox.isChecked():
-            # Define the list of storage containers in the order we need to consider them
-            storage_containers = [
-                self._target_storage_container_inv_names["NAME1"], self._target_storage_container_inv_names["NAME2"],
-                self._target_storage_container_inv_names["NAME3"], self._target_storage_container_inv_names["NAME4"],
-                self._target_storage_container_inv_names["NAME5"], self._target_storage_container_inv_names["NAME6"],
-                self._target_storage_container_inv_names["NAME7"], self._target_storage_container_inv_names["NAME8"],
-                self._target_storage_container_inv_names["NAME9"], self._target_storage_container_inv_names["NAME10"]
+            storage_container_idx_range = range(1, 11)
+
+            target_checkboxes_list = list(self.target_checkboxes.items())
+            for idx in storage_container_idx_range:
+                # Access storage containers in reverse order (10 to 1)
+                reverse_idx = 11 - idx
+
+                #Counting backwards, if unchecked, add checkbox object to checked_targets and continue the loop:
+                if not target_checkboxes_list[reverse_idx][1].isChecked():
+                    #the line before accesses a checkbox in the structure. The next line steps out to a
+                    #tuple that has a key and then the checkbox and is what is expected in checked_targets:
+                    checked_targets.append(target_checkboxes_list[reverse_idx])
+                    #now we need to add a record for "all categories" for this target:
+                    checked_categories[target_checkboxes_list[reverse_idx][0]] = list(self.categories.values())
+                    continue  # Skip to the next iteration
+
+                #We get here when an unchecked box is found, and exit the loop:
+                break
+
+        for key in checked_categories:
+            checked_categories[key] = [
+                re.sub(r'\s*\(.*?\)\s*', '', item).strip()  # Remove parentheses and trim
+                for item in checked_categories[key]
             ]
 
-            # Find the last checked container index
-            last_checked_index = -1
-            for idx, container in enumerate(storage_containers):
-                if container in self.target_checkboxes and self.target_checkboxes[container].isChecked():
-                    last_checked_index = idx
-
-            # Iterate over storage containers in reverse, starting after the last checked one
-            for container in reversed(storage_containers[last_checked_index + 1:]):
-                if container in self.target_checkboxes and not self.target_checkboxes[container].isChecked():
-                    # Add unchecked storage container to checked_targets
-                    checked_targets.append({
-                        container:  # The container name
-                            list(self.categories.values()) #In this case we are using a fixed list so no need to process from checked boxes...
-                    })
-
-                    self.log_to_file(f"\n@@@@@@@@@@@\nchecked_targets: {checked_targets}\n@@@@@@@@@@@@@@@@@@@@@@\n")
-
-        # Now, `checked_targets` will contain initially checked items, plus unchecked containers if overflow is selected.
-
-        #print(json.dumps({"sources": checked_sources, "targets": checked_targets}, indent=4))
-        #sys.exit(0)
-
-        self.log_to_file(f"\ngetcheckedValues() EXIT\n")
-
-        return {"sources": checked_sources, "targets": checked_targets}
+        return {"sources": checked_sources, "targets": checked_targets, "categories": checked_categories}
 
     def cancel_dialog(self):
         # Close the dialog when Cancel is clicked

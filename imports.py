@@ -1,4 +1,4 @@
-import sys, os, pdb, logging, json, traceback, configparser, copy, builtins, shutil
+import sys, os, pdb, logging, json, traceback, configparser, copy, builtins, shutil, re
 import pyautogui, yappi, psutil, threading, traceback, concurrent.futures
 from PyQt5.QtCore import pyqtSignal, QObject, Qt, QMimeData, QTimer, QEvent
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QSplitter, QTabWidget,
@@ -51,20 +51,6 @@ logging.basicConfig(level=app_log_level, format='%(filename)s # line %(lineno)d 
 
 # Get a logger instance
 logger = logging.getLogger(__name__)
-
-def json_loads_with_exception_check(text):
-    try:
-        json_array = json.loads(text)
-    except Exception as e:
-        QMessageBox.critical(
-            None,  # No parent for the dialog
-            "Error",  # Title of the dialog
-            f"Text Input was not valid JSON data. Data Load failed and has been aborted. Check your data format and try again! ({str(e)})"
-            # Message to display
-        )
-
-        return False
-    return json_array
 
 #these functions should be moved somewhere appropriate...
 def get_new_QTreeWidgetItem():

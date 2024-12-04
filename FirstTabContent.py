@@ -359,8 +359,6 @@ class FirstTabContent(BaseTabContent):
 
                     galactic_addr = json_data['GalacticAddress']
 
-                    #print(f"base name: {base_name}, galactic_addr: {galactic_addr}")
-
                     galaxy = get_galaxy_system_planet_from_full_addr(galactic_addr)[GALAXY_FROM_GALACTIC_ADDR_IDX]
                     if(galaxy):
                         galaxy_name = GALAXIES[int(galaxy, 16)]
@@ -441,8 +439,6 @@ class FirstTabContent(BaseTabContent):
                 parent_tree_node.addChild(item)
             
             else:
-                print(f"data item, data='{json_data}', type of {type(json_data)}")
-                
                 #This was converting items to strings but it caused issues on export...
                 #item = QTreeWidgetItem([str(json_data)])
                 item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, json_data) 

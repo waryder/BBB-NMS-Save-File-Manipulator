@@ -427,10 +427,12 @@ class SecondTabContent(BaseTabContent):
                 #to the top level node label text:
                 
                 if(level == 1 ):
+                    # do this before we storage_container_count storage_container_name so we send it as a zero based idx:
+                    #first arg needs to be the proper index into self.view.inventory_source_list for starships:
+                    starship_name = self.view.get_storage_label_name_deep_copy(starship_count + 15, json_data)
                     starship_count += 1
-                    starship_name = json_data['Name']
-                    
-                    item.setText(0, f"[{starship_count - 1}] Dict ({size}) Starship: {starship_name}")
+
+                    item.setText(0, f"[{starship_count - 1}] Dict ({size})\t{starship_name}")
                 else:
                     item.setText(0, f"Dict ({size})")                
 

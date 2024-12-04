@@ -8,12 +8,13 @@ class JsonArrayView(QObject):
 
         #should come in 'main', 'tab1', 'tab2', 'tab3' ...
         self.model_context = model_context
+        self.inventory_source_list = self.init_inventory_source_list()
 
     def get_text(self):
         return json.dumps(self.get_json(), indent=4)
 
     def set_text(self, text):
-        json_array = json_loads_with_exception_check(text)
+        json_array = self.model.json_loads_with_exception_check(text)
 
         if json_array:
             # print("####################")
@@ -39,44 +40,138 @@ class JsonArrayView(QObject):
             return data
 
         elif (self.model_context == 'tab1'):
-            if isinstance(data, list):
-                print(f"The number of items in the list is: {len(data)}")
             return data["PlayerStateData"]["PersistentPlayerBases"]
 
         elif (self.model_context == 'tab2'):
             return data["PlayerStateData"]["ShipOwnership"]
 
         elif (self.model_context == 'tab3'):
-            containers = []
-
-            #I believe this is the exosuit inventory:
-            if not data["PlayerStateData"][f"Inventory"]["Name"]:
-                data["PlayerStateData"][f"Inventory"]["Name"] = "ExoSuit Inventory"
-            containers.append(data["PlayerStateData"][f"Inventory"])
-
-            #Storage containers only right now:
-            for i in range(0, 10):
-                containers.append(data["PlayerStateData"][f"Chest{i + 1}Inventory"])
-
-                if not containers[i]['Name']:
-                    containers[i]['Name'] = f"No Name Provided In Data; Storage {i + 1}"
-
-            data["PlayerStateData"][f"FreighterInventory"]["Name"] = "Freighter Inventory"
-            containers.append(data["PlayerStateData"][f"FreighterInventory"])
-
-            # print("\n\n***get_json")
-            #
-            #
-            # for index, item in enumerate(containers):
-            #     # Check if the item has a 'Name' key
-            #     if 'Name' in item:
-            #         print(f"Name at index {index}: {item['Name']}")
-            #     else:
-            #         print(f"Missing 'Name' at index {index}")
-
-            return containers
+            return self.get_inventory_sources()
         else:
             return #error
+
+    # Helper function to access nested keys
+    def get_nested_value(self, keys):
+        model_data = self.model.get_data()
+
+        """Retrieve a nested value from a dictionary using a list of keys.
+        Returns None if any key is missing or any exception occurs."""
+        try:
+            for key in keys:
+                model_data = model_data[key]  # Optimized: no key existence check
+            return model_data
+        except Exception:
+            return None
+
+    def get_inventory_source_list(self):
+        return self.inventory_source_list
+
+    def init_inventory_source_list(self):
+        inventory_source_list = [
+           ['PlayerStateData', 'Inventory'],
+           ['PlayerStateData', 'Chest1Inventory'],
+           ['PlayerStateData', 'Chest2Inventory'],
+           ['PlayerStateData', 'Chest3Inventory'],
+           ['PlayerStateData', 'Chest4Inventory'],
+           ['PlayerStateData', 'Chest5Inventory'],
+           ['PlayerStateData', 'Chest6Inventory'],
+           ['PlayerStateData', 'Chest7Inventory'],
+           ['PlayerStateData', 'Chest8Inventory'],
+           ['PlayerStateData', 'Chest9Inventory'],
+           ['PlayerStateData', 'Chest10Inventory'],
+           ['PlayerStateData', 'FreighterInventory'],
+           ['PlayerStateData', 'FishPlatformInventory'],
+           ['PlayerStateData', 'FishBaitBoxInventory'],
+           ['PlayerStateData', 'CookingIngredientsInventory'],
+           ['PlayerStateData', 'ShipOwnership', 0],
+           ['PlayerStateData', 'ShipOwnership', 1],
+           ['PlayerStateData', 'ShipOwnership', 2],
+           ['PlayerStateData', 'ShipOwnership', 3],
+           ['PlayerStateData', 'ShipOwnership', 4],
+           ['PlayerStateData', 'ShipOwnership', 5],
+           ['PlayerStateData', 'ShipOwnership', 6],
+           ['PlayerStateData', 'ShipOwnership', 7],
+           ['PlayerStateData', 'ShipOwnership', 8],
+           ['PlayerStateData', 'ShipOwnership', 9],
+           ['PlayerStateData', 'ShipOwnership', 10],
+           ['PlayerStateData', 'ShipOwnership', 11]
+        ]
+
+        return inventory_source_list
+
+
+    def get_inventory_sources(self, inv_id=None): #if id, we'll return just the object with the same id if found:
+        model_data = self.model.get_data()
+        inventory_sources = []
+
+        inventory_source_list = self.get_inventory_source_list()
+
+        for item in inventory_source_list:
+            inv = self.get_nested_value(item)
+            if inv:
+                if not inv_id:
+                    inventory_sources.append(inv)
+                elif inv_id == id(inv):
+                    return inv
+
+        return inventory_sources
+
+    def get_storage_label_name_deep_copy(self, idx, json_data, prepend='', append=''):
+        inventory_source_list = self.get_inventory_source_list()
+        storage_container_name = copy.deepcopy(json_data['Name'])
+
+        if not storage_container_name:
+            storage_container_name = "No name provided"
+
+        if inventory_source_list[idx][1] == 'Inventory':
+            storage_container_name = prepend + "Exosuit" + append + ': ' + storage_container_name
+
+        if inventory_source_list[idx][1] == 'Chest1Inventory':
+            storage_container_name = prepend + "Storage Container 1" + append + ': ' + storage_container_name
+
+        if inventory_source_list[idx][1] == 'Chest2Inventory':
+            storage_container_name = prepend + "Storage Container 2" + append + ': ' + storage_container_name
+
+        if inventory_source_list[idx][1] == 'Chest3Inventory':
+            storage_container_name = prepend + "Storage Container 3" + append + ': ' + storage_container_name
+
+        if inventory_source_list[idx][1] == 'Chest4Inventory':
+            storage_container_name = prepend + "Storage Container 4" + append + ': ' + storage_container_name
+
+        if inventory_source_list[idx][1] == 'Chest5Inventory':
+            storage_container_name = prepend + "Storage Container 5" + append + ': ' + storage_container_name
+
+        if inventory_source_list[idx][1] == 'Chest6Inventory':
+            storage_container_name = prepend + "Storage Container 6" + append + ': ' + storage_container_name
+
+        if inventory_source_list[idx][1] == 'Chest7Inventory':
+            storage_container_name = prepend + "Storage Container 7" + append + ': ' + storage_container_name
+
+        if inventory_source_list[idx][1] == 'Chest8Inventory':
+            storage_container_name = prepend + "Storage Container 8" + append + ': ' + storage_container_name
+
+        if inventory_source_list[idx][1] == 'Chest9Inventory':
+            storage_container_name = prepend + "Storage Container 9" + append + ': ' + storage_container_name
+
+        if inventory_source_list[idx][1] == 'Chest10Inventory':
+            storage_container_name = prepend + "Storage Container 10" + append + ': ' + storage_container_name
+
+        if inventory_source_list[idx][1] == 'FishPlatformInventory':
+            storage_container_name = prepend + "Fish Platform" + append + ': ' + storage_container_name
+
+        if inventory_source_list[idx][1] == 'FishBaitBoxInventory':
+            storage_container_name = prepend + "Fish Bait Box" + append + ': ' + storage_container_name
+
+        if inventory_source_list[idx][1] == 'CookingIngredientsInventory':
+            storage_container_name = prepend + "Cooking Ingredients" + append + ': ' + storage_container_name
+
+        if inventory_source_list[idx][1] == 'FreighterInventory':
+            storage_container_name = prepend + "Freighter" + append + ': ' + storage_container_name
+
+        if inventory_source_list[idx][1] == 'ShipOwnership':
+            storage_container_name = prepend + f"Starship {inventory_source_list[idx][2] + 1}" + append + ': ' + storage_container_name
+
+        return storage_container_name
 
     def set_json(self, json_array):
         if (self.model_context == 'main'):
@@ -97,30 +192,17 @@ class JsonArrayView(QObject):
 
         elif (self.model_context == 'tab3'):
             # data was provided as a reference here so its modifying the original structure:
-            data = self.model.get_data()
+            #data = self.model.get_data()
 
-            # for index, item in enumerate(json_array):
-            #     # Check if the item has a 'Name' key
-            #     if 'Name' in item:
-            #         print(f"Name at index {index}: {item['Name']}")
-            #     else:
-            #         print(f"Missing 'Name' at index {index}")
+            for i, data in enumerate(self.get_inventory_sources()):
+            #    if "No Name Provided In Data" in json_array[i]['Name']:
+            #        json_array[i]['Name'] = ""
 
-            data["PlayerStateData"][f"Inventory"]['Name'] = ""
-            data["PlayerStateData"][f"Inventory"] = json_array[0]
+            #    if ":" in json_array[i]['Name']:
+            #        json_array[i]['Name'] = json_array[i]['Name'].split(':', 1)[-1]
 
-            for i in range(1, 11):
-                if "No Name Provided In Data" in json_array[i]['Name']:
-                    json_array[i]['Name'] = ""
+                data[i] = json_array[i]
 
-                data["PlayerStateData"][f"Chest{i}Inventory"] = json_array[i]
-
-                #print(f"""{data["PlayerStateData"][f"Chest{i}Inventory"]['Name']}:
-                #{len(data["PlayerStateData"][f"Chest{i}Inventory"]['Slots'])}
-                #""")
-
-            data["PlayerStateData"][f"FreighterInventory"]['Name'] = ""
-            data["PlayerStateData"][f"FreighterInventory"] = json_array[11]
             self.model.modelChanged.emit()
 
         return True

@@ -24,7 +24,6 @@ class ThirdTabContent(BaseTabContent):
 ###
         self.inventory_sort_button = QPushButton("Inventory Sorter")
         self.inventory_sort_button.setFixedWidth(self.button_width)
-
 ###        
         # Create tree widget and text edit
         #self.tree_widget = QTreeWidget()
@@ -92,10 +91,6 @@ class ThirdTabContent(BaseTabContent):
         right_pane_layout = QVBoxLayout()
         right_button_layout = QHBoxLayout()
         right_button_layout.setAlignment(Qt.AlignLeft)
-        #right_button_layout.setSpacing(2)
-        
-        #right_button_layout.addWidget(self.import_button)
-        #right_button_layout.addWidget(self.export_button)
         right_button_layout.addWidget(self.pretty_print_button)
         
         right_pane_layout.addLayout(right_button_layout)
@@ -262,7 +257,7 @@ class ThirdTabContent(BaseTabContent):
             
     def clear_tree_view(self):
         logger.debug("3rd tab clear_tree_view() Called.")
-        self.tree_widget.clear()        
+        self.tree_widget.clear()
 
     def populate_tree_from_json(self, json_data, parent_tree_node=None):
         #return
@@ -309,8 +304,7 @@ class ThirdTabContent(BaseTabContent):
                             child_item.setText(0, f"{val}")
                             
                             line_count += 1
-                            child_item.setData(0, QT_DATA_LINE_COUNT, line_count) #store off the expected line number upon generation of the text from this this tree 
-                            
+                            child_item.setData(0, QT_DATA_LINE_COUNT, line_count) #store off the expected line number upon generation of the text from this this tree
                             
                             #child_item.setFlags(item.flags() | Qt.ItemIsEditable)  # Make item editable
                             #current child_item to item for this level:
@@ -333,14 +327,13 @@ class ThirdTabContent(BaseTabContent):
                 #to the top level node label text:
                 
                 if(level == 1 ):
+                    #do this before we storage_container_count storage_container_name so we send it as a zero based idx:
+                    storage_container_name = self.view.get_storage_label_name_deep_copy(storage_container_count, json_data, append = " Inventory")
                     storage_container_count += 1
-                    storage_container_name = json_data['Name']
-                    #print(f"{json_data}\n\n")
 
-                    item.setText(0, f"[{storage_container_count - 1}] Dict ({size})\tStorage: {storage_container_name}")
+                    item.setText(0, f"[{storage_container_count - 1}] Dict ({size})\t{storage_container_name}")
                 else:
-                    item.setText(0, f"Dict ({size})")                
-
+                    item.setText(0, f"Dict ({size})")
 
                 item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, {}) #add dict as parent json_data at this level
                 line_count += 1
@@ -412,8 +405,6 @@ class ThirdTabContent(BaseTabContent):
                 parent_tree_node.addChild(item)
             
             else:
-                print(f"data item, data='{json_data}', type of {type(json_data)}")
-                
                 #This was converting items to strings but it caused issues on export...
                 #item = QTreeWidgetItem([str(json_data)])
                 item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, json_data) 

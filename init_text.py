@@ -2178,7 +2178,7 @@ INIT_TEXT = """
             "Width": 10,
             "Height": 12,
             "IsCool": false,
-            "Name": "DUMMY DATA FOR DISPLAY ONLY; PLEASE LOAD REAL DATA!",
+            "Name": "DUMMY DATA; PLEASE LOAD REAL DATA!",
             "Version": 1
         },
 
@@ -4115,7 +4115,7 @@ INIT_TEXT = """
             "Width": 10,
             "Height": 12,
             "IsCool": false,
-            "Name": "DUMMY DATA FOR DISPLAY ONLY; PLEASE LOAD REAL DATA!",
+            "Name": "DUMMY DATA; PLEASE LOAD REAL DATA!",
             "Version": 1
         },
 
@@ -60909,7 +60909,7 @@ INIT_TEXT = """
                     "PTK": "ST",
                     "TS": 1653475528
                 },
-                "Name": "DUMMY DATA FOR DISPLAY ONLY; PLEASE LOAD REAL DATA!",
+                "Name": "DUMMY DATA; PLEASE LOAD REAL DATA!",
                 "BaseType": {
                     "PersistentBaseTypes": "FreighterBase"
                 },
@@ -71858,7 +71858,7 @@ INIT_TEXT = """
         },
         "ShipOwnership": [
             {
-                "Name": "DUMMY DATA FOR DISPLAY ONLY; PLEASE LOAD REAL DATA!",
+                "Name": "DUMMY DATA; PLEASE LOAD REAL DATA!",
                 "Resource": {
                     "Filename": "MODELS/COMMON/SPACECRAFT/SENTINELSHIP/SENTINELSHIP_PROC.SCENE.MBIN",
                     "Seed": [

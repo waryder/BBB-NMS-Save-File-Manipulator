@@ -12,16 +12,7 @@ from DataViews import *
 from IniFileManager import *
 from LoadDataDialog import LoadDataDialog
 from init_text import INIT_TEXT
-
-def global_exception_handler(exc_type, exc_value, exc_traceback):
-    if issubclass(exc_type, KeyboardInterrupt):
-        # Let KeyboardInterrupt exceptions pass through without logging
-        sys.__excepthook__(exc_type, exc_value, exc_traceback)
-        return        
-    
-    # Print the error and traceback
-    logger.error(f"Unhandled exception: {exc_value}")
-    traceback.print_exception(exc_type, exc_value, exc_traceback)
+from global_functions import *
     
 # Set the global exception handler
 sys.excepthook = global_exception_handler
@@ -45,8 +36,6 @@ class MainWindow(QMainWindow):
         load_dialog = LoadDataDialog()
 
         if load_dialog.exec_() == QDialog.Accepted:  # Only proceed if "Load" button was clicked (dialog accepted)
-            print(f"Checked?: {load_dialog.is_skip_data_load_checked()}")
-
             if load_dialog.is_skip_data_load_checked():
                 loaded_text = INIT_TEXT
             else:
@@ -175,20 +164,9 @@ class MainWindow(QMainWindow):
             clipboard = QApplication.clipboard()
             clipboard_text = clipboard.text()
             if clipboard_text:
-                # need to set them all since we are in a main level context:
-                self.tab1.update_tree_synced_indicator(False)
-                self.tab2.update_tree_synced_indicator(False)
-                self.tab3.update_tree_synced_indicator(False)
-                self.background_processing_signal.emit(4, "tab1")
-                self.start_thinking_window()
-
+                self.start_model_load_indicators()
                 result = self.view.set_text(clipboard_text)
-
-                self.tab1.update_tree_synced_indicator(True)
-                self.tab2.update_tree_synced_indicator(True)
-                self.tab3.update_tree_synced_indicator(True)
-
-                self.thinking_dialog.close()
+                self.stop_model_load_indicators()
 
                 if(result):
                     QMessageBox.information(self, "Pasted", "Json Data Imported from clipboard!")
@@ -208,6 +186,20 @@ class MainWindow(QMainWindow):
         # Close the dialog and set the model once loading is complete
         self.thinking_dialog.close()
         self.model = model
+
+    def start_model_load_indicators(self):
+        # need to set them all since we are in a main level context:
+        self.tab1.update_tree_synced_indicator(False)
+        self.tab2.update_tree_synced_indicator(False)
+        self.tab3.update_tree_synced_indicator(False)
+        self.background_processing_signal.emit(4, "tab1")
+        self.start_thinking_window()
+
+    def stop_model_load_indicators(self):
+        self.tab1.update_tree_synced_indicator(True)
+        self.tab2.update_tree_synced_indicator(True)
+        self.tab3.update_tree_synced_indicator(True)
+        self.thinking_dialog.close()
 
     def create_menu_bar(self):
         menu_bar = self.menuBar()
@@ -230,43 +222,26 @@ class MainWindow(QMainWindow):
         self.help_menu.create_help_menu(menu_bar)  # Add the Help menu to the menu bar
                 
     def open_file(self):
-        active_tab = self.tabs.currentWidget()
-        result = ""
-        if active_tab == self.tab1:
-            result = self.ini_file_manager.open_file("tab1")
-        elif active_tab == self.tab2:
-            result = self.ini_file_manager.open_file("tab2")
-        elif active_tab == self.tab3:
-            result = self.ini_file_manager.open_file("tab3")
-           
-        active_tab.blockSignals()   
-        active_tab.text_edit.setPlainText(result) 
-        active_tab.sync_tree_from_text_window()
-        active_tab.unblockSignals()
-    
+        result = self.ini_file_manager.open_file()
+
+        if(result):
+            self.start_model_load_indicators()
+            self.model.set_data(self.model.json_loads_with_exception_check(result))
+            self.stop_model_load_indicators()
+
     def save_file(self):
         active_tab = self.tabs.currentWidget()
         if not active_tab.tree_synced:
-                active_tab.sync_tree_from_text_window()
-        
-        if active_tab == self.tab1:
-            self.ini_file_manager.save_file("tab1", self.tab1.view.get_text())
-        elif active_tab == self.tab2:
-            self.ini_file_manager.save_file("tab2", self.tab2.view.get_text())
-        elif active_tab == self.tab3:
-            self.ini_file_manager.save_file("tab3", self.tab3.view.get_text())
+            active_tab.sync_tree_from_text_window()
+
+        self.ini_file_manager.save_file(self.view.get_text())
         
     def save_file_as(self):
         active_tab = self.tabs.currentWidget()
         if not active_tab.tree_synced:
             active_tab.sync_tree_from_text_window()
         
-        if active_tab == self.tab1:
-            self.ini_file_manager.save_file_as("tab1", self.tab1.view.get_text())
-        elif active_tab == self.tab2:
-            self.ini_file_manager.save_file_as("tab2", self.tab2.view.get_text())
-        elif active_tab == self.tab3:
-            self.ini_file_manager.save_file_as("tab3", self.tab3.view.get_text())
+        self.ini_file_manager.save_file_as(self.view.get_text())
 
     def before_tab_change(self, index):
         logger.debug(f"before_tab_changed() enter, index: {index}")
