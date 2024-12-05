@@ -1,5 +1,4 @@
 from imports import *
-from global_functions import *
 
 from PyQt5.QtWidgets import QApplication, QComboBox, QCheckBox, QListWidget, QListWidgetItem, QStyledItemDelegate, QVBoxLayout, QWidget
 from MultiSelectComboBox import MultiSelectComboBox
@@ -185,14 +184,11 @@ Special\t\t- Represents unique items or those used for quests. These could be it
 
         return overflow_section_widget
 
-    def log_to_file(self, message, mode='a'):
-        global_log_to_file(message, mode)
-
     def execute_sort(self): #Entry point for button:
-        self.log_to_file("Execute Sort button clicked, execute_sort() Enter", "w")
+        print("Execute Sort button clicked, execute_sort() Enter", "w")
         checkedValues = self.getcheckedValues()
 
-        self.log_to_file(f"Checked boxes: {checkedValues}")
+        print(f"Checked boxes: {checkedValues}")
         #parent with be tab3 here:
         self.parent.update_tree_synced_indicator(False)
 
@@ -207,7 +203,7 @@ Special\t\t- Represents unique items or those used for quests. These could be it
         #let everyone know the model has changed; updates all views:
         self.parent.model.modelChanged.emit()
 
-        self.log_to_file("execute_sort() Exit")
+        print("execute_sort() Exit")
         self.close()
 
     """
@@ -248,7 +244,7 @@ Special\t\t- Represents unique items or those used for quests. These could be it
     capacity and that items are sorted in a logical and organized manner.
     """
     def process_sort(self, checkedValues):
-        self.log_to_file("process_sort() Enter")
+        print("process_sort() Enter")
         checkedSources = checkedValues['sources']
         checkedTargets = checkedValues['targets']
         checkedCategories = checkedValues['categories']
@@ -271,20 +267,20 @@ Special\t\t- Represents unique items or those used for quests. These could be it
             target_game_inventory_validSlotIndices = target_model_inventory['ValidSlotIndices']
             target_game_inventory_slots = target_model_inventory['Slots']
 
-            self.log_to_file(f"\nTarget Start: '{checkedTarget}'")
-            self.log_to_file(f"Target '{target_game_inventory_name}' Inventory Slot Count Before: {len(target_game_inventory_slots)}\n")
+            print(f"\nTarget Start: '{checkedTarget}'")
+            print(f"Target '{target_game_inventory_name}' Inventory Slot Count Before: {len(target_game_inventory_slots)}\n")
 
             if(len(target_game_inventory_slots) >= self.MAX_INVENTORY_CAPACITY):
                 msg = (f"Target inventory '{target_game_inventory_name}' is full. Currently "
                     f"{len(target_game_inventory_slots)} items. Moving to next target inventory...")
 
-                self.log_to_file(msg)
+                print(msg)
                 QMessageBox.critical(None, "Info", msg)
                 continue
 
             # we need to have a standardized indexing of inventory here so we can add items in the right positions:
             self.reorder_slot_items(target_game_inventory_slots)
-            #self.log_to_file(f"\nTarget {target_game_inventory_name} Inventory Slots After Reorder only!:\n{json.dumps(target_game_inventory_slots, indent=4)}\n")
+            #print(f"\nTarget {target_game_inventory_name} Inventory Slots After Reorder only!:\n{json.dumps(target_game_inventory_slots, indent=4)}\n")
 
             if (not target_game_inventory_slots):
                 pass  # empty; we'll add items later...
@@ -292,7 +288,7 @@ Special\t\t- Represents unique items or those used for quests. These could be it
                 msg = (f"Target inventory {target_game_inventory_name} already contains max items. "
                        "Skipping target inventory.")
 
-                self.log_to_file(msg)
+                print(msg)
                 QMessageBox.critical(None, "Info", msg)
                 continue
 
@@ -300,7 +296,7 @@ Special\t\t- Represents unique items or those used for quests. These could be it
             self.parent.view.resetValidSlotIndices(target_game_inventory_validSlotIndices)
 
             for checkedSource in checkedSources:
-                self.log_to_file(f"source Start: '{checkedSource}'")
+                print(f"source Start: '{checkedSource}'")
 
                 source_checkbox = checkedSource[1]
                 source_model_inventory = self.parent.view.get_inventory_sources(source_checkbox.property('inventory_id'))
@@ -309,24 +305,24 @@ Special\t\t- Represents unique items or those used for quests. These could be it
                 #source_game_inventory_validSlotIndices = source_model_inventory['ValidSlotIndices']
 
                 if(target_model_inventory == source_model_inventory):
-                    self.log_to_file(f"target ({target_game_inventory_name}) and source: ({source_game_inventory_name}) are the same. Iterating to next source...")
+                    print(f"target ({target_game_inventory_name}) and source: ({source_game_inventory_name}) are the same. Iterating to next source...")
                     continue  # for source
 
                 source_game_inventory_slots = source_model_inventory['Slots']
 
-                self.log_to_file(
+                print(
                     f"Source '{source_game_inventory_name}' Inventory Slot Count Before: {len(source_game_inventory_slots)}\n")
 
                 ### within this source, move over any items that match each category:
 
-                self.log_to_file(f"\n###len(target_game_categories): {len(target_game_categories)}")
-                self.log_to_file(f"\ttarget_game_categories:\n{json.dumps(target_game_categories, indent=4)}\n")
+                print(f"\n###len(target_game_categories): {len(target_game_categories)}")
+                print(f"\ttarget_game_categories:\n{json.dumps(target_game_categories, indent=4)}\n")
 
                 for category in target_game_categories:
                     #[:] causes iteration over a shallow copy:
                     for slot in source_game_inventory_slots[:]:
                         if category == slot['Type']['InventoryType']:
-                            self.log_to_file(f"Got a match on inventory type: '{category}', Id: {slot['Id']}")
+                            print(f"Got a match on inventory type: '{category}', Id: {slot['Id']}")
 
                             last_target_slot = None
                             if target_game_inventory_slots:  # target_game_inventory_slots not empty:
@@ -348,23 +344,23 @@ Special\t\t- Represents unique items or those used for quests. These could be it
                                 break #for slot
 
                     if(break_for_next_target):
-                        self.log_to_file(
+                        print(
                             f"Target is full; Target End, '{target_game_inventory_name}' Inventory Slot Count: {len(target_game_inventory_slots)}")
                         break #for category
 
                 if(break_for_next_target):
-                    self.log_to_file(
+                    print(
                         f"\nSource End {source_game_inventory_name} due to full target; Inventory Slot Count: {len(source_game_inventory_slots)}\n")
                     break  # for source
 
-                self.log_to_file(
+                print(
                     f"\nSource End {source_game_inventory_name} Inventory Slot Count After Sort: {len(source_game_inventory_slots)}. Going up to get next source if there is one...\n")
 
-            self.log_to_file(
+            print(
                 f"Target End, '{target_game_inventory_name}' Inventory Slot Count After Target: {len(target_game_inventory_slots)}\n")
 
 
-        self.log_to_file("process_sort() Exit")
+        print("process_sort() Exit")
 
     def reorder_slot_items(self, target_game_inventory_slots):
         if not target_game_inventory_slots: #this could be fine. Just an empty inventory list:
@@ -379,7 +375,7 @@ Special\t\t- Represents unique items or those used for quests. These could be it
             last_idx = target_game_inventory_slots[i]['Index']
 
     def getcheckedValues(self):
-        self.log_to_file( f"\ngetcheckedValues() ENTER\n")
+        print( f"\ngetcheckedValues() ENTER\n")
 
         # Get checked sources
         checked_sources = [(key, checkbox) for key, checkbox in self.source_checkboxes.items() if checkbox.isChecked()]

@@ -12,8 +12,17 @@ from DataViews import *
 from IniFileManager import *
 from LoadDataDialog import LoadDataDialog
 from init_text import INIT_TEXT
-from global_functions import *
-    
+
+def global_exception_handler(exc_type, exc_value, exc_traceback):
+    if issubclass(exc_type, KeyboardInterrupt):
+        # Let KeyboardInterrupt exceptions pass through without logging
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+
+        # Print the error and traceback
+    logger.error(f"Unhandled exception: {exc_value}")
+    traceback.print_exception(exc_type, exc_value, exc_traceback)
+
 # Set the global exception handler
 sys.excepthook = global_exception_handler
 
@@ -25,6 +34,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         logger.debug("MainWindow(QMainWindow).__init__ ENTER")
         super().__init__()
+
         self.thinking_dialog = TextOnlyLoadingDialog("Loading data, please wait...", self)
         self.ini_file_manager = ini_file_manager
         self.model = None
@@ -281,7 +291,7 @@ if __name__ == '__main__':
     exit_code = main()
     sys.exit(exit_code)  # Ensure the program terminates correctly
 
-    
+
 # MIT License
 #
 # Copyright (c) 2024 BigBuffaloBill - Bill Ryder <me@billryder.com>

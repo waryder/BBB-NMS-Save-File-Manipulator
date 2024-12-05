@@ -160,14 +160,6 @@ class ThirdTabContent(BaseTabContent):
         logger.debug(f"repainting tree...")
         self.tree_widget.repaint()
 
-    """    
-    def return_json_from_file(self, filename):
-        current_directory = os.path.dirname(__file__)
-        file_path = os.path.join(current_directory, filename)
-        with open(file_path, 'r') as file:
-            return json.loads(file.read())
-    """
-
     def inventory_sort_button_clicked(self):
         logger.debug("3rd tab inventory_sort_button_clicked() ENTER")
 

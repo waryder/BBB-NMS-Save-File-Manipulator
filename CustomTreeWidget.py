@@ -366,19 +366,21 @@ class CustomTreeWidget(QTreeWidget):
         options = QFileDialog.Options()
         
         #mainWindow is active window; path will include the name of the last 'bases' save file at this point:
-        path_string = QApplication.instance().activeWindow().ini_file_manager.get_persistent_dir()
         #assume we want to use the base name for the file name:
-        path_string += f"\\{base_name}"
-        
-        file_path, _ = QFileDialog.getSaveFileName(
+        if not base_name:
+            base_name = 'default'
+
+        file_path_string = QApplication.instance().activeWindow().ini_file_manager.get_full_file_path(f"{base_name}")
+
+        dialog_file_path, _ = QFileDialog.getSaveFileName(
             None, "Save File", 
-            path_string, 
+            file_path_string,
             "NMS Base Files (*.nms_base.json);;All Files (*)")
             
         # If a file path is selected, save the string to the file
-        if file_path:
+        if dialog_file_path:
             try:
-                with open(file_path, 'w') as file:
+                with open(dialog_file_path, 'w', encoding='utf-8') as file:
                     file.write(text_data)
                 QMessageBox.information(None, "Success", "File saved successfully!")
             except Exception as e:
@@ -404,7 +406,7 @@ class CustomTreeWidget(QTreeWidget):
         
         if file_path:
             try:
-                with open(file_path, 'r') as file:
+                with open(file_path, 'r', encoding='utf-8') as file:
                     file_content = file.read()  # Reads the entire file as a string
 
             except Exception as e:
@@ -441,19 +443,24 @@ class CustomTreeWidget(QTreeWidget):
         options = QFileDialog.Options()
 
         # mainWindow is active window; path will include the name of the last 'bases' save file at this point:
-        path_string = QApplication.instance().activeWindow().ini_file_manager.get_persistent_dir()
         # assume we want to use the base name for the file name:
-        path_string += f"\\{inventory_name}"
 
-        file_path, _ = QFileDialog.getSaveFileName(
+        if not inventory_name:
+            inventory_name = 'default'
+
+        file_path_string = QApplication.instance().activeWindow().ini_file_manager.get_full_file_path(f"{inventory_name}")
+
+        print (file_path_string)
+
+        dialog_file_path, _ = QFileDialog.getSaveFileName(
             None, "Save File",
-            path_string,
+            file_path_string,
             "NMS Inventory Files (*.nms_inventory.json);;All Files (*)")
 
         # If a file path is selected, save the string to the file
-        if file_path:
+        if dialog_file_path:
             try:
-                with open(file_path, 'w') as file:
+                with open(dialog_file_path, 'w', encoding='utf-8') as file:
                     file.write(text_data)
                 QMessageBox.information(None, "Success", "File saved successfully!")
             except Exception as e:
@@ -479,7 +486,7 @@ class CustomTreeWidget(QTreeWidget):
 
         if file_path:
             try:
-                with open(file_path, 'r') as file:
+                with open(file_path, 'r', encoding='utf-8') as file:
                     file_content = file.read()  # Reads the entire file as a string
 
             except Exception as e:
@@ -494,6 +501,7 @@ class CustomTreeWidget(QTreeWidget):
 
             nms_inventory_json = json.loads(file_content)
             self.parent.view.replace_inventory(nms_inventory_json, item)
+
             dialog = QMessageBox()
             dialog.setText(f"Inventory Contents Replaced!")
             dialog.exec_()

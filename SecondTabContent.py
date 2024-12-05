@@ -181,9 +181,8 @@ class SecondTabContent(BaseTabContent):
         self.tree_widget.repaint()
         
     def return_json_from_file(self, filename):
-        self.parent.ini_file_manager.ensure_persistent_file(filename)
-        file_path = os.path.join(self.parent.ini_file_manager.get_persistent_dir(), filename)
-        with open(file_path, 'r') as file:
+        file_path = self.parent.ini_file_manager.ensure_persistent_file(filename)
+        with open(file_path, 'r', encoding='utf-8') as file:
             return json.loads(file.read())
         
     def upgrade_starships(self):

@@ -377,10 +377,10 @@ class FirstTabContent(BaseTabContent):
                 item.setData(0, QT_DATA_LINE_COUNT, line_count) #store off the expected line number upon generation of the text from this this tree 
                                
                 parent_tree_node.addChild(item)
-                                
+
                 for key, val in json_data.items():
                     data_tuple = (key,val)
-                    
+
                     logger.verbose(f"dict child tuple['{key}']: {val}")
                     parse_item(data_tuple, item, level + 1)
                     

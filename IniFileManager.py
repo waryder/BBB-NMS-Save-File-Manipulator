@@ -8,7 +8,7 @@ class IniFileManager:
         """
         INI_FILE_NAME = "app_preferences.ini"
         self.ensure_persistent_file(INI_FILE_NAME)
-        self.ini_file = os.path.join(self.get_persistent_dir(), INI_FILE_NAME)
+        self.ini_file = self.get_full_file_path(INI_FILE_NAME)
 
         self.config = configparser.ConfigParser(delimiters='=')
         self.config.read(self.ini_file, encoding='utf-8')
@@ -65,16 +65,6 @@ class IniFileManager:
             target_combo_boxes):
 
         for key, checkbox in source_checkboxes.items():
-
-
-            # print(f"\n\nSource checkbox label:\n{key}_source_checkbox\n\n")
-            #
-            # print("Keys in Preferences section:")
-            # for k in self.config['Preferences'].keys():
-            #     print(repr(k))
-            #
-            # print("\n\n")
-
             # Check if the key is already stored in the INI
             if f"{key}_source_checkbox" not in self.config['Preferences'].keys():
                 # Save the current state (checked/unchecked) of the checkbox
@@ -94,10 +84,6 @@ class IniFileManager:
             if f"{key}_target_combobox" not in self.config['Preferences']:
                 # Save the current state (checked/unchecked) of the checkbox
                 self.config['Preferences'][f"{key}_target_combobox"] = combobox.lineEdit().text()
-
-
-        #print("init_configfile_inventory_sorter_defaults(): writing to config file")
-        #print("".join(traceback.format_stack()))
 
         with open(self.ini_file, 'w', encoding='utf-8') as configfile:
             self.config.write(configfile)
@@ -213,14 +199,6 @@ class IniFileManager:
                 # Try opening the file with UTF-8 encoding
                 with open(file_name, 'r', encoding='utf-8') as file:
                     output = file.read()
-            except UnicodeDecodeError:
-                # If UTF-8 fails, fall back to CP1252
-                try:
-                    with open(file_name, 'r', encoding='cp1252') as file:
-                        output = file.read()
-                except Exception as e:
-                    QMessageBox.critical(QApplication.instance().activeWindow(), "Error", f"Failed to open file: {e}")
-                    output = None
             except Exception as e:
                 QMessageBox.critical(QApplication.instance().activeWindow(), "Error", f"Failed to open file: {e}")
                 output = None
@@ -230,7 +208,7 @@ class IniFileManager:
         self.last_file_path = file_name
         return output
 
-    def save_file(self, tab, data):
+    def save_file(self, data):
         """Saves the file using the last saved path, or prompts if no path is set."""
         # Get the last working file path from the ini manager
         last_file_path = self.last_file_path
@@ -238,7 +216,7 @@ class IniFileManager:
         if last_file_path and os.path.exists(last_file_path):
             # If there's a valid path, save directly
             try:
-                with open(last_file_path, 'w') as f:
+                with open(last_file_path, 'w', encoding='utf-8') as f:
                     f.write(data)
 
                 # Show a confirmation message
@@ -247,24 +225,24 @@ class IniFileManager:
                 QMessageBox.critical(QApplication.instance().activeWindow(), "Error", f"Failed to save file: {e}")
         else:
             # If no path is set or the file doesn't exist, use "Save As" behavior
-            self.save_file_as(tab, data)  # Fallback to "Save As" behavior if no previous file path
+            self.save_file_as(data)  # Fallback to "Save As" behavior if no previous file path
 
     def save_file_as(self, data):
         """Implements the Save As functionality allowing the user to specify a file location."""
         # Get the preferences from the ini manager for the default save path
-        last_working_path = self.get_persistent_dir()
+        default_file_name = self.get_full_file_path("default.nms_sfm_BaseContext.json")
 
         save_file_name, _ = QFileDialog.getSaveFileName(
             QApplication.instance().activeWindow(),
             'Save As',
-            f"{last_working_path}/default.nms_sfm_BaseContext.json",  # Set the initial directory with default file name
+            default_file_name,  # Set the initial directory with default file name
             "JSON Files (*.json);;All Files (*)"  # File filters
         )
 
         if save_file_name:
             try:
                 # Save the file content
-                with open(save_file_name, 'w') as f:
+                with open(save_file_name, 'w', encoding='utf-8') as f:
                     f.write(data)
 
                 self.last_file_path = save_file_name
@@ -284,11 +262,13 @@ class IniFileManager:
     def get_persistent_dir(self):
         """Get the persistent directory based on the OS."""
         if sys.platform == "win32":
-            return os.path.join(os.getenv("APPDATA"), APP_NAME)
+            path =  os.path.join(os.getenv("APPDATA"), APP_NAME)
         elif sys.platform == "darwin":
-            return os.path.join(os.path.expanduser("~"), "Library", "Application Support", APP_NAME)
+            path = os.path.join(os.path.expanduser("~"), "Library", "Application Support", APP_NAME)
         else:
-            return os.path.join(os.path.expanduser("~"), f".{APP_NAME}")
+            path = os.path.join(os.path.expanduser("~"), f".{APP_NAME}")
+
+        return path
 
     def ensure_persistent_file(self, filename):
         """Ensure the data file is copied to a persistent directory."""
@@ -309,6 +289,12 @@ class IniFileManager:
             shutil.copy(source_file, persistent_file)
 
         return persistent_file
+
+    def get_full_file_path(self, file_name):
+        per_path = self.get_persistent_dir()
+        full_path = os.path.join(per_path, file_name)
+
+        return full_path
 
 ini_file_manager = IniFileManager('app_preferences.ini')                
 

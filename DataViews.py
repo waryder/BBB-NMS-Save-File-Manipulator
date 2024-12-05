@@ -17,15 +17,6 @@ class JsonArrayView(QObject):
         json_array = self.model.json_loads_with_exception_check(text)
 
         if json_array:
-            # print("####################")
-            # print(f"json_array is of type: {type(json_array)}")
-            # print(f"The size of the variable is: {sys.getsizeof(json_array)} bytes")
-            # #if isinstance(json_array, list):
-            # print(f"The number of items in the list is: {len(json_array)}")
-            # print(f"Keys: {json_array[0].keys()}")
-            #
-            # print("####################")
-
             return self.set_json(json_array)
         else:
             return False
@@ -83,18 +74,18 @@ class JsonArrayView(QObject):
            ['PlayerStateData', 'FishPlatformInventory'],
            ['PlayerStateData', 'FishBaitBoxInventory'],
            ['PlayerStateData', 'CookingIngredientsInventory'],
-           ['PlayerStateData', 'ShipOwnership', 0],
-           ['PlayerStateData', 'ShipOwnership', 1],
-           ['PlayerStateData', 'ShipOwnership', 2],
-           ['PlayerStateData', 'ShipOwnership', 3],
-           ['PlayerStateData', 'ShipOwnership', 4],
-           ['PlayerStateData', 'ShipOwnership', 5],
-           ['PlayerStateData', 'ShipOwnership', 6],
-           ['PlayerStateData', 'ShipOwnership', 7],
-           ['PlayerStateData', 'ShipOwnership', 8],
-           ['PlayerStateData', 'ShipOwnership', 9],
-           ['PlayerStateData', 'ShipOwnership', 10],
-           ['PlayerStateData', 'ShipOwnership', 11]
+           ['PlayerStateData', 'ShipOwnership', 0, 'Inventory'],
+           ['PlayerStateData', 'ShipOwnership', 1, 'Inventory'],
+           ['PlayerStateData', 'ShipOwnership', 2, 'Inventory'],
+           ['PlayerStateData', 'ShipOwnership', 3, 'Inventory'],
+           ['PlayerStateData', 'ShipOwnership', 4, 'Inventory'],
+           ['PlayerStateData', 'ShipOwnership', 5, 'Inventory'],
+           ['PlayerStateData', 'ShipOwnership', 6, 'Inventory'],
+           ['PlayerStateData', 'ShipOwnership', 7, 'Inventory'],
+           ['PlayerStateData', 'ShipOwnership', 8, 'Inventory'],
+           ['PlayerStateData', 'ShipOwnership', 9, 'Inventory'],
+           ['PlayerStateData', 'ShipOwnership', 10, 'Inventory'],
+           ['PlayerStateData', 'ShipOwnership', 11, 'Inventory']
         ]
 
         return inventory_source_list
@@ -226,26 +217,16 @@ class JsonArrayView(QObject):
 
             # we need to sanity check that this inventory has been expanded here since our moves assume we have
             # at least 100 slots:
-
-            #print(len(existing_inventories[index]['ValidSlotIndices']))
-
             if(len(existing_inventories[index]['ValidSlotIndices']) < 100):
                 self.resetValidSlotIndices(existing_inventories[index]['ValidSlotIndices'])
-
-            #print(len(existing_inventories[index]['ValidSlotIndices']))
-
-
-            #print(f"before: len(existing_inventories[index]['Slots']): {len(existing_inventories[index]['Slots'])}, len(nms_inventory_json_array['Slots']): {len(nms_inventory_json_array['Slots'])}")
 
             #use that index to know which json item we need to replace with the new inv data.
             #Just replace the items, not the whole array:
             existing_inventories[index]['Slots'] = nms_inventory_json_array['Slots']
 
-            #print(
-            #    f"after: len(existing_inventories[index]['Slots']): {len(existing_inventories[index]['Slots'])}, len(nms_inventory_json_array['Slots']): {len(nms_inventory_json_array['Slots'])}")
-
             #shouldn't be needed since we have already
-            self.set_json(existing_inventories)
+            #self.set_json(existing_inventories)
+            self.model.modelChanged.emit()
 
         else:
             return  # error
