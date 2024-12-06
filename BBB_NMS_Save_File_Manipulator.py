@@ -7,6 +7,7 @@ from NMSHelpMenu import NMSHelpMenu
 from FirstTabContent import FirstTabContent
 from SecondTabContent import SecondTabContent
 from ThirdTabContent import ThirdTabContent
+from ForthTabContent import ForthTabContent
 from DataModels import *
 from DataViews import *
 from IniFileManager import *
@@ -88,19 +89,24 @@ class MainWindow(QMainWindow):
         self.tab1 = FirstTabContent(self)
         self.tab2 = SecondTabContent(self)
         self.tab3 = ThirdTabContent(self)
+        self.tab4 = ForthTabContent(self)
         self.background_processing_signal.connect(self.tab1.set_led_based_on_app_thread_load)
         self.background_processing_signal.connect(self.tab2.set_led_based_on_app_thread_load)
         self.background_processing_signal.connect(self.tab3.set_led_based_on_app_thread_load)
+        self.background_processing_signal.connect(self.tab4.set_led_based_on_app_thread_load)
         self.text_edit_changed_signal.connect(self.tab1.handle_text_edit_changed_signal)
         self.text_edit_changed_signal.connect(self.tab2.handle_text_edit_changed_signal)
         self.text_edit_changed_signal.connect(self.tab3.handle_text_edit_changed_signal)
+        self.text_edit_changed_signal.connect(self.tab4.handle_text_edit_changed_signal)
         self.tree_changed_signal.connect(self.tab1.handle_tree_changed_signal)
         self.tree_changed_signal.connect(self.tab2.handle_tree_changed_signal)
         self.tree_changed_signal.connect(self.tab3.handle_tree_changed_signal)
+        self.tree_changed_signal.connect(self.tab4.handle_tree_changed_signal)
 
         self.tabs.addTab(self.tab1, 'Base Processing')
         self.tabs.addTab(self.tab2, 'Starship Processing')
         self.tabs.addTab(self.tab3, 'Inventory Processing')
+        self.tabs.addTab(self.tab4, 'Teleport Endpoints')
 
         self.tabs.tabBarClicked.connect(self.before_tab_change)
         self.tabs.currentChanged.connect(self.after_tab_change)

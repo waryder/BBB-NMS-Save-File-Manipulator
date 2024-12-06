@@ -204,12 +204,11 @@ class CustomTreeWidget(QTreeWidget):
         if item is not None:
             # Create a context menu
             menu = QMenu(self)
-            
-            action = menu.addAction("Highlight In Text Box")
-            action.triggered.connect(lambda: self.highlight_in_text_box(item))
-            
-            action = menu.addAction("Toggle Expansion 2 Levels")
-            action.triggered.connect(lambda: self.toggle_node_expansion(item))
+
+            if (self.parent == self.parent.parent.tab4):
+                if (self.count_parents(item) == 1):  # is top level
+                    action = menu.addAction("Set Player Location to this Endpoint")
+                    action.triggered.connect(lambda: self.set_player_location_to_this_system(item))
 
             if (self.parent == self.parent.parent.tab1):
                 #if top level array we want to add a menu item:
@@ -222,10 +221,6 @@ class CustomTreeWidget(QTreeWidget):
                     action = menu.addAction("Backup a Base")
                     action.triggered.connect(lambda: self.backup_a_base(item))
 
-            if(self.parent == self.parent.parent.tab1 or self.parent == self.parent.parent.tab2):
-                action = menu.addAction("Delete Node")
-                action.triggered.connect(lambda: self.delete_node(item))
-
             if (self.parent == self.parent.parent.tab3):
                 if (self.count_parents(item) == 1):  # is top level
                     action = menu.addAction("Backup this Inventory")
@@ -233,10 +228,76 @@ class CustomTreeWidget(QTreeWidget):
 
                     action = menu.addAction("Replace Items from Backup")
                     action.triggered.connect(lambda: self.replace_an_inventory(item))
+            
+            action = menu.addAction("Toggle Expansion 2 Levels")
+            action.triggered.connect(lambda: self.toggle_node_expansion(item))
+
+            action = menu.addAction("Highlight In Text Box")
+            action.triggered.connect(lambda: self.highlight_in_text_box(item))
+
+            action = menu.addAction("Copy This Node's Text")
+            action.triggered.connect(lambda: self.copy_node_text(item))
+
+            if(self.parent == self.parent.parent.tab1 or self.parent == self.parent.parent.tab2):
+                action = menu.addAction("Delete Node")
+                action.triggered.connect(lambda: self.delete_node(item))
 
             # Show the context menu at the position of the right-click
-            menu.exec_(global_position) 
+            menu.exec_(global_position)
+
+    def set_player_location_to_this_system(self, item):
+        item_label = item.text(0)
+
+        model_data = self.parent.model.get_data()
+        endpoint_universal_address = self.parent.tree_widget_data_to_json(item)
+
+        self.parent.main_window.background_processing_signal.emit(4, "tab1")
+        self.parent.update_tree_synced_indicator(False)
+
+        # print(f"endpoint_universal_address: {endpoint_universal_address}")
+        # print()
+        # print()
+        # print(f"Model universeAddress before: {model_data['PlayerStateData']['UniverseAddress']}")
+
+        model_data['PlayerStateData']['UniverseAddress'] = endpoint_universal_address['UniverseAddress']
+
+        # print(f"Model universeAddress after: {model_data['PlayerStateData']['UniverseAddress']}")
+
+
+        # print(f"PlayerPositionInSystem before: {model_data['SpawnStateData']['PlayerPositionInSystem']}")
+        model_data['SpawnStateData']['PlayerPositionInSystem'][0] = endpoint_universal_address['Position'][0]
+
+        model_data['SpawnStateData']['PlayerPositionInSystem'][1] = endpoint_universal_address['Position'][1]
+        #needs more testing:
+        #model_data['SpawnStateData']['PlayerPositionInSystem'][1] = (
+        #    str(float(endpoint_universal_address['Position'][1]) + 3)) #we'll spawn him about 10 feet (3 meters) above the recorded spot to
+        #                                                               #clear anything on the ground but not too high to cause damage
+
+        model_data['SpawnStateData']['PlayerPositionInSystem'][2] = endpoint_universal_address['Position'][2]
+
+        # print(f"PlayerPositionInSystem after: {model_data['SpawnStateData']['PlayerPositionInSystem']}")
+        #
+        # print(f"LastKnownPlayerState before: {model_data['SpawnStateData']['LastKnownPlayerState']}")
+        model_data['SpawnStateData']['LastKnownPlayerState'] = 'OnFoot'
+        # print(f"LastKnownPlayerState before: {model_data['SpawnStateData']['LastKnownPlayerState']}")
+
+        self.parent.model.modelChanged.emit()
+
+        print(item_label)
+
+        QMessageBox.information(self, f"Set Player Location", f"Player has been moved to '{item_label}'!")
         
+    def copy_node_text(self, item):
+        # Get the text of the selected item
+        node_text = item.text(0)  # Assuming we want to copy the text in the first column
+
+        # Copy the text to the clipboard
+        clipboard = QApplication.instance().clipboard()
+        clipboard.setText(node_text, QClipboard.Clipboard)
+
+        # Optionally, also copy to the selection clipboard (useful on Linux)
+        clipboard.setText(node_text, QClipboard.Selection)
+
     def delete_tree_nodes_selected(self):
         logger.debug("delete_tree_nodes_selected() ENTER")
         

@@ -418,12 +418,15 @@ Special\t\t- Represents unique items or those used for quests. These could be it
         # Close the dialog when Cancel is clicked
         self.reject()
 
-    def validSlotIndiciesNext(self, current_item, grid_size=10):
+    def validSlotIndiciesNext(self, current_item):
+        MAX_X = 9
+        MAX_Y = 11
+
         # Extract current X and Y values
         x, y = current_item["X"], current_item["Y"]
 
         # Increment Y first to move across the row
-        if y < grid_size - 1:
+        if y < MAX_Y:
             y += 1
         else:
             # If Y is at the end of the row, reset Y and increment X
@@ -431,7 +434,7 @@ Special\t\t- Represents unique items or those used for quests. These could be it
             x += 1
 
         # Check if both X and Y are within grid limits
-        if x >= grid_size or y >= grid_size:
+        if x > MAX_X or y > MAX_Y:
             logger.error("Attempted to request the next valid slot index beyond the row or column max count.")
             return None  # Return None if there’s no next item in the grid
 

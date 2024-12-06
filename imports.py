@@ -1,4 +1,4 @@
-import sys, os, pdb, logging, json, traceback, configparser, copy, builtins, shutil, re
+import sys, os, pdb, logging, json, traceback, configparser, copy, builtins, shutil, re, math
 import pyautogui, yappi, psutil, threading, traceback, concurrent.futures
 from PyQt5.QtCore import pyqtSignal, QObject, Qt, QMimeData, QTimer, QEvent
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QSplitter, QTabWidget,
@@ -383,6 +383,57 @@ class TextOnlyLoadingDialog(QDialog):
         layout.addWidget(label)
 
         self.setLayout(layout)
+
+def print_tree_node_data(item):
+    """
+    Prints all available data associated with a given QTreeWidgetItem.
+
+    Args:
+        item (QTreeWidgetItem): The tree widget item to print data from.
+    """
+    # Print basic information about the item
+    print("Item Text (per column):")
+    for column in range(item.columnCount()):
+        print(f"  Column {column}: {item.text(column)}")
+
+    # Print data stored in the item at each role
+    print("\nItem Data (per role):")
+    for column in range(item.columnCount()):
+        for role in [Qt.DisplayRole, Qt.ToolTipRole, Qt.EditRole, Qt.StatusTipRole, Qt.WhatsThisRole, Qt.UserRole]:
+            data = item.data(column, role)
+            if data:
+                print(f"  Column {column}, Role {role}: {data}")
+
+    # Print all custom data set with setData()
+    print("\nCustom Data (Qt.UserRole and above):")
+    for column in range(item.columnCount()):
+        role = Qt.UserRole
+        while True:
+            data = item.data(column, role)
+            if data:
+                print(f"  Column {column}, Role {role}: {data}")
+            role += 1
+            if role > Qt.UserRole + 100:  # Limit to avoid infinite loop
+                break
+
+    # Print child items if any
+    if item.childCount() > 0:
+        print("\nChild Items:")
+        for i in range(item.childCount()):
+            child = item.child(i)
+            print(f"  Child {i}: {tuple(child.text(column) for column in range(child.columnCount()))}")
+
+    # Print flags associated with the item
+    print("\nItem Flags:")
+    flags = item.flags()
+    print(f"  Flags: {flags}")
+
+    # Print other potential properties
+    print("\nOther Properties:")
+    print(f"  Is Selected: {item.isSelected()}")
+    print(f"  Is Disabled: {item.isDisabled()}")
+    print(f"  Child Count: {item.childCount()}")
+    print(f"  Parent: {item.parent().text(0) if item.parent() else 'None'}")
 
 
 

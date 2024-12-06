@@ -2,6 +2,16 @@ INIT_TEXT = """
 {
     "GameMode": 1,
     "PlayerStateData": {
+		"UniverseAddress": {
+            "RealityIndex": 1,
+            "GalacticAddress": {
+                "VoxelX": -369,
+                "VoxelY": -3,
+                "VoxelZ": 1066,
+                "SolarSystemIndex": 210,
+                "PlanetIndex": 6
+            }
+        },
         "Inventory": {
             "Slots": [
                 {
@@ -2181,7 +2191,6 @@ INIT_TEXT = """
             "Name": "DUMMY DATA; PLEASE LOAD REAL DATA!",
             "Version": 1
         },
-
         "FreighterInventory": {
             "Slots": [
                 {
@@ -4118,7 +4127,6 @@ INIT_TEXT = """
             "Name": "DUMMY DATA; PLEASE LOAD REAL DATA!",
             "Version": 1
         },
-
         "PersistentPlayerBases": [
             {
                 "BaseVersion": 8,
@@ -60940,7 +60948,7 @@ INIT_TEXT = """
                 "AutoPowerSetting": {
                     "BaseAutoPowerSetting": "ForceDisabled"
                 }
-            } 
+            }
         ],
         "TeleportEndpoints": [
             {
@@ -60965,20 +60973,11 @@ INIT_TEXT = """
                     -0.8606564402580261
                 ],
                 "TeleporterType": "Base",
-                "Name": "Ifnaldi Colony",
+                "Name": "Ifnaldi Colony (DUMMY DATA; LOAD REAL DATA!)",
                 "CalcWarpOffset": true,
                 "IsFeatured": false
             }
-
         ],
-        "Chest1Layout": {
-            "Slots": 10,
-            "Seed": [
-                true,
-                "0x1"
-            ],
-            "Level": 1
-        },
         "Chest1Inventory": {
             "Slots": [
                 {
@@ -62116,14 +62115,6 @@ INIT_TEXT = """
             "Name": "Red Paradise Storage 1",
             "Version": 1
         },
-        "Chest2Layout": {
-            "Slots": 10,
-            "Seed": [
-                true,
-                "0x1"
-            ],
-            "Level": 1
-        },
         "Chest2Inventory": {
             "Slots": [
                 {
@@ -62967,14 +62958,6 @@ INIT_TEXT = """
             "Name": "Red Paradise Storage 2",
             "Version": 1
         },
-        "Chest3Layout": {
-            "Slots": 10,
-            "Seed": [
-                true,
-                "0x1"
-            ],
-            "Level": 1
-        },
         "Chest3Inventory": {
             "Slots": [
                 {
@@ -63426,14 +63409,6 @@ INIT_TEXT = """
             "Name": "HQ Storage 1",
             "Version": 1
         },
-        "Chest4Layout": {
-            "Slots": 10,
-            "Seed": [
-                true,
-                "0x1"
-            ],
-            "Level": 1
-        },
         "Chest4Inventory": {
             "Slots": [
                 {
@@ -63800,14 +63775,6 @@ INIT_TEXT = """
             "IsCool": false,
             "Name": "HQ Storage 2",
             "Version": 1
-        },
-        "Chest5Layout": {
-            "Slots": 10,
-            "Seed": [
-                true,
-                "0x1"
-            ],
-            "Level": 1
         },
         "Chest5Inventory": {
             "Slots": [
@@ -64344,14 +64311,6 @@ INIT_TEXT = """
             "Name": "Outlaw Outpost Out",
             "Version": 1
         },
-        "Chest6Layout": {
-            "Slots": 10,
-            "Seed": [
-                true,
-                "0x1"
-            ],
-            "Level": 1
-        },
         "Chest6Inventory": {
             "Slots": [],
             "ValidSlotIndices": [
@@ -64689,14 +64648,6 @@ INIT_TEXT = """
             "IsCool": false,
             "Name": "Outlaw Outpost In",
             "Version": 1
-        },
-        "Chest7Layout": {
-            "Slots": 10,
-            "Seed": [
-                true,
-                "0x1"
-            ],
-            "Level": 1
         },
         "Chest7Inventory": {
             "Slots": [],
@@ -65036,14 +64987,6 @@ INIT_TEXT = """
             "Name": "BLD_STORAGE_NAME",
             "Version": 1
         },
-        "Chest8Layout": {
-            "Slots": 10,
-            "Seed": [
-                true,
-                "0x1"
-            ],
-            "Level": 1
-        },
         "Chest8Inventory": {
             "Slots": [],
             "ValidSlotIndices": [
@@ -65382,14 +65325,6 @@ INIT_TEXT = """
             "Name": "BLD_STORAGE_NAME",
             "Version": 1
         },
-        "Chest9Layout": {
-            "Slots": 10,
-            "Seed": [
-                true,
-                "0x1"
-            ],
-            "Level": 1
-        },
         "Chest9Inventory": {
             "Slots": [],
             "ValidSlotIndices": [
@@ -65727,14 +65662,6 @@ INIT_TEXT = """
             "IsCool": false,
             "Name": "BLD_STORAGE_NAME",
             "Version": 1
-        },
-        "Chest10Layout": {
-            "Slots": 10,
-            "Seed": [
-                true,
-                "0x1"
-            ],
-            "Level": 1
         },
         "Chest10Inventory": {
             "Slots": [
@@ -66815,1115 +66742,6 @@ INIT_TEXT = """
             "Height": 8,
             "IsCool": false,
             "Name": "Starship Parts",
-            "Version": 1
-        },
-        "ChestMagicLayout": {
-            "Slots": 10,
-            "Seed": [
-                true,
-                "0x1"
-            ],
-            "Level": 1
-        },
-        "ChestMagicInventory": {
-            "Slots": [
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^STELLAR2",
-                    "Amount": 9999,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 0,
-                        "Y": 0
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^LAND1",
-                    "Amount": 9999,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 1,
-                        "Y": 0
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Product"
-                    },
-                    "Id": "^CASING",
-                    "Amount": 200,
-                    "MaxAmount": 200,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 2,
-                        "Y": 0
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Product"
-                    },
-                    "Id": "^POWERCELL",
-                    "Amount": 139,
-                    "MaxAmount": 2000,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 3,
-                        "Y": 0
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Product"
-                    },
-                    "Id": "^MICROCHIP",
-                    "Amount": 129,
-                    "MaxAmount": 200,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 4,
-                        "Y": 0
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^FUEL1",
-                    "Amount": 9999,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 5,
-                        "Y": 0
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Product"
-                    },
-                    "Id": "^NANOTUBES",
-                    "Amount": 84,
-                    "MaxAmount": 200,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 6,
-                        "Y": 0
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^CATALYST1",
-                    "Amount": 4914,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 7,
-                        "Y": 0
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^ASTEROID2",
-                    "Amount": 5535,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 8,
-                        "Y": 0
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^LAND2",
-                    "Amount": 9999,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 9,
-                        "Y": 0
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^CATALYST2",
-                    "Amount": 176,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 0,
-                        "Y": 1
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^OXYGEN",
-                    "Amount": 130,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 1,
-                        "Y": 1
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^SAND1",
-                    "Amount": 9999,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 2,
-                        "Y": 1
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Product"
-                    },
-                    "Id": "^FARMPROD3",
-                    "Amount": 500,
-                    "MaxAmount": 500,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 3,
-                        "Y": 1
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Product"
-                    },
-                    "Id": "^VENTGEM",
-                    "Amount": 100,
-                    "MaxAmount": 100,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 4,
-                        "Y": 1
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^ASTEROID1",
-                    "Amount": 5450,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 5,
-                        "Y": 1
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^LAND3",
-                    "Amount": 4090,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 6,
-                        "Y": 1
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^FUEL2",
-                    "Amount": 2119,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 7,
-                        "Y": 1
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Product"
-                    },
-                    "Id": "^CASING",
-                    "Amount": 200,
-                    "MaxAmount": 200,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 8,
-                        "Y": 1
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Product"
-                    },
-                    "Id": "^CASING",
-                    "Amount": 200,
-                    "MaxAmount": 200,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 9,
-                        "Y": 1
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^SAND1",
-                    "Amount": 9680,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 5,
-                        "Y": 2
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Product"
-                    },
-                    "Id": "^FARMPROD3",
-                    "Amount": 500,
-                    "MaxAmount": 500,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 6,
-                        "Y": 2
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Product"
-                    },
-                    "Id": "^VENTGEM",
-                    "Amount": 72,
-                    "MaxAmount": 100,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 7,
-                        "Y": 2
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^PLANT_TOXIC",
-                    "Amount": 825,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 8,
-                        "Y": 2
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^TOXIC1",
-                    "Amount": 429,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 9,
-                        "Y": 2
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Product"
-                    },
-                    "Id": "^CASING",
-                    "Amount": 200,
-                    "MaxAmount": 200,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 2,
-                        "Y": 3
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^LAND1",
-                    "Amount": 9999,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 3,
-                        "Y": 3
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Product"
-                    },
-                    "Id": "^CASING",
-                    "Amount": 200,
-                    "MaxAmount": 200,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 4,
-                        "Y": 3
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Product"
-                    },
-                    "Id": "^CASING",
-                    "Amount": 200,
-                    "MaxAmount": 200,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 5,
-                        "Y": 3
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^LAND2",
-                    "Amount": 9999,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 6,
-                        "Y": 3
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Product"
-                    },
-                    "Id": "^JELLY",
-                    "Amount": 1,
-                    "MaxAmount": 200,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 7,
-                        "Y": 3
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Product"
-                    },
-                    "Id": "^ANTIMATTER",
-                    "Amount": 12,
-                    "MaxAmount": 200,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 8,
-                        "Y": 3
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Product"
-                    },
-                    "Id": "^CLAMPEARL",
-                    "Amount": 4,
-                    "MaxAmount": 300,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 9,
-                        "Y": 3
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Product"
-                    },
-                    "Id": "^CASING",
-                    "Amount": 200,
-                    "MaxAmount": 200,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 0,
-                        "Y": 4
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^STELLAR2",
-                    "Amount": 8090,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 1,
-                        "Y": 4
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Product"
-                    },
-                    "Id": "^CASING",
-                    "Amount": 200,
-                    "MaxAmount": 200,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 2,
-                        "Y": 4
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Product"
-                    },
-                    "Id": "^CASING",
-                    "Amount": 200,
-                    "MaxAmount": 200,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 3,
-                        "Y": 4
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^LAND1",
-                    "Amount": 9999,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 4,
-                        "Y": 4
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Product"
-                    },
-                    "Id": "^CASING",
-                    "Amount": 200,
-                    "MaxAmount": 200,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 5,
-                        "Y": 4
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^LUSH1",
-                    "Amount": 200,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 6,
-                        "Y": 4
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Product"
-                    },
-                    "Id": "^FARMPROD3",
-                    "Amount": 500,
-                    "MaxAmount": 500,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 7,
-                        "Y": 4
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Product"
-                    },
-                    "Id": "^CASING",
-                    "Amount": 200,
-                    "MaxAmount": 200,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 8,
-                        "Y": 4
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^CAVE2",
-                    "Amount": 24,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 3,
-                        "Y": 5
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^LAND2",
-                    "Amount": 9999,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 4,
-                        "Y": 5
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^ASTEROID3",
-                    "Amount": 143,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 5,
-                        "Y": 5
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^CAVE1",
-                    "Amount": 24,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 6,
-                        "Y": 5
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^YELLOW2",
-                    "Amount": 24,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 7,
-                        "Y": 5
-                    }
-                },
-                {
-                    "Type": {
-                        "InventoryType": "Substance"
-                    },
-                    "Id": "^FUEL1",
-                    "Amount": 9999,
-                    "MaxAmount": 9999,
-                    "DamageFactor": 0.0,
-                    "FullyInstalled": true,
-                    "Index": {
-                        "X": 8,
-                        "Y": 5
-                    }
-                }
-            ],
-            "ValidSlotIndices": [
-                {
-                    "X": 0,
-                    "Y": 0
-                },
-                {
-                    "X": 1,
-                    "Y": 0
-                },
-                {
-                    "X": 2,
-                    "Y": 0
-                },
-                {
-                    "X": 3,
-                    "Y": 0
-                },
-                {
-                    "X": 4,
-                    "Y": 0
-                },
-                {
-                    "X": 5,
-                    "Y": 0
-                },
-                {
-                    "X": 6,
-                    "Y": 0
-                },
-                {
-                    "X": 7,
-                    "Y": 0
-                },
-                {
-                    "X": 8,
-                    "Y": 0
-                },
-                {
-                    "X": 9,
-                    "Y": 0
-                },
-                {
-                    "X": 0,
-                    "Y": 1
-                },
-                {
-                    "X": 1,
-                    "Y": 1
-                },
-                {
-                    "X": 2,
-                    "Y": 1
-                },
-                {
-                    "X": 3,
-                    "Y": 1
-                },
-                {
-                    "X": 4,
-                    "Y": 1
-                },
-                {
-                    "X": 5,
-                    "Y": 1
-                },
-                {
-                    "X": 6,
-                    "Y": 1
-                },
-                {
-                    "X": 7,
-                    "Y": 1
-                },
-                {
-                    "X": 8,
-                    "Y": 1
-                },
-                {
-                    "X": 9,
-                    "Y": 1
-                },
-                {
-                    "X": 5,
-                    "Y": 2
-                },
-                {
-                    "X": 6,
-                    "Y": 2
-                },
-                {
-                    "X": 7,
-                    "Y": 2
-                },
-                {
-                    "X": 8,
-                    "Y": 2
-                },
-                {
-                    "X": 9,
-                    "Y": 2
-                },
-                {
-                    "X": 2,
-                    "Y": 3
-                },
-                {
-                    "X": 3,
-                    "Y": 3
-                },
-                {
-                    "X": 4,
-                    "Y": 3
-                },
-                {
-                    "X": 5,
-                    "Y": 3
-                },
-                {
-                    "X": 6,
-                    "Y": 3
-                },
-                {
-                    "X": 7,
-                    "Y": 3
-                },
-                {
-                    "X": 8,
-                    "Y": 3
-                },
-                {
-                    "X": 9,
-                    "Y": 3
-                },
-                {
-                    "X": 0,
-                    "Y": 4
-                },
-                {
-                    "X": 1,
-                    "Y": 4
-                },
-                {
-                    "X": 2,
-                    "Y": 4
-                },
-                {
-                    "X": 3,
-                    "Y": 4
-                },
-                {
-                    "X": 4,
-                    "Y": 4
-                },
-                {
-                    "X": 5,
-                    "Y": 4
-                },
-                {
-                    "X": 6,
-                    "Y": 4
-                },
-                {
-                    "X": 7,
-                    "Y": 4
-                },
-                {
-                    "X": 8,
-                    "Y": 4
-                },
-                {
-                    "X": 3,
-                    "Y": 5
-                },
-                {
-                    "X": 4,
-                    "Y": 5
-                },
-                {
-                    "X": 5,
-                    "Y": 5
-                },
-                {
-                    "X": 6,
-                    "Y": 5
-                },
-                {
-                    "X": 7,
-                    "Y": 5
-                },
-                {
-                    "X": 8,
-                    "Y": 5
-                }
-            ],
-            "Class": {
-                "InventoryClass": "C"
-            },
-            "StackSizeGroup": {
-                "InventoryStackSizeGroup": "BaseCapsule"
-            },
-            "BaseStatValues": [],
-            "SpecialSlots": [],
-            "Width": 10,
-            "Height": 6,
-            "IsCool": false,
-            "Name": "",
-            "Version": 1
-        },
-        "ChestMagic2Layout": {
-            "Slots": 10,
-            "Seed": [
-                true,
-                "0x1"
-            ],
-            "Level": 1
-        },
-        "ChestMagic2Inventory": {
-            "Slots": [],
-            "ValidSlotIndices": [
-                {
-                    "X": 0,
-                    "Y": 0
-                },
-                {
-                    "X": 1,
-                    "Y": 0
-                },
-                {
-                    "X": 2,
-                    "Y": 0
-                },
-                {
-                    "X": 3,
-                    "Y": 0
-                },
-                {
-                    "X": 4,
-                    "Y": 0
-                },
-                {
-                    "X": 5,
-                    "Y": 0
-                },
-                {
-                    "X": 6,
-                    "Y": 0
-                },
-                {
-                    "X": 7,
-                    "Y": 0
-                },
-                {
-                    "X": 8,
-                    "Y": 0
-                },
-                {
-                    "X": 9,
-                    "Y": 0
-                },
-                {
-                    "X": 0,
-                    "Y": 1
-                },
-                {
-                    "X": 1,
-                    "Y": 1
-                },
-                {
-                    "X": 2,
-                    "Y": 1
-                },
-                {
-                    "X": 3,
-                    "Y": 1
-                },
-                {
-                    "X": 4,
-                    "Y": 1
-                },
-                {
-                    "X": 5,
-                    "Y": 1
-                },
-                {
-                    "X": 6,
-                    "Y": 1
-                },
-                {
-                    "X": 7,
-                    "Y": 1
-                },
-                {
-                    "X": 8,
-                    "Y": 1
-                },
-                {
-                    "X": 9,
-                    "Y": 1
-                },
-                {
-                    "X": 5,
-                    "Y": 2
-                },
-                {
-                    "X": 6,
-                    "Y": 2
-                },
-                {
-                    "X": 7,
-                    "Y": 2
-                },
-                {
-                    "X": 8,
-                    "Y": 2
-                },
-                {
-                    "X": 9,
-                    "Y": 2
-                },
-                {
-                    "X": 2,
-                    "Y": 3
-                },
-                {
-                    "X": 3,
-                    "Y": 3
-                },
-                {
-                    "X": 4,
-                    "Y": 3
-                },
-                {
-                    "X": 5,
-                    "Y": 3
-                },
-                {
-                    "X": 6,
-                    "Y": 3
-                },
-                {
-                    "X": 7,
-                    "Y": 3
-                },
-                {
-                    "X": 8,
-                    "Y": 3
-                },
-                {
-                    "X": 9,
-                    "Y": 3
-                },
-                {
-                    "X": 0,
-                    "Y": 4
-                },
-                {
-                    "X": 1,
-                    "Y": 4
-                },
-                {
-                    "X": 2,
-                    "Y": 4
-                },
-                {
-                    "X": 3,
-                    "Y": 4
-                },
-                {
-                    "X": 4,
-                    "Y": 4
-                },
-                {
-                    "X": 5,
-                    "Y": 4
-                },
-                {
-                    "X": 6,
-                    "Y": 4
-                },
-                {
-                    "X": 7,
-                    "Y": 4
-                },
-                {
-                    "X": 8,
-                    "Y": 4
-                },
-                {
-                    "X": 3,
-                    "Y": 5
-                },
-                {
-                    "X": 4,
-                    "Y": 5
-                },
-                {
-                    "X": 5,
-                    "Y": 5
-                },
-                {
-                    "X": 6,
-                    "Y": 5
-                },
-                {
-                    "X": 7,
-                    "Y": 5
-                },
-                {
-                    "X": 8,
-                    "Y": 5
-                }
-            ],
-            "Class": {
-                "InventoryClass": "C"
-            },
-            "StackSizeGroup": {
-                "InventoryStackSizeGroup": "BaseCapsule"
-            },
-            "BaseStatValues": [],
-            "SpecialSlots": [],
-            "Width": 10,
-            "Height": 6,
-            "IsCool": false,
-            "Name": "",
             "Version": 1
         },
         "CookingIngredientsLayout": {
@@ -86721,7 +85539,82 @@ INIT_TEXT = """
                     -1.0
                 ]
             }
-        ]        
+        ]
+    },
+	    "SpawnStateData": {
+        "PlayerPositionInSystem": [
+            -1270140.75,
+            -58900.67578125,
+            1290460.875,
+            1.0
+        ],
+        "PlayerTransformAt": [
+            -0.36028316617012024,
+            0.9279136061668396,
+            0.09577208012342453,
+            1.0
+        ],
+        "PlayerDeathRespawnPositionInSystem": [
+            -1270140.75,
+            -58900.67578125,
+            1290460.875,
+            1.0
+        ],
+        "PlayerDeathRespawnTransformAt": [
+            -0.36028316617012024,
+            0.9279136061668396,
+            0.09577208012342453,
+            1.0
+        ],
+        "ShipPositionInSystem": [
+            -1270163.5,
+            -58870.08984375,
+            1290471.125,
+            1.0
+        ],
+        "ShipTransformAt": [
+            1.1760414838790894,
+            -0.2890700697898865,
+            -0.3096204996109009,
+            1.0
+        ],
+        "LastKnownPlayerState": "OnFoot",
+        "FreighterPositionInSystem": [
+            -6299.37451171875,
+            13987.9580078125,
+            5767.0390625,
+            1.0
+        ],
+        "FreighterTransformAt": [
+            -0.6066001653671265,
+            0.719914972782135,
+            0.33728131651878357,
+            1.0
+        ],
+        "FreighterTransformUp": [
+            0.7711901068687439,
+            0.6359140872955322,
+            0.029648691415786743,
+            1.0
+        ],
+        "AbandonedFreighterPositionInSystem": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+        ],
+        "AbandonedFreighterTransformAt": [
+            0.0,
+            0.0,
+            1.0,
+            1.0
+        ],
+        "AbandonedFreighterTransformUp": [
+            0.0,
+            1.0,
+            0.0,
+            1.0
+        ]
     }
 }
 """
