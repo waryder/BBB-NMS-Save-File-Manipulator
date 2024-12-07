@@ -45,6 +45,8 @@ All of the following assume a stable python environment. I purposely do not go i
 
 ## Installation Instructions - Exe file (single file install for Windows machines)
 
+Important Note: 99% of the time this won't be an issue but if you do see any messages about "No MSVC Runtime" or "No MSVC libs" found you may need to intall https://www.microsoft.com/en-us/download/details.aspx?id=53840. This issue is common to many if not most Windows apps so again, 99% of the time you have this on your system already and will not run into this issue.
+
 1. Go to the Releases page: https://github.com/your_username/BBB-NMS-SFM/releases](https://github.com/waryder/BBB-NMS-Save-File-Manipulator/releases.
 2. Download the latest release exe file.
 3. The exe provided in the release is a standalone application file. You simply drop it in a non-system folder with run permissions and double-click it or otherwise start it as you will. It is not an installation file. It will just run.
