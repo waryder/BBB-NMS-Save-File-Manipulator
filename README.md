@@ -47,6 +47,6 @@ All of the following assume a stable python environment. I purposely do not go i
 
 1. Go to the Releases page: https://github.com/your_username/BBB-NMS-SFM/releases](https://github.com/waryder/BBB-NMS-Save-File-Manipulator/releases.
 2. Download the latest release exe file.
-3. The exe provided in the release is a standalone application file. You simply drop it in a non-system folder with run permissions and double-click it or otherwise start it as you will. It is not an installation file it will just run.
+3. The exe provided in the release is a standalone application file. You simply drop it in a non-system folder with run permissions and double-click it or otherwise start it as you will. It is not an installation file. It will just run.
 
 
