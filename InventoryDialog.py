@@ -8,8 +8,8 @@ class InventoryDialog(QDialog):
         super().__init__(parent)
         self.parent = parent
 
-        self.MAX_INVENTORY_CAPACITY = 100
-        self.MAX_INVENTORY_SLOT_INDEX = {'X': 9, 'Y': 9}
+        self.MAX_INVENTORY_CAPACITY = 120
+        self.MAX_INVENTORY_SLOT_INDEX = {'X': 9, 'Y': 11}
 
         self._source_storage_container_inv_names = {"NAME1" : "Storage Container 1", "NAME2" : "Storage Container 2",
             "NAME3" : "Storage Container 3", "NAME4" : "Storage Container 4", "NAME5" : "Storage Container 5",
@@ -78,7 +78,9 @@ class InventoryDialog(QDialog):
     def create_left_scroll_area(self):
         # Left pane (Inventory Sources)
         left_pane_layout = QVBoxLayout()
-        left_pane_layout.addWidget(QLabel("<b>Source Inventories</b>"))
+        inv_label = QLabel("<b>Source Inventories</b>")
+        inv_label.setFixedSize(200, 20)
+        left_pane_layout.addWidget(inv_label)
 
         # Load the left_pane_layout with checkboxes
         for idx, inventory in enumerate(self.inventory_sources):
@@ -203,6 +205,8 @@ Special\t\t- Represents unique items or those used for quests. These could be it
         #let everyone know the model has changed; updates all views:
         self.parent.model.modelChanged.emit()
 
+        QMessageBox.information(None, "Info", "Inventory has been sorted!")
+
         print("execute_sort() Exit")
         self.close()
 
@@ -270,27 +274,9 @@ Special\t\t- Represents unique items or those used for quests. These could be it
             print(f"\nTarget Start: '{checkedTarget}'")
             print(f"Target '{target_game_inventory_name}' Inventory Slot Count Before: {len(target_game_inventory_slots)}\n")
 
-            if(len(target_game_inventory_slots) >= self.MAX_INVENTORY_CAPACITY):
-                msg = (f"Target inventory '{target_game_inventory_name}' is full. Currently "
-                    f"{len(target_game_inventory_slots)} items. Moving to next target inventory...")
-
-                print(msg)
-                QMessageBox.critical(None, "Info", msg)
-                continue
-
             # we need to have a standardized indexing of inventory here so we can add items in the right positions:
             self.reorder_slot_items(target_game_inventory_slots)
             #print(f"\nTarget {target_game_inventory_name} Inventory Slots After Reorder only!:\n{json.dumps(target_game_inventory_slots, indent=4)}\n")
-
-            if (not target_game_inventory_slots):
-                pass  # empty; we'll add items later...
-            elif(target_game_inventory_slots[-1]['Index'] == self.MAX_INVENTORY_SLOT_INDEX):
-                msg = (f"Target inventory {target_game_inventory_name} already contains max items. "
-                       "Skipping target inventory.")
-
-                print(msg)
-                QMessageBox.critical(None, "Info", msg)
-                continue
 
             # Make sure the target inventory is expanded:
             self.parent.view.resetValidSlotIndices(target_game_inventory_validSlotIndices)
@@ -307,6 +293,25 @@ Special\t\t- Represents unique items or those used for quests. These could be it
                 if(target_model_inventory == source_model_inventory):
                     print(f"target ({target_game_inventory_name}) and source: ({source_game_inventory_name}) are the same. Iterating to next source...")
                     continue  # for source
+
+                #Even though these were valid data before now, we first needed to do the last check before these next two:
+                if (len(target_game_inventory_slots) >= self.MAX_INVENTORY_CAPACITY):
+                    msg = (f"Target inventory '{target_game_inventory_name}' is full. Currently "
+                           f"{len(target_game_inventory_slots)} items. Moving to next target inventory...")
+
+                    print(msg)
+                    QMessageBox.critical(None, "Info", msg)
+                    break  # for source to go out to next target
+
+                if (len(target_game_inventory_slots) and target_game_inventory_slots[-1]['Index'] == self.MAX_INVENTORY_SLOT_INDEX):
+                    #we should never get here given the logic above. at this point we have reordered the target items AND checked
+                    #the target is not full...but it's a sanity check...
+                    msg = (f"Target inventory {target_game_inventory_name} already contains max items. "
+                           "Skipping target inventory.")
+
+                    print(msg)
+                    QMessageBox.critical(None, "Info", msg)
+                    break  # for source to go out to next target
 
                 source_game_inventory_slots = source_model_inventory['Slots']
 

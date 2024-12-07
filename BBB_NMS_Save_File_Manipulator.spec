@@ -5,8 +5,9 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[
-        ('C:\\MBIN_PROJECTS\\Working_Projects\\BBB-NMS-SFM-Project\\help', 'help'),
-        ('C:\\MBIN_PROJECTS\\Working_Projects\\BBB-NMS-SFM-Project\\images', 'images'),
+    ('help', 'help'),
+    ('images', 'images'),
+    ('app_preferences.ini', '.'),
     ],
     hiddenimports=['imports'],  # Ensure 'imports' is a valid module
     hookspath=[],

@@ -17,7 +17,7 @@ class IniFileManager:
         # self.tab1_working_file_path = self.config.get('Preferences', 'tab1_working_file_path', fallback='')
         # self.tab2_working_file_path = self.config.get('Preferences', 'tab2_working_file_path', fallback='')
         self.last_file_path = False
-        
+
     # def store_current_tab1_working_file_path(self, file_path):
     #     """
     #     Stores the given file path in the ini file.
@@ -271,22 +271,28 @@ class IniFileManager:
         return path
 
     def ensure_persistent_file(self, filename):
-        """Ensure the data file is copied to a persistent directory."""
-        persistent_dir = self.get_persistent_dir()
-        if not os.path.exists(persistent_dir):
-            os.makedirs(persistent_dir)
+        try:
 
-        persistent_file = os.path.join(persistent_dir, filename)
+            """Ensure the data file is copied to a persistent directory."""
+            persistent_dir = self.get_persistent_dir()
+            if not os.path.exists(persistent_dir):
+                os.makedirs(persistent_dir)
 
-        # Determine source file
-        if hasattr(sys, "_MEIPASS"):
-            source_file = os.path.join(sys._MEIPASS, filename)
-        else:
-            source_file = os.path.join(os.path.dirname(__file__), filename)
+            persistent_file = os.path.join(persistent_dir, filename)
 
-        # Copy file if it doesn't exist
-        if not os.path.exists(persistent_file):
-            shutil.copy(source_file, persistent_file)
+            # Determine source file
+            if hasattr(sys, "_MEIPASS"):
+                source_file = os.path.join(sys._MEIPASS, filename)
+            else:
+                source_file = os.path.join(os.path.dirname(__file__), filename)
+
+            # Copy file if it doesn't exist
+            if not os.path.exists(persistent_file):
+                shutil.copy(source_file, persistent_file)
+
+        except Exception as e:
+            # Show a pop-up dialog with the error
+            QMessageBox.critical(None, "Error", f"File Paths: persistent_file: {persistent_file}, source_file: {source_file}, error: {str(e)}")
 
         return persistent_file
 

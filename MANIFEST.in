@@ -1,1 +1,2 @@
 recursive-include BBB_NMS_Save_File_Manipulator/help *
+recursive-include BBB_NMS_Save_File_Manipulator/images *

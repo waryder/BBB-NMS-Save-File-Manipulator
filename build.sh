@@ -12,7 +12,7 @@ rm -rf .venv
 rm -rf build
 rm -rf __pycache__.py
 rm -rf __pycache__
-rm -rf __init__.py
+
 #pyinstaller --onefile --add-data "C:\MBIN_PROJECTS\Working_Projects\BBB-NMS-SFM-Project\help;help" --hidden-import imports BBB_NMS_Save_File_Manipulator.py
 pyinstaller BBB_NMS_Save_File_Manipulator.spec
 
