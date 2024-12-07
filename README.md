@@ -13,6 +13,10 @@ DISCLAIMERS: I cannot be held liable for any damage this app causes. Period. I h
 				and go restore yourself." :) I do use this application regularly myself at this point, but I make backups just in case!!
 				
 
+## Note on Usage
+
+Before you even get to the in game help, please know that you need to grab the entire "BaseContext" json from the raw json editor in a tool like Goatfungus, for import into this application. This is the whole of the data this application works on and imports and exports in and out.
+
 ## Installation Instructions - Zip file (for use with an existing Python installtion)
 
 All of the following assume a stable python environment. I purposely do not go into the details of setting this up because in honesty my app is intended for techie geeks and if you think python is a snake in the Amazon I'm not sure you are going to want to use this app. :)
