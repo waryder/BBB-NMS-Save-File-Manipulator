@@ -28,7 +28,7 @@ Many questions will be answered by using the in app help, but before you even ge
 
 ## Installation Instructions - Zip file (for use with an existing Python installation)
 
-All of the following assume a stable python environment. I purposely do not go into the details of setting this up because in honesty my app is intended for techie geeks and if you think python is a snake in the Amazon I'm not sure you are going to want to use this app. :)
+All of the following assume a stable python environment. I purposely do not go into the details of setting this up too deeply because in honesty my app is intended for techie geeks and if you think python is a snake in the Amazon I'm not sure you are going to want to use this app. :)
 
 1. Go to the Releases page: https://github.com/your_username/BBB-NMS-SFM/releases](https://github.com/waryder/BBB-NMS-Save-File-Manipulator/releases. 
 2. Download the latest release zip file.
