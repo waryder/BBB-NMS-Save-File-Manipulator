@@ -1,7 +1,19 @@
 # BBB NMS Save File Manipulator
 
 ## Overview
-BBB NMS Save File Manipulator is a tool designed to help users manipulate No Man's Sky save files. The primary value adds at this point are one click base sort, drag and drop reordering of bases and starships, and one click comprehensive starship upgrades to your whole fleet. 
+BBB NMS Save File Manipulator is a tool designed to help users manipulate No Man's Sky save files. This tool is intended to fill holes in, and not duplicate, features in the other well-known editors. Primary value adds at this point are:
+
+1) One click sort of bases by Galaxy, System, and then Name.
+2) Drag and drop reordering of Bases.
+3) One click upgrade of all Starships to Max stats and tech installed. A one click comprehensive starship upgrades to your whole fleet! 
+4) Drag and drop reordering of Starships
+5) Inventory sort (really moving items). This is the least "finished/polished". I will be adding more categories to the possible sorting criteria. Also I do no checking to save users from moving items to the wrong inventories. For example right now it's on you to make sure you don't put non fish bait in the fish bait inventory. But basically you have a dialog box where you click a bunch of checkboxes to setup your sort...and then click a button to get your inventory items moved around as you want.
+6) Saving off an inventory and restore it to any other inventory. The way this works is you save an inventory. On reimport, the items in that save overwrite the the target inventories items. This allows you to save off desired inventory items to refresh any inventory later with a known loadout.
+7) relocate your player to locations stored in the save file "Teleport Endpoints" list. This is a list kept by the game of the last (potentially hundreds) of locations where you teleported to. You can use this to get back to places you visited in the past but never threw a base down.
+8) Aside from those, you can pretty much modify any data in the save file at all, and general features provided as in any text editor and Json editor (with a tree view) that you may find out there.
+
+
+
 
 At this point this is a raw version maybe worthy of evaluation but I do not claim this is production ready. I am releasing and promoting only for the purpose of solciting testing and and review of the current state. I do provide screenshots and help files as a seperate zip file if that's all you would like to look at at first.
 
