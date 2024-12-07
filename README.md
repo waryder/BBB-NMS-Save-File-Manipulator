@@ -12,9 +12,6 @@ BBB NMS Save File Manipulator is a tool designed to help users manipulate No Man
 7) Relocate your player to locations stored in the save file "Teleport Endpoints" list. This is a list kept by the game of the last (potentially hundreds) of locations where you teleported to. You can use this to get back to places you visited in the past but never threw a base down.
 8) Aside from those, you can pretty much modify any data in the save file at all, and general features provided as in any text editor and Json editor (with a tree view) that you may find out there.
 
-
-
-
 At this point this is a raw version maybe worthy of evaluation but I do not claim this is production ready. I am releasing and promoting only for the purpose of solciting testing and and review of the current state. I do provide screenshots and help files as a seperate zip file if that's all you would like to look at at first.
 
 DISCLAIMERS: I cannot be held liable for any damage this app causes. Period. I have been a software engineer for over 20 years and while I have a confidence in my work, 
@@ -27,7 +24,7 @@ DISCLAIMERS: I cannot be held liable for any damage this app causes. Period. I h
 
 ## Note on Usage
 
-Before you even get to the in game help, please know that you need to grab the entire "BaseContext" json from the raw json editor in a tool like Goatfungus, for import into this application. This is the whole of the data this application works on and imports and exports in and out.
+Many questions will be answered by using the in app help, but before you even get to the in app help, please know that you need to grab the entire "BaseContext" json from the raw json editor in a tool like Goatfungus, for import into this application. This is the whole of the data this application works on and imports and exports in and out.
 
 ## Installation Instructions - Zip file (for use with an existing Python installtion)
 
