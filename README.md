@@ -13,13 +13,13 @@ DISCLAIMERS: I cannot be held liable for any damage this app causes. Period. I h
 				and go restore yourself." :) I do use this application regularly myself at this point, but I make backups just in case!!
 				
 
-## Installation Instructions
+## Installation Instructions - Zip file (for use with an existing Python installtion)
 
 All of the following assume a stable python environment. I purposely do not go into the details of setting this up because in honesty my app is intended for techie geeks and if you think python is a snake in the Amazon I'm not sure you are going to want to use this app. :)
 
 ### Step 1: Download the zip file
 1. Go to the [Releases page]([https://github.com/your_username/BBB-NMS-SFM/releases](https://github.com/waryder/BBB-NMS-Save-File-Manipulator/releases) of the project. 
-2. Download the latest release as a zip file.
+2. Download the latest release zip file.
 3. Extract the zip file to a folder on your computer.
 4. Open a terminal in the folder where you extracted the files (the same folder where `setup.py` is located).
 5. Run the following command to install the application:
@@ -30,4 +30,11 @@ All of the following assume a stable python environment. I purposely do not go i
 ```bash
 >bbb_nms_sfm
 ```
+
+## Installation Instructions - Exe file (single file install for Windows machines)
+
+1. Go to the [Releases page]([https://github.com/your_username/BBB-NMS-SFM/releases](https://github.com/waryder/BBB-NMS-Save-File-Manipulator/releases) of the project. 
+2. Download the latest release exe file.
+3. The exe provided in the release is a standalone application file. You simply drop it in a non-system folder with run permissions and double-click it or otherwise start it as you will. It is not an installation file it will just run.
+
 
