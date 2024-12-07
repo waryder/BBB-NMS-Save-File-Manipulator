@@ -26,7 +26,7 @@ DISCLAIMERS: I cannot be held liable for any damage this app causes. Period. I h
 
 Many questions will be answered by using the in app help, but before you even get to the in app help, please know that you need to grab the entire "BaseContext" json from the raw json editor in a tool like Goatfungus, for import into this application. This is the whole of the data this application works on and imports and exports in and out.
 
-## Installation Instructions - Zip file (for use with an existing Python installtion)
+## Installation Instructions - Zip file (for use with an existing Python installation)
 
 All of the following assume a stable python environment. I purposely do not go into the details of setting this up because in honesty my app is intended for techie geeks and if you think python is a snake in the Amazon I'm not sure you are going to want to use this app. :)
 
