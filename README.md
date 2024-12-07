@@ -1,7 +1,16 @@
 # BBB NMS Save File Manipulator
 
 ## Overview
-BBB NMS Save File Manipulator is a tool designed to help users manipulate No Man's Sky save files. The primary value adds at this point are one click base sort, drag and drop reordering of bases and starships, and one click comprehensive starship upgrades to your whole fleet. 
+BBB NMS Save File Manipulator is a tool designed to help users manipulate No Man's Sky save files. This tool is intended to fill holes in, and not duplicate, features in the other well-known editors. Primary value adds at this point are:
+
+1) One click sort of bases by Galaxy, System, and then Name.
+2) Drag and drop reordering of Bases.
+3) One click upgrade of all Starships to Max stats and tech installed. A one click comprehensive starship upgrades to your whole fleet! 
+4) Drag and drop reordering of Starships
+5) Inventory sort (really moving items). This is the least "finished/polished". I will be adding more categories to the possible sorting criteria. Also I do no checking to save users from moving items to the wrong inventories. For example right now it's on you to make sure you don't put non fish bait in the fish bait inventory. But basically you have a dialog box where you click a bunch of checkboxes to setup your sort...and then click a button to get your inventory items moved around as you want.
+6) Saving off an inventory and restore it to any other inventory. The way this works is you save an inventory. On reimport, the items in that save overwrite the the target inventories items. This allows you to save off desired inventory items to refresh any inventory later with a known loadout.
+7) Relocate your player to locations stored in the save file "Teleport Endpoints" list. This is a list kept by the game of the last (potentially hundreds) of locations where you teleported to. You can use this to get back to places you visited in the past but never threw a base down. I've found that if you try to go to old bases that are no longer there, the game throws you into the system's space station. I would advise expecting it to put you back "in the area" of the location rather than smack dab on it.
+8) Aside from those, you can pretty much modify any data in the save file at all, and general features provided as in any text editor and Json editor (with a tree view) that you may find out there.
 
 At this point this is a raw version maybe worthy of evaluation but I do not claim this is production ready. I am releasing and promoting only for the purpose of solciting testing and and review of the current state. I do provide screenshots and help files as a seperate zip file if that's all you would like to look at at first.
 
@@ -13,13 +22,16 @@ DISCLAIMERS: I cannot be held liable for any damage this app causes. Period. I h
 				and go restore yourself." :) I do use this application regularly myself at this point, but I make backups just in case!!
 				
 
-## Installation Instructions
+## Note on Usage
 
-All of the following assume a stable python environment. I purposely do not go into the details of setting this up because in honesty my app is intended for techie geeks and if you think python is a snake in the Amazon I'm not sure you are going to want to use this app. :)
+Many questions will be answered by using the in app help, but before you even get to the in app help, please know that you need to grab the entire "BaseContext" json from the raw json editor in a tool like Goatfungus, for import into this application. This is the whole of the data this application works on and imports and exports in and out.
 
-### Step 1: Download the zip file
-1. Go to the [Releases page]([https://github.com/your_username/BBB-NMS-SFM/releases](https://github.com/waryder/BBB-NMS-Save-File-Manipulator/releases) of the project. 
-2. Download the latest release as a zip file.
+## Installation Instructions - Zip file (for use with an existing Python installation)
+
+All of the following assume a stable python environment. I purposely do not go into the details of setting this up too deeply because in honesty my app is intended for techie geeks and if you think python is a snake in the Amazon I'm not sure you are going to want to use this app. :)
+
+1. Go to the Releases page: https://github.com/your_username/BBB-NMS-SFM/releases](https://github.com/waryder/BBB-NMS-Save-File-Manipulator/releases. 
+2. Download the latest release zip file.
 3. Extract the zip file to a folder on your computer.
 4. Open a terminal in the folder where you extracted the files (the same folder where `setup.py` is located).
 5. Run the following command to install the application:
@@ -30,4 +42,11 @@ All of the following assume a stable python environment. I purposely do not go i
 ```bash
 >bbb_nms_sfm
 ```
+
+## Installation Instructions - Exe file (single file install for Windows machines)
+
+1. Go to the Releases page: https://github.com/your_username/BBB-NMS-SFM/releases](https://github.com/waryder/BBB-NMS-Save-File-Manipulator/releases.
+2. Download the latest release exe file.
+3. The exe provided in the release is a standalone application file. You simply drop it in a non-system folder with run permissions and double-click it or otherwise start it as you will. It is not an installation file. It will just run.
+
 
