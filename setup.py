@@ -39,7 +39,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'bbb_nms_sfm=BBB_NMS_Save_File_Manipulator.BBB_NMS_Save_File_Manipulator:main',
+            'bbb_nms_sfm = BBB_NMS_Save_File_Manipulator.BBB_NMS_Save_File_Manipulator:main',
         ],
     },
 )

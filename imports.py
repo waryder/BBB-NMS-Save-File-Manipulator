@@ -1,7 +1,8 @@
+from PyQt5.QtWidgets import QApplication
 import sys, os, pdb, logging, json, traceback, configparser, copy, builtins, shutil, re, math
 import pyautogui, yappi, psutil, threading, traceback, concurrent.futures
 from PyQt5.QtCore import pyqtSignal, QObject, Qt, QMimeData, QTimer, QEvent
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QSplitter, QTabWidget,
+from PyQt5.QtWidgets import (QMainWindow, QSplitter, QTabWidget,
                              QVBoxLayout, QHBoxLayout, QWidget, QLabel, QAction,
                              QTreeWidget, QTreeWidgetItem, QPushButton, QFileDialog, QMessageBox,
                              QAbstractItemView, QDialog, QLineEdit, QInputDialog, QMenu, QHeaderView,

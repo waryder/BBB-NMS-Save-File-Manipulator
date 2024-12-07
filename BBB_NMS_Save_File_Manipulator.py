@@ -1,9 +1,16 @@
+from PyQt5.QtWidgets import QApplication, QWidget
+
+from PyQt5.QtWidgets import QApplication
 import sys, os
+os.environ["QT_DEBUG_PLUGINS"] = "1"  # Enable debug logging for Qt plugins
+os.environ["QT_LOGGING_RULES"] = "*.debug=true"  # Enable debug logs for all Qt components
+
+
 
 # needed so that after formal install, python can find all the files:
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from NMSHelpMenu import NMSHelpMenu  
+from NMSHelpMenu import NMSHelpMenu
 from FirstTabContent import FirstTabContent
 from SecondTabContent import SecondTabContent
 from ThirdTabContent import ThirdTabContent
@@ -281,9 +288,8 @@ class MainWindow(QMainWindow):
         self.tab3.update_text_widget_from_model()
 
 def main():
-    init_galaxies()
-    logger.debug("main enter")
     app = QApplication(sys.argv)
+    logger.debug("main enter")
     main_window = MainWindow()
     main_window.show()
 
@@ -293,7 +299,6 @@ def main():
     return app.exec_()
 
 if __name__ == '__main__':
-    #yappi.start()
     exit_code = main()
     sys.exit(exit_code)  # Ensure the program terminates correctly
 
