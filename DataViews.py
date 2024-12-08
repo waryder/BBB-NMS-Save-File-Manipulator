@@ -3,9 +3,10 @@ from IniFileManager import *
 from pympler import asizeof
 
 class JsonArrayView(QObject):
-    def __init__(self, model, model_context = 'main'):
+    def __init__(self, owner, model, model_context = 'main'):
         super().__init__()
         self.model = model
+        self.owner = owner
 
         #should come in 'main', 'tab1', 'tab2', 'tab3' ...
         self.model_context = model_context
@@ -138,8 +139,11 @@ class JsonArrayView(QObject):
             data = self.model.get_data()
             data["PlayerStateData"]["TeleportEndpoints"] = json_array
 
-        self.model.modelChanged.emit()
+        self.model.modelChanged.emit(None)
         return True
+
+    def getTabObj(self):
+        return self.owner
 
     def add_base(self, nms_base_json_array):
         # only valid for the base tab:
@@ -147,7 +151,7 @@ class JsonArrayView(QObject):
             data = self.model.get_data()
 
             data["PlayerStateData"]["PersistentPlayerBases"].insert(0, nms_base_json_array)
-            self.model.modelChanged.emit()
+            self.model.modelChanged.emit(self.getTabObj())
 
             return True
         else:
@@ -175,7 +179,7 @@ class JsonArrayView(QObject):
 
             #shouldn't be needed since we have already
             #self.set_json(existing_inventories)
-            self.model.modelChanged.emit()
+            self.model.modelChanged.emit(self.getTabObj())
 
         else:
             return  # error

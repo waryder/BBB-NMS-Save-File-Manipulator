@@ -11,7 +11,7 @@ class BaseTabContent(QWidget):
         self.model = parent.model
         self.text_edit = text_edit
         self.model_context = model_context
-        self.view = JsonArrayView(self.model, self.model_context)
+        self.view = JsonArrayView(self, self.model, self.model_context)
 
         # Set static width for buttons
         self.button_width = 140
@@ -153,8 +153,13 @@ class BaseTabContent(QWidget):
         QTimer.singleShot(2000, run)
         logger.verbose("set_led_based_on_app_thread_load() EXIT")
 
-    def model_changed(self):
+    def model_changed(self, tab):
         logger.debug(f"Model Changed.")
+
+        if tab:
+            #we only want to go on if we have passed in ourself:
+            if(tab is not self):
+                return
 
         # Set tree from text
         try:

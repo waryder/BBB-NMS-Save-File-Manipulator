@@ -13,7 +13,7 @@ class DataModel(QObject):
     # (Dude I don't know. Python wants this out here even though it is treated like an instance variable
     # when declared this way. ChatGPT couldn't explain it to me. Just know: this thing is treated like
     # an instance variable for the life of the app:
-    modelChanged = pyqtSignal()
+    modelChanged = pyqtSignal(object)
 
     def __init__(self):
         logger.debug("DataModel(QObject).__init__ ENTER")
@@ -84,7 +84,7 @@ class JsonArrayModel(DataModel):
 
         DataModel.model_data = json_array
 
-        self.modelChanged.emit()
+        self.modelChanged.emit(None)
         logger.debug("set_data() EXIT")
 
     def json_loads_with_exception_check(self, text):

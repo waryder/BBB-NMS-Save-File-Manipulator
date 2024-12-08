@@ -61,7 +61,7 @@ class MainWindow(QMainWindow):
             self.start_thinking_window()
 
             self.model = JsonArrayModel(INIT_TEXT = loaded_text)
-            self.view = JsonArrayView(self.model)
+            self.view = JsonArrayView(self, self.model)
 
             self.thinking_dialog.close()
         else:

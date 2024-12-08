@@ -187,15 +187,14 @@ Special\t\t- Represents unique items or those used for quests. These could be it
         return overflow_section_widget
 
     def execute_sort(self): #Entry point for button:
-        print("Execute Sort button clicked, execute_sort() Enter", "w")
-        checkedValues = self.getcheckedValues()
+        #owner will be tab3 here:
+        owner = self.parent
 
-        print(f"Checked boxes: {checkedValues}")
-        #parent with be tab3 here:
-        self.parent.update_tree_synced_indicator(False)
+        checkedValues = self.getcheckedValues()
+        owner.update_tree_synced_indicator(False)
 
         #save off the last used settings for reuse next time around:
-        self.parent.ini_file_manager.store_configfile_inventory_sorter_defaults(
+        owner.ini_file_manager.store_configfile_inventory_sorter_defaults(
             self.source_checkboxes,
             self.target_checkboxes,
             self.target_combo_boxes)
@@ -203,7 +202,7 @@ Special\t\t- Represents unique items or those used for quests. These could be it
         self.process_sort(checkedValues)
 
         #let everyone know the model has changed; updates all views:
-        self.parent.model.modelChanged.emit()
+        owner.model.modelChanged.emit(owner)
 
         QMessageBox.information(None, "Info", "Inventory has been sorted!")
 
@@ -259,6 +258,7 @@ Special\t\t- Represents unique items or those used for quests. These could be it
             return
 
         for checkedTarget in checkedTargets:
+            print("sanity check")
             break_for_next_target = False
 
             target_checkbox = checkedTarget[1]
@@ -350,19 +350,19 @@ Special\t\t- Represents unique items or those used for quests. These could be it
 
                     if(break_for_next_target):
                         print(
-                            f"Target is full; Target End, '{target_game_inventory_name}' Inventory Slot Count: {len(target_game_inventory_slots)}")
+                            f"Target is full; Target End: '{target_game_inventory_name}', Inventory Slot Count: {len(target_game_inventory_slots)}")
                         break #for category
 
                 if(break_for_next_target):
                     print(
-                        f"\nSource End {source_game_inventory_name} due to full target; Inventory Slot Count: {len(source_game_inventory_slots)}\n")
+                        f"\nBreaking out of Source: {source_game_inventory_name} due to full target, Inventory Slot Count: {len(source_game_inventory_slots)}\n")
                     break  # for source
 
                 print(
-                    f"\nSource End {source_game_inventory_name} Inventory Slot Count After Sort: {len(source_game_inventory_slots)}. Going up to get next source if there is one...\n")
+                    f"\nSource End: {source_game_inventory_name}, Inventory Slot Count After Sort: {len(source_game_inventory_slots)}. Going up to get next source if there is one...\n")
 
             print(
-                f"Target End, '{target_game_inventory_name}' Inventory Slot Count After Target: {len(target_game_inventory_slots)}\n")
+                f"Target End: '{target_game_inventory_name}', Inventory Slot Count After Target: {len(target_game_inventory_slots)}\n")
 
 
         print("process_sort() Exit")

@@ -247,12 +247,14 @@ class CustomTreeWidget(QTreeWidget):
 
     def set_player_location_to_this_system(self, item):
         item_label = item.text(0)
+        tab = self.parent
 
         model_data = self.parent.model.get_data()
         endpoint_universal_address = self.parent.tree_widget_data_to_json(item)
 
+
         self.parent.main_window.background_processing_signal.emit(4, "tab1")
-        self.parent.update_tree_synced_indicator(False)
+        tab.update_tree_synced_indicator(False)
 
         # print(f"endpoint_universal_address: {endpoint_universal_address}")
         # print()
@@ -262,9 +264,8 @@ class CustomTreeWidget(QTreeWidget):
         model_data['PlayerStateData']['UniverseAddress'] = endpoint_universal_address['UniverseAddress']
 
         # print(f"Model universeAddress after: {model_data['PlayerStateData']['UniverseAddress']}")
-
-
         # print(f"PlayerPositionInSystem before: {model_data['SpawnStateData']['PlayerPositionInSystem']}")
+
         model_data['SpawnStateData']['PlayerPositionInSystem'][0] = endpoint_universal_address['Position'][0]
 
         model_data['SpawnStateData']['PlayerPositionInSystem'][1] = endpoint_universal_address['Position'][1]
@@ -281,7 +282,8 @@ class CustomTreeWidget(QTreeWidget):
         model_data['SpawnStateData']['LastKnownPlayerState'] = 'OnFoot'
         # print(f"LastKnownPlayerState before: {model_data['SpawnStateData']['LastKnownPlayerState']}")
 
-        self.parent.model.modelChanged.emit()
+        #pass in current tab so we only execute against this tab:
+        tab.model.modelChanged.emit(tab)
 
         print(item_label)
 
@@ -601,8 +603,10 @@ class CustomTreeWidget(QTreeWidget):
         #super().dropEvent(event)  # Call the base class dropEvent to handle basic drop logic
         #QApplication.processEvents()  # Process pending UI events to refresh the interface
 
-        self.parent.update_tree_synced_indicator(False)
-        self.parent.set_led_based_on_app_thread_load()
+        tab = self.parent
+
+        tab.update_tree_synced_indicator(False)
+        tab.set_led_based_on_app_thread_load()
 
         # Get the item being dragged
         dragged_item = self.currentItem()
@@ -688,45 +692,11 @@ class CustomTreeWidget(QTreeWidget):
         self.log_tree_structure()
         QApplication.processEvents()  # Process pending UI events to refresh the interface
 
-        #get the parent tab
-        treeWidget = dragged_item.treeWidget()
-        tab_object = treeWidget.parent
-        print(tab_object)
+        tab.blockSignals()
+        tab.update_model_from_tree()
+        tab.unblockSignals()
 
-        tab_object.blockSignals()
-        tab_object.update_model_from_tree()
-        tab_object.unblockSignals()
-
-        self.parent.model.modelChanged.emit()
-
-        #tab_object.update_text_widget_from_model()
-
-
-        #self.parent.update_tree_synced_indicator(True)
-
-
-
-        #update leds
-        #call update model from tree on tab
-        #call update text from model on tab
-        #update leds
-
-        #Let us handle the updates so we know what's going on
-        #self.parent.blockSignals()
-        
-        #logger.verbose(f"Model Text before update_model_from_tree(): {self.parent.view.get_text()}")
-        #update the model from the new Tree structure
-        #self.parent.update_model_from_tree()
-        #logger.verbose(f"Model Text after update_model_from_tree(): {self.parent.view.get_text()}")
-
-
-
-        #self.tree_nodes_changed_emits()
-
-
-
-
-        #self.setCurrentItem(item)
+        tab.model.modelChanged.emit(tab)
 
         logger.debug("==================== DROP EVENT END ====================")
         self.log_tree_structure()

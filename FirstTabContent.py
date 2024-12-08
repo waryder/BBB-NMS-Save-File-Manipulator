@@ -214,7 +214,7 @@ class FirstTabContent(BaseTabContent):
                     model_json.insert(0, unnamed_freighter_base)  # Insert it at the top
                     break  # Stop after finding the first match
                     
-        self.model.modelChanged.emit()
+        self.model.modelChanged.emit(self) #passing tab object
 
         QMessageBox.information(self, "Bases Sorted", "Base data has been sorted successfully!")
 
