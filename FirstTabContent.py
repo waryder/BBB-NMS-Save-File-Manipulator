@@ -281,10 +281,6 @@ class FirstTabContent(BaseTabContent):
         # Convert the list of data to a JSON string
         return json.dumps(tree_data, indent=4)
             
-    def clear_tree_view(self):
-        logger.debug("1st tab clear_tree_view() Called.")
-        self.tree_widget.clear()        
-
     def populate_tree_from_json(self, json_data, parent_tree_node=None):
         #return
         logger.debug("1st tab populate_tree_from_json() ENTER")

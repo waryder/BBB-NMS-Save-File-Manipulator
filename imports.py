@@ -31,7 +31,7 @@ global GALAXIES
 
 #************
 # CURRENT LOGGER LEVEL:
-app_log_level = logging.ERROR
+app_log_level = logging.DEBUG
     
 #************
 

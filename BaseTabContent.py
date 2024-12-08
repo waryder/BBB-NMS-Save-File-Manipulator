@@ -3,6 +3,8 @@ from DataViews import *
 from init_text import INIT_TEXT
 
 class BaseTabContent(QWidget):
+    timer_running = False
+
     def __init__(self, parent, model_context, text_edit):
         super().__init__()
         self.parent = parent
@@ -94,6 +96,12 @@ class BaseTabContent(QWidget):
 
         logger.debug("pretty_print_text_widget() EXIT")
 
+    # def is_status_indicator_green(self):
+    #     if self.parent.status_indicator.styleSheet() == f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;":
+    #         return True
+    #     else:
+    #         return False
+
     # Function to update the indicator color (red or green)
     def update_status_indicator_to_green(self, green_if_true):
         logger.debug(f"update_status_indicator_to_green() ENTER, green?: {green_if_true}")
@@ -113,7 +121,14 @@ class BaseTabContent(QWidget):
 
     def set_led_based_on_app_thread_load(self, max_threads = 3, context="none"):
         logger.debug(f"set_led_based_on_app_thread_load() ENTER, max_threads: {max_threads}, context: {context}")
-        
+
+        # Check if a timer is already running
+        if BaseTabContent.timer_running:
+            logger.debug("Timer is already running, exiting")
+            return  # Prevent multiple loops from starting
+
+        BaseTabContent.timer_running = True  # Set the flag to indicate the timer is running
+
         def run():
             nonlocal max_threads
             logger.verbose("1st tab set_led_based_on_app_thread_load() ENTER")
@@ -125,13 +140,14 @@ class BaseTabContent(QWidget):
             if num_threads > max_threads:
                 #set the led yellow:
                 self.update_status_indicator_to_green(False)
-                
                 QTimer.singleShot(2000, run)
+
                 logger.verbose("1st tab set_led_based_on_app_thread_load() EXIT, yellow\n")
             else:    
-                #set the led green:        
+                # Set the LED to green and stop the timer:
                 self.update_status_indicator_to_green(True)
-                logger.verbose("1st tab set_led_based_on_app_thread_load() EXIT, green\n")            
+                BaseTabContent.timer_running = False  # Reset the flag
+                logger.verbose("1st tab set_led_based_on_app_thread_load() EXIT, green\n")
         
         #wait 2 seconds on the first run:
         QTimer.singleShot(2000, run)
@@ -156,6 +172,7 @@ class BaseTabContent(QWidget):
 
     def sync_tree_from_text_window(self):
         self.main_window.background_processing_signal.emit(4, self.model_context)
+        self.update_tree_synced_indicator(False)
         self.update_model_from_text_edit()
         self.update_tree_from_model()
         self.tree_widget.expand_tree_to_level(1)
@@ -171,21 +188,20 @@ class BaseTabContent(QWidget):
         logger.debug("update_model_from_text_edit() enter")
         self.update_tree_synced_indicator(False)
         new_text = self.text_edit.toPlainText()
-        self.blockSignals()
         self.view.set_text(new_text)
-        self.unblockSignals()
-
         logger.debug("update_model_from_text_edit() exit")
+
+    def clear_tree_view(self):
+        logger.debug("1st tab clear_tree_view() Called.")
+        self.tree_widget.clear()
 
     def update_tree_from_model(self):
         logger.debug("update_tree_from_model() called")
         json_data = self.view.get_json()
 
         if json_data is not None:
-            self.blockSignals()
             self.clear_tree_view()
             self.populate_tree_from_json(json_data)
-            self.unblockSignals()
             self.update_tree_synced_indicator(True)
 
             logger.debug("Tree view updated with model data.")
@@ -230,18 +246,17 @@ class BaseTabContent(QWidget):
 
     def update_text_widget_from_model(self):
         logger.debug("update_text_widget_from_model() enter")
+        self.main_window.background_processing_signal.emit(4, self.model_context)
         self.text_edit.setPlainText(self.view.get_text())
         logger.debug("update_text_widget_from_model() exit")
 
     def update_model_from_tree(self):
         logger.debug("update_model_from_tree() ENTER")
-        # To start from the root and traverse the whole tree:
+        self.main_window.background_processing_signal.emit(4, self.model_context)
+
         tree_data = self.tree_widget_data_to_json()
         logger.verbose(f"tree string: {tree_data}")
-        self.blockSignals()
         self.view.set_json(tree_data)
-        self.unblockSignals()
-
         logger.debug("update_model_from_tree() EXIT")
 
 

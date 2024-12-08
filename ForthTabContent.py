@@ -172,7 +172,7 @@ class ForthTabContent(BaseTabContent):
             return json.loads(file.read())
         
     def upgrade_starships(self):
-        logger.debug("2nd tab upgrade_starships() ENTER")
+        logger.debug("4th tab upgrade_starships() ENTER")
 
         model_json = copy.deepcopy(self.view.get_json())
         
@@ -262,7 +262,7 @@ class ForthTabContent(BaseTabContent):
 
             QMessageBox.information(None, "Starships Upgraded", "Your selected starships have been Upgraded:\n\n" + upgraded_starship_names)
 
-        logger.debug("2nd tab upgrade_starships() EXIT")        
+        logger.debug("4th tab upgrade_starships() EXIT")
         
     def tree_widget_data_to_json(self, node_in = None):
         def parse_item(tree_node, depth):
@@ -341,13 +341,9 @@ class ForthTabContent(BaseTabContent):
             logging.error(f"Failed to parse JSON: {e}")
             return None        
             
-    def clear_tree_view(self):
-        logger.debug("2nd tab clear_tree_view() Called.")
-        self.tree_widget.clear()        
-
     def populate_tree_from_json(self, json_data, parent_tree_node=None):
         #return
-        logger.debug("2nd tab populate_tree_from_json() ENTER")
+        logger.debug("4th tab populate_tree_from_json() ENTER")
 
         endpoint_count = 0
         line_count = 0
@@ -512,7 +508,7 @@ class ForthTabContent(BaseTabContent):
         self.tree_widget.expand_tree_to_level(1)
         self.bottom_left_label.setText(f"Number of TeleportEndpoint: {endpoint_count}")
         
-        logger.debug("2nd tab populate_tree_from_json() EXIT") 
+        logger.debug("4th tab populate_tree_from_json() EXIT")
   
 
     def init_text(self):

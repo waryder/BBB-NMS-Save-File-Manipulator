@@ -343,6 +343,11 @@ class CustomTreeWidget(QTreeWidget):
         # parent is a tab
         # parent.parent is the main window
         # let's tell everyone the tree changed:
+
+
+
+
+
         self.parent.parent.tree_changed_signal.emit()
 
         # now we come back and say the text changed so that the tree widget is repopulated:
@@ -431,7 +436,7 @@ class CustomTreeWidget(QTreeWidget):
         if not base_name:
             base_name = 'default'
 
-        file_path_string = QApplication.instance().activeWindow().ini_file_manager.get_full_file_path(f"{base_name}")
+        file_path_string = QApplication.instance().activeWindow().ini_file_manager.get_full_file_path(f"{base_name.strip()}")
 
         dialog_file_path, _ = QFileDialog.getSaveFileName(
             None, "Save File", 
@@ -509,7 +514,7 @@ class CustomTreeWidget(QTreeWidget):
         if not inventory_name:
             inventory_name = 'default'
 
-        file_path_string = QApplication.instance().activeWindow().ini_file_manager.get_full_file_path(f"{inventory_name}")
+        file_path_string = QApplication.instance().activeWindow().ini_file_manager.get_full_file_path(f"{inventory_name.strip()}")
 
         print (file_path_string)
 
@@ -681,9 +686,30 @@ class CustomTreeWidget(QTreeWidget):
         # Log the entire tree structure after the move
         logger.verbose("Tree structure after move:")
         self.log_tree_structure()
-
-
         QApplication.processEvents()  # Process pending UI events to refresh the interface
+
+        #get the parent tab
+        treeWidget = dragged_item.treeWidget()
+        tab_object = treeWidget.parent
+        print(tab_object)
+
+        tab_object.blockSignals()
+        tab_object.update_model_from_tree()
+        tab_object.unblockSignals()
+
+        self.parent.model.modelChanged.emit()
+
+        #tab_object.update_text_widget_from_model()
+
+
+        #self.parent.update_tree_synced_indicator(True)
+
+
+
+        #update leds
+        #call update model from tree on tab
+        #call update text from model on tab
+        #update leds
 
         #Let us handle the updates so we know what's going on
         #self.parent.blockSignals()
@@ -693,7 +719,12 @@ class CustomTreeWidget(QTreeWidget):
         #self.parent.update_model_from_tree()
         #logger.verbose(f"Model Text after update_model_from_tree(): {self.parent.view.get_text()}")
 
-        self.tree_nodes_changed_emits()
+
+
+        #self.tree_nodes_changed_emits()
+
+
+
 
         #self.setCurrentItem(item)
 

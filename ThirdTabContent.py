@@ -246,10 +246,6 @@ class ThirdTabContent(BaseTabContent):
         except json.JSONDecodeError as e:
             logging.error(f"Failed to parse JSON: {e}")
             return None        
-            
-    def clear_tree_view(self):
-        logger.debug("3rd tab clear_tree_view() Called.")
-        self.tree_widget.clear()
 
     def populate_tree_from_json(self, json_data, parent_tree_node=None):
         #return

@@ -1,11 +1,9 @@
 from PyQt5.QtWidgets import QApplication, QWidget
-
-from PyQt5.QtWidgets import QApplication
 import sys, os
-os.environ["QT_DEBUG_PLUGINS"] = "1"  # Enable debug logging for Qt plugins
-os.environ["QT_LOGGING_RULES"] = "*.debug=true"  # Enable debug logs for all Qt components
 
-
+#Qt debug output:
+#os.environ["QT_DEBUG_PLUGINS"] = "1"  # Enable debug logging for Qt plugins
+#os.environ["QT_LOGGING_RULES"] = "*.debug=true"  # Enable debug logs for all Qt components
 
 # needed so that after formal install, python can find all the files:
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
