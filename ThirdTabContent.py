@@ -267,7 +267,10 @@ class ThirdTabContent(BaseTabContent):
                 size = len(json_data)
                 #new tree widget item for this level in the json text:
                 item = get_new_QTreeWidgetItem()
-                item.setText(0, f"Array ({size})")
+
+                # item.setText(0, f"Array ({size})")
+                item.setText(0, f"[ ] ({size})")
+
                 item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, []) #add list as parent json_data at this level
                 line_count += 1
                 item.setData(0, QT_DATA_LINE_COUNT, line_count) #store off the expected line number upon generation of the text from this this tree 
@@ -319,9 +322,10 @@ class ThirdTabContent(BaseTabContent):
                     storage_container_name = self.view.get_storage_label_name_deep_copy(storage_container_count, json_data, append = " Inventory")
                     storage_container_count += 1
 
-                    item.setText(0, f"[{storage_container_count - 1}] Dict ({size})\t{storage_container_name}")
+                    item.setText(0, f"[{storage_container_count - 1}]" + " { , } " + f"({size})\t{storage_container_name}")
                 else:
-                    item.setText(0, f"Dict ({size})")
+                    # item.setText(0, f"Dict ({size})")
+                    item.setText(0, "{ , } " + f"({size})")
 
                 item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, {}) #add dict as parent json_data at this level
                 line_count += 1
@@ -350,7 +354,10 @@ class ThirdTabContent(BaseTabContent):
                 size = len(json_data)
                 #new tree widget item for this level in the json text:
                 item = get_new_QTreeWidgetItem()
-                item.setText(0, f"Tuple")
+
+                #item.setText(0, f"Tuple")
+                item.setText(0, "x:y (2)")
+
                 item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, ()) #add a tuple as parent at this level
                 line_count += 1
                 
@@ -409,7 +416,7 @@ class ThirdTabContent(BaseTabContent):
         parse_item(json_data, parent_tree_node, 0)
         
         self.tree_widget.expand_tree_to_level(1)
-        self.bottom_left_label.setText(f"Number of Storage Containers: {storage_container_count}")
+        self.bottom_left_label.setText(f"Number of Inventories: {storage_container_count}")
         
         logger.debug("3rd tab populate_tree_from_json() EXIT")
   

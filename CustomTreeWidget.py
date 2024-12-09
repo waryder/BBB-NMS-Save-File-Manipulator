@@ -15,7 +15,7 @@ class DeleteTreeNodesSelectedDialog(QDialog):
         label = QLabel(f"Delete ({num_nodes}) nodes from the Tree?")
                     
         # Set the text color to red using an explicit stylesheet for the QLabel
-        label.setStyleSheet("QLabel { color : red; }")
+        #label.setStyleSheet("QLabel { color : red; }")
         label.setAlignment(Qt.AlignCenter)  # Center the text
         layout.addWidget(label)
 

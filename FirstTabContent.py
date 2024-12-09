@@ -299,7 +299,10 @@ class FirstTabContent(BaseTabContent):
                 size = len(json_data)
                 #new tree widget item for this level in the json text:
                 item = get_new_QTreeWidgetItem()
-                item.setText(0, f"Array ({size})")
+
+                # item.setText(0, f"Array ({size})")
+                item.setText(0, f"[ ] ({size})")
+
                 item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, []) #add list as parent json_data at this level
                 line_count += 1
                 item.setData(0, QT_DATA_LINE_COUNT, line_count) #store off the expected line number upon generation of the text from this this tree 
@@ -363,9 +366,10 @@ class FirstTabContent(BaseTabContent):
 
                     system = get_galaxy_system_planet_from_full_addr(galactic_addr)[SYSTEM_FROM_GALACTIC_ADDR_IDX]
                     
-                    item.setText(0, f"[{base_count - 1}] Dict ({size}) Gal name: {galaxy_name}, Sys: {system}, Base: {base_name}")
+                    item.setText(0, f"[{base_count - 1}]" + " { , } " + f"({size}) Gal name: {galaxy_name}, Sys: {system}, Base: {base_name}")
                 else:
-                    item.setText(0, f"Dict ({size})")                
+                    #item.setText(0, f"Dict ({size})")
+                    item.setText(0, "{ , } " + f"({size})")
                                 
                 item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, {}) #add dict as parent json_data at this level
                 
@@ -393,7 +397,10 @@ class FirstTabContent(BaseTabContent):
                 size = len(json_data)
                 #new tree widget item for this level in the json text:
                 item = get_new_QTreeWidgetItem()
-                item.setText(0, f"Tuple")
+
+                #item.setText(0, f"Tuple")
+                item.setText(0, "x:y (2)")
+
                 item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, ()) #add a tuple as parent at this level
                 line_count += 1
                 
