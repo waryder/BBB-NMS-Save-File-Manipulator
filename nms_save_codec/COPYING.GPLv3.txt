@@ -1,0 +1,18 @@
+# File: COPYING.GPLv3.txt
+# Path: C:\MBIN_PROJECTS\Working_Projects\BBB-NMS-Save-File-Manipulator\nms_save_codec\COPYING.GPLv3.txt
+# Purpose: Short GPLv3 notice for the libNOM.io-derived codec (full GPL text lives upstream).
+
+nms_save_codec is a derivative work of libNOM.io
+(https://github.com/zencq/libNOM.io / Bill's fork github.com/waryder/libNOM.io).
+
+libNOM.io is licensed under the GNU General Public License v3.0.
+This Python port therefore is also licensed under GPLv3.
+
+You should have received a copy of the GNU General Public License
+along with libNOM.io. If not, see <https://www.gnu.org/licenses/>.
+
+This first cut implements:
+  - Steam/GOG meta XXTEA (PlatformSteam_Read.cs / PlatformSteam_Write.cs)
+  - Steam/GOG save-data LZ4 streaming (Platform_Read.cs / Platform_Write.cs)
+
+It does not implement libNOM.map JSON key mapping, PlayStation, Switch, or Microsoft.

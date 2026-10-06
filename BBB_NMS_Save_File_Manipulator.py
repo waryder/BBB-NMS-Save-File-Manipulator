@@ -17,7 +17,12 @@ from DataModels import *
 from DataViews import *
 from IniFileManager import *
 from LoadDataDialog import LoadDataDialog
+from OpenNmsSaveFileDialog import OpenNmsSaveFileDialog
 from init_text import INIT_TEXT
+
+# Fallback switch: True restores the original startup LoadDataDialog popup (and its loading popup).
+# False (default) opens the main window directly with the built-in placeholder data.
+SHOW_STARTUP_LOAD_DIALOG = False
 
 def global_exception_handler(exc_type, exc_value, exc_traceback):
     if issubclass(exc_type, KeyboardInterrupt):
@@ -48,17 +53,30 @@ class MainWindow(QMainWindow):
         # Set static width for buttons
         self.button_width = 140
 
+        # Startup LoadDataDialog popup is suppressed by default (2026-10-06): the main window is now the first
+        # window shown. Set SHOW_STARTUP_LOAD_DIALOG = True (top of this file) to bring the old popup back.
         loaded_text = False
-        load_dialog = LoadDataDialog()
+        # Tracks whether the old startup popup actually ran; the loading popup only shows if it did
+        startup_dialog_ran = False
 
-        if load_dialog.exec_() == QDialog.Accepted:  # Only proceed if "Load" button was clicked (dialog accepted)
-            if load_dialog.is_skip_data_load_checked():
-                loaded_text = INIT_TEXT
-            else:
-                loaded_text = load_dialog.get_text()
+        if SHOW_STARTUP_LOAD_DIALOG:
+            # Fallback path: original startup popup, unchanged behavior
+            startup_dialog_ran = True
+            load_dialog = LoadDataDialog()
+
+            if load_dialog.exec_() == QDialog.Accepted:  # Only proceed if "Load" button was clicked (dialog accepted)
+                if load_dialog.is_skip_data_load_checked():
+                    loaded_text = INIT_TEXT
+                else:
+                    loaded_text = load_dialog.get_text()
+        else:
+            # Default path: start with the built-in placeholder data, as "Skip Data Load" used to
+            loaded_text = INIT_TEXT
 
         if loaded_text:
-            self.start_thinking_window()
+            # Show "Loading data, please wait..." only when the old startup popup ran
+            if startup_dialog_ran:
+                self.start_thinking_window()
 
             self.model = JsonArrayModel(INIT_TEXT = loaded_text)
             self.view = JsonArrayView(self, self.model)
@@ -68,6 +86,11 @@ class MainWindow(QMainWindow):
             QMessageBox.information(None, "Notification", "No JSON data received; Application will exit!")
             QApplication.quit()  # Uncomment to clean up QT
             sys.exit()  # Immediately exit the program
+
+        # Create the new "Open NMS Save File" button; it sits first in the top button row
+        self.open_save_file_button = QPushButton("Open NMS Save File")
+        # Match the fixed width of the other two buttons in the row
+        self.open_save_file_button.setFixedWidth(250)
 
         self.import_button = QPushButton("Import 'BaseContext' Json from Clipboard")
         self.import_button.setFixedWidth(250)
@@ -122,6 +145,8 @@ class MainWindow(QMainWindow):
 
         # Create a horizontal layout for the buttons
         button_layout = QHBoxLayout()
+        # New button goes first, to the left of the Import button
+        button_layout.addWidget(self.open_save_file_button)
         button_layout.addWidget(self.import_button)
         button_layout.addWidget(self.export_button)
         ###
@@ -147,6 +172,8 @@ class MainWindow(QMainWindow):
         # Create menu bar
         self.create_menu_bar()
 
+        # Wire the new button to its (stub) popup handler
+        self.open_save_file_button.clicked.connect(self.open_save_file_button_clicked)
         self.import_button.clicked.connect(self.import_button_clicked)
         self.export_button.clicked.connect(self.export_button_clicked)
 
@@ -169,6 +196,14 @@ class MainWindow(QMainWindow):
         # Use QTimer to give a slight delay to ensure UI renders completely
         QTimer.singleShot(100, loop.quit)  # 100 ms delay to ensure the dialog shows
         loop.exec_()  # This will block until `loop.quit()` is called
+
+    # open_save_file_button_clicked
+    # Opens the (not yet designed) "Open NMS Save File" popup. Stub only for now.
+    def open_save_file_button_clicked(self):
+        # Build the stub popup, parented to the main window so it centers over it
+        dialog = OpenNmsSaveFileDialog(self)
+        # Show it modally; the return value is ignored until the popup is designed
+        dialog.exec_()
 
     def import_button_clicked(self):
         # Show confirmation dialog
