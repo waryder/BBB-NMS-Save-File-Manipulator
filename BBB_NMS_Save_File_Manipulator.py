@@ -19,6 +19,7 @@ from IniFileManager import *
 from LoadDataDialog import LoadDataDialog
 from OpenNmsSaveFileDialog import OpenNmsSaveFileDialog
 from init_text import INIT_TEXT
+from NmsLoadController import NmsLoadController  # Row-40 loading, target tracking and confirmed backup handling.
 
 # Fallback switch: True restores the original startup LoadDataDialog popup (and its loading popup).
 # False (default) opens the main window directly with the built-in placeholder data.
@@ -37,7 +38,7 @@ def global_exception_handler(exc_type, exc_value, exc_traceback):
 # Set the global exception handler
 sys.excepthook = global_exception_handler
 
-class MainWindow(QMainWindow):
+class MainWindow(NmsLoadController, QMainWindow):  # Add direct-save loading without replacing the existing editors.
     background_processing_signal = pyqtSignal(int, str)
     text_edit_changed_signal     = pyqtSignal()
     tree_changed_signal          = pyqtSignal()
@@ -136,6 +137,8 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.tab3, 'Inventory Processing')
         self.tabs.addTab(self.tab4, 'Teleport Endpoints')
 
+        self.init_nms_load_state()  # Observe all four tabs and initialize the live-file consistency LED.
+
         self.tabs.tabBarClicked.connect(self.before_tab_change)
         self.tabs.currentChanged.connect(self.after_tab_change)
 
@@ -147,7 +150,8 @@ class MainWindow(QMainWindow):
         button_layout = QHBoxLayout()
         # New button goes first, to the left of the Import button
         button_layout.addWidget(self.open_save_file_button)
-        button_layout.addWidget(self.import_button)
+        # Direct NMS slot loading replaces the clipboard-import button in the main workflow.
+        # Keep the legacy handler available without exposing it as an independent live-load path.
         button_layout.addWidget(self.export_button)
         ###
         status_layout = QHBoxLayout()
@@ -159,6 +163,11 @@ class MainWindow(QMainWindow):
 
         # Add the button layout to the main layout
         main_layout.addLayout(button_layout)
+        file_state_layout = QHBoxLayout()  # Keep live-file consistency distinct from background work.
+        file_state_layout.addWidget(self.file_changed_indicator)  # Green after live load; red after ZIP or editing.
+        file_state_layout.addWidget(self.file_changed_label)  # Display original slot and selected data filename.
+        file_state_layout.addStretch()  # Left-aligned status.
+        main_layout.addLayout(file_state_layout)  # Separate row avoids excessive top-button width.
         main_layout.addWidget(self.tabs)  # Add the tab widget below the buttons
 
         # Set the layout for the central widget and set it as the central widget of the main window
@@ -277,15 +286,13 @@ class MainWindow(QMainWindow):
         self.help_menu = NMSHelpMenu(self)  # Create an instance of the HelpMenu
         self.help_menu.create_help_menu(menu_bar)  # Add the Help menu to the menu bar
                 
+    # open_file: Route File/Open through the same slot-level NMS workflow as the main button.
     def open_file(self):
-        result = self.ini_file_manager.open_file()
-
-        if(result):
-            self.start_model_load_indicators()
-            self.model.set_data(self.model.json_loads_with_exception_check(result))
-            self.stop_model_load_indicators()
+        self.open_save_file_button_clicked()  # Never import unrelated JSON over a retained live target.
 
     def save_file(self):
+        if not self.confirm_legacy_json_write():  # JSON export must not masquerade as row-50 live saving.
+            return  # No write or false saved/consistent status.
         active_tab = self.tabs.currentWidget()
         if not active_tab.tree_synced:
             active_tab.sync_tree_from_text_window()
@@ -293,6 +300,8 @@ class MainWindow(QMainWindow):
         self.ini_file_manager.save_file(self.view.get_text())
         
     def save_file_as(self):
+        if not self.confirm_legacy_json_write():  # JSON export must not masquerade as row-50 live saving.
+            return  # No write or false saved/consistent status.
         active_tab = self.tabs.currentWidget()
         if not active_tab.tree_synced:
             active_tab.sync_tree_from_text_window()

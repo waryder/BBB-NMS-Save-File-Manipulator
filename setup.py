@@ -10,6 +10,7 @@ setup(
     packages=find_packages(),  # This will automatically find 'BBB_NMS_Save_File_Manipulator' as a package
     install_requires=[
         'altgraph==0.17.4',
+        'lz4>=4.3,<5',  # Direct NMS save loading needs the codec's LZ4 decompressor.
         'MouseInfo==0.1.3',
         'packaging==24.2',
         'pefile==2023.2.7',

@@ -93,6 +93,23 @@ class NmsSaveFile:
         # Chaining is convenient: NmsSaveFile().load_file(p).decode().
         return self
 
+    # Function: load_bytes
+    # Purpose: Decode supplied bytes and retain source identity and decrypted meta without file I/O.
+    def load_bytes(self, data_bytes: bytes, source_name: str, meta_bytes: bytes | None = None) -> "NmsSaveFile":
+        self._reset()  # Clear any previously loaded save state.
+        self.source_path = os.path.abspath(os.fspath(source_name))  # Preserve the supplied source path for future writes.
+        self._disk_bytes = bytes(data_bytes)  # Keep an immutable copy of the original payload.
+        name = os.path.basename(self.source_path)  # Use only the canonical basename for codec identity.
+        self.is_account = is_account_filename(name)  # Select the correct account/save decode family.
+        self._decode_disk_bytes(name)  # Parse the in-memory payload through the existing codec pipeline.
+        if meta_bytes is not None:  # Load supplied metadata only, never a disk sibling.
+            hint = guess_slot_from_filename(name)  # Obtain the storage-key hint from the filename.
+            plain, slot = decrypt_meta(bytes(meta_bytes), hint, is_account=self.is_account)  # Decrypt the supplied metadata.
+            if len(plain) < 4 or struct.unpack_from("<I", plain, 0)[0] != META_HEADER:  # Reject invalid metadata headers.
+                raise ValueError(f"{self.DEBUG_PREFIX} load_bytes: invalid decrypted metadata header")  # Fail without writing anything.
+            self._meta_plain, self._meta_slot = plain, slot  # Preserve metadata and its winning encryption key for encode_meta.
+        return self  # Support the existing chained load/decode API.
+
     # Function: _guess_meta_path
     # Purpose: Build the default mf_ meta path next to the loaded data file.
     def _guess_meta_path(self) -> str:

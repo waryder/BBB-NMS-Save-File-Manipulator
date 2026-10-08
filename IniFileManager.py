@@ -1,4 +1,6 @@
 from imports import *
+# Temporary sibling files allow atomic preference updates without truncating the original.
+import tempfile
 
 class IniFileManager:
     def __init__(self, ini_file=None):
@@ -17,6 +19,51 @@ class IniFileManager:
         # self.tab1_working_file_path = self.config.get('Preferences', 'tab1_working_file_path', fallback='')
         # self.tab2_working_file_path = self.config.get('Preferences', 'tab2_working_file_path', fallback='')
         self.last_file_path = False
+
+    # get_nms_save_folder
+    # Returns the remembered NMS folder, with an empty fallback for older preferences.
+    def get_nms_save_folder(self):
+        # Use normal interpolation to decode escaped literal percent signs in paths.
+        return self.config.get('Preferences', 'nms_save_folder', fallback='')
+
+    # store_nms_save_folder
+    # Atomically persists a folder while preserving other preferences and failed-write state.
+    def store_nms_save_folder(self, folder):
+        # Stage changes separately so a failed write does not alter the shared config.
+        updated = copy.deepcopy(self.config)
+        # Older or user-edited preference files may have no Preferences section.
+        if not updated.has_section('Preferences'):
+            updated.add_section('Preferences')
+        # ConfigParser requires literal percent signs to be escaped on assignment.
+        updated.set('Preferences', 'nms_save_folder', folder.replace('%', '%%'))
+        # Write and replace beside the original, on the same filesystem.
+        self._write_nms_preferences(updated)
+        # Publish the new in-memory state only after the file replacement succeeds.
+        self.config = updated
+
+    # _write_nms_preferences
+    # Writes a complete staged config through a temporary sibling, cleaning up on failure.
+    def _write_nms_preferences(self, updated):
+        # Track the temporary filename for cleanup even if writing fails.
+        temporary_path = None
+        # Keep the existing preference file intact until the replacement is ready.
+        try:
+            # Close the temporary handle before replacing a file on Windows.
+            with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8',
+                    dir=os.path.dirname(self.ini_file), suffix='.tmp', delete=False) as handle:
+                # Remember the sibling file before writing its contents.
+                temporary_path = handle.name
+                # Preserve all current preference sections and keys.
+                updated.write(handle)
+                # Flush buffered bytes before the atomic replacement.
+                handle.flush()
+                os.fsync(handle.fileno())
+            # Replace the original only after the full file was successfully closed.
+            os.replace(temporary_path, self.ini_file)
+        finally:
+            # Remove an uncommitted sibling without touching the original preferences.
+            if temporary_path and os.path.exists(temporary_path):
+                os.unlink(temporary_path)
 
     # def store_current_tab1_working_file_path(self, file_path):
     #     """
