@@ -291,6 +291,8 @@ class MainWindow(NmsLoadController, QMainWindow):  # Add direct-save loading wit
         self.open_save_file_button_clicked()  # Never import unrelated JSON over a retained live target.
 
     def save_file(self):
+        if self.nms_source is not None:  # Loaded NMS data must use row-50 same-file/context encoding, never plaintext JSON.
+            return self.save_nms_live_context()  # Warning-confirmed live data/meta writing with verified dirty-state transition.
         if not self.confirm_legacy_json_write():  # JSON export must not masquerade as row-50 live saving.
             return  # No write or false saved/consistent status.
         active_tab = self.tabs.currentWidget()

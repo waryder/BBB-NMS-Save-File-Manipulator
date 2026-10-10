@@ -26,6 +26,8 @@ META_OFFSET_SIZE_DECOMPRESSED = 0x38
 META_OFFSET_SIZE_DISK = 0x3C
 # Meta length of the first era that stores COMPRESSED SIZE (Worlds Part I = 0x180).
 META_LENGTH_WORLDS_PART_I = 0x180
+# Embedded Unix-seconds timestamp in supported Worlds metadata; row-50 updates only the selected sibling.
+META_OFFSET_TIMESTAMP = 0x164
 # Steam meta files start with this dword once decrypted successfully.
 META_HEADER = 0xEEEEEEBE
 
@@ -213,12 +215,18 @@ class NmsSaveFile:
         return blob if self.is_account else compress_save(blob)
 
     # Function: encode_meta
-    # Purpose: Patch the loaded meta file's sizes and re-encrypt it for the same slot.
-    def encode_meta(self) -> bytes:
+    # Purpose: Patch sizes and an optional explicit timestamp, then re-encrypt the same loaded metadata.
+    def encode_meta(self, *, timestamp: int | None = None) -> bytes:
         # A meta file must have been loaded for this to work.
         if self._meta_plain is None:
             # Loud failure explaining what is missing.
             raise RuntimeError(f"{DEBUG_PREFIX} encode_meta: no meta file loaded; load_file() needs its mf_ sibling")
+        # Validate an explicitly requested current timestamp before encoding or touching metadata.
+        if timestamp is not None:
+            # Old callers omit timestamp and retain their existing behavior.
+            if type(timestamp) is not int or not 0 < timestamp <= 0xFFFFFFFF or len(self._meta_plain) < META_LENGTH_WORLDS_PART_I:
+                # Refuse unsupported metadata or values instead of silently writing an invalid timestamp.
+                raise ValueError(f"{DEBUG_PREFIX} encode_meta: timestamp needs supported metadata and positive u32 seconds")
         # Encode the data first so both size fields have real numbers to store.
         data = self.encode()
         # The decompressed size is the pre-compression payload length (JSON + terminator + raw IDs).
@@ -231,6 +239,10 @@ class NmsSaveFile:
         if len(meta) >= META_LENGTH_WORLDS_PART_I:
             # Patch the on-disk (compressed) size at 0x3C.
             struct.pack_into("<I", meta, META_OFFSET_SIZE_DISK, len(data))
+        # Change time only for the caller that explicitly requests row-50 saving.
+        if timestamp is not None:
+            # Keep save name/summary and all unrelated metadata bytes intact.
+            struct.pack_into("<I", meta, META_OFFSET_TIMESTAMP, timestamp)
         # Re-encrypt with the slot that decrypted the original, keeping the file in its slot.
         return encrypt_meta(bytes(meta), self._meta_slot)
 

@@ -5,6 +5,7 @@ from imports import *  # Use the application's existing Qt widgets and helpers.
 import copy  # Preserve previous model state for rollback and independent editing.
 import hashlib  # Compare model and live-source bytes without logging save contents.
 import NmsSlotOperations as slot_ops  # Share one global stdout tracing switch and selector.
+import NmsLiveSaveOperations as live_ops  # Row-50 same-file/context writing; Backup/Restore helpers remain unchanged.
 
 
 class NmsLoadController:  # Mix row-40 operations into the existing main window.
@@ -74,7 +75,8 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
         color = GREEN_LED_COLOR if saved else "red"  # Use the app's existing green palette.
         self.file_changed_indicator.setStyleSheet(f"background-color: {color}; border-radius: 4px;")  # LED.
         status = "saved/consistent" if saved else "changed / not saved live"  # Explain the meaning.
-        identity = "no live source" if self.nms_source is None else f"slot {self.nms_source['slot']} / {self.nms_source['file_name']}"  # Target.
+        context = "Expedition" if self.nms_source is not None and self.nms_source["context_key"] == "ExpeditionContext" else "Main"  # Successful source owns the context identity.
+        identity = "no live source" if self.nms_source is None else f"slot {self.nms_source['slot']} / {self.nms_source['file_name']} / {context}"  # Show the loaded branch alongside its target.
         self.file_changed_label.setText(f"Live file: {status} ({identity})")  # Do not silently hide targeting.
         self.file_changed_indicator.setToolTip("Green: consistent with loaded live file. Red: unsaved, ZIP, or no live source.")  # Distinct status.
 
@@ -125,7 +127,7 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
             self._nms_error("Restore Slot failed", exc)  # Explain why the old data remains.
             return False  # Signal the popup to stay open.
 
-    # _load_nms_snapshot: Stage full-save identity and decoded BaseContext independently of live state.
+    # _load_nms_snapshot: Stage full-save identity and selected whole context independently of live state.
     def _load_nms_snapshot(self, snapshot, live_folder, kind, archive_path=None, on_load_confirmed=None):
         if not live_folder or not os.path.isdir(live_folder):  # Never invent a future write target.
             raise ValueError("Pick a valid live save folder before loading or restoring a slot.")  # Recovery instructions.
@@ -145,7 +147,7 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
             self._commit_nms_source(source)  # Transactional GUI/model replacement.
         finally:  # Errors must never leave the main window disabled.
             self.setEnabled(was_enabled)  # Resume interaction only after commit or rollback.
-        self._nms_trace("load_complete", kind=kind, slot=source["slot"], file=source["file_name"], meta=source["meta_name"], target=source["data_path"], changed=self.nms_data_changed, model_hash=self._nms_baseline)  # Inspect under the hood.
+        self._nms_trace("load_complete", kind=kind, slot=source["slot"], file=source["file_name"], meta=source["meta_name"], context_key=source["context_key"], target=source["data_path"], changed=self.nms_data_changed, model_hash=self._nms_baseline)  # Inspect identity, never save JSON.
         return True  # Allow the Open/Restore dialog to dismiss on success.
 
     # _capture_nms_editors: Capture raw text and tree-sync status for rollback, including unsynced edits.
@@ -154,12 +156,12 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
 
     # _refresh_nms_tabs: Populate all views explicitly so rendering failures propagate into rollback.
     def _refresh_nms_tabs(self):
-        for tab in self._nms_tabs:  # All four tabs share the same BaseContext model.
+        for tab in self._nms_tabs:  # All four tabs share the same selected whole-context model and relative paths.
             tab.update_text_widget_from_model()  # Emit no editor signals during a load transaction.
             tab.update_tree_from_model()  # A schema error must abort rather than falsely mark green.
             tab.tree_widget.expand_tree_to_level(1)  # Follow the app's normal presentation.
 
-    # _commit_nms_source: Preserve old data/targets until every tab renders the staged BaseContext.
+    # _commit_nms_source: Preserve old data/context/targets until every tab renders the staged whole context.
     def _commit_nms_source(self, source):
         previous = copy.deepcopy(self.model.get_data())  # Model rollback must survive mutable shared references.
         editors = self._capture_nms_editors()  # Preserve unsynced user input too.
@@ -167,11 +169,11 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
         model_blocked = self.model.blockSignals(True)  # Do not invoke slots that swallow render failures.
         self._nms_loading = True  # Also suppress any incidental row-40 dirty callbacks.
         try:  # The model and all tab views commit as one operation.
-            self.model.set_data(copy.deepcopy(source["base_context"]))  # Keep the full save tree independent.
+            self.model.set_data(copy.deepcopy(source["base_context"]))  # Compatibility field contains the selected whole context; keep the codec tree independent.
             self._refresh_nms_tabs()  # Explicit calls expose exceptions to this transaction.
             baseline = self._nms_fingerprint()  # Only compute baseline after successful rendering.
         except Exception:  # Restore model and raw editor input, never change source/LED on failure.
-            self.model.set_data(previous)  # Reinstate original BaseContext.
+            self.model.set_data(previous)  # Reinstate the original editable context without changing source identity.
             self._refresh_nms_tabs()  # Rebuild trees from the old model.
             for tab, (text, synced) in zip(self._nms_tabs, editors):  # Put unsynced text back exactly.
                 tab.text_edit.setPlainText(text)  # Keep invalid/pending edits rather than losing them.
@@ -183,15 +185,62 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
             for widget, was_blocked in blocked:  # Do not blindly enable previously blocked widgets.
                 widget.blockSignals(was_blocked)  # End transaction isolation.
             self._nms_loading = False  # Resume editing observations.
-        self.nms_source = source  # Commit target identity only after successful model/UI rendering.
+        self.nms_source = source  # Commit context key and file/slot/live-folder identity together after successful rendering.
         self._nms_baseline = baseline  # Retain the semantic data fingerprint for consistency checks.
         self.nms_data_changed = source["source_kind"] != "live"  # ZIP Restore always marks data changed.
         self._update_nms_led()  # Live starts green; ZIP starts red.
 
-    # confirm_legacy_json_write: Keep old JSON-copy saving separate from future live-file saving.
+    # _checked_nms_save_context: Capture only synchronized shared model data for a live-save attempt.
+    def _checked_nms_save_context(self):
+        if any(not tab.tree_synced for tab in self._nms_tabs):  # Never silently omit pending raw-text edits in any tab.
+            raise ValueError("Text edits are not synchronized. Use Sync from Text Window in each changed tab before File > Save.")  # No disk writes.
+        return copy.deepcopy(self.model.get_data())  # Keep staged whole-context data independent of further model changes.
+
+    # _confirm_nms_live_write: Warn about exact loaded targets and require affirmative consent before any disk write.
+    def _confirm_nms_live_write(self, source):
+        data_path, meta_path = live_ops.retained_live_paths(source)  # Confirm loaded identity rather than a browsing selection.
+        context = "Expedition" if source["context_key"] == "ExpeditionContext" else "Main"  # Explain the remembered destination branch.
+        text = f"OVERWRITE the loaded live save pair for slot {source['slot']} ({context}):\n{data_path}\n{meta_path}\n\nNMS must be CLOSED. Keep an independent copy of your save folder before testing.\nThe other Auto/Manual file and inactive context will not be changed.\nContinue?"  # Explicit live-write warning.
+        accepted = QMessageBox.warning(self, "Confirm live save write", text, QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Cancel) == QMessageBox.Ok  # Cancel by default.
+        self._nms_trace("live_write_confirmation", accepted=accepted, slot=source["slot"], file=source["file_name"], context_key=source["context_key"])  # Shared trace switch.
+        return accepted  # Cancellation changes neither data, source identity nor LED.
+
+    # save_nms_live_context: Prepare and verify same-context full-save bytes, write the confirmed pair, then mark consistent.
+    def save_nms_live_context(self):
+        if self._nms_loading or self.nms_source is None:  # Reject reentrant requests and absent live identity.
+            return False  # MainWindow retains separate legacy JSON behavior when no NMS source is loaded.
+        source, was_enabled = self.nms_source, self.isEnabled()  # Retain exact source identity and previous interaction state.
+        self._nms_loading = True  # Block nested load/save/backup actions while modal dialogs process events.
+        try:  # Failures must not commit a new source or falsely turn the LED green.
+            edited = self._checked_nms_save_context()  # Refuse unsynchronized text before asking to write.
+            baseline = self._nms_fingerprint()  # Detect app-model changes during warning dialogs, not external disk changes.
+            if not self._confirm_nms_live_write(source):  # Consent precedes staging or any live write.
+                return False  # Cancellation leaves all current state intact.
+            if self.nms_source is not source or self._nms_fingerprint() != baseline:  # Do not save stale app data after modal event processing.
+                raise ValueError("Loaded app data changed during confirmation; review it and retry Save.")  # No disk conflict detector.
+            self.setEnabled(False)  # Keep the model stable while actual encoding/staging/writing runs.
+            prepared = live_ops.prepare_live_save(source, edited)  # Round-trip the full merged tree and update timestamp to now in memory.
+            saved_source = live_ops.write_live_save(source, prepared, confirmed=True)  # Verify the actual written data/meta files.
+            self.nms_source = saved_source  # Commit refreshed codec/tree/hashes with unchanged context/file/slot/folder identity.
+            self._nms_baseline = baseline  # Current model is now semantically consistent with the verified live bytes.
+            self.nms_data_changed = False  # Only fully verified writes clear the live-file dirty state.
+            self._update_nms_led()  # Show saved/consistent and allow the existing Backup gate to operate unchanged.
+            self._nms_trace("live_save_complete", slot=source["slot"], file=source["file_name"], context_key=source["context_key"], timestamp=prepared["timestamp"], changed=False)  # No save JSON.
+            QMessageBox.information(self, "Live save written", f"Saved and verified:\n{source['data_path']}\n{source['meta_path']}")  # Report exact live targets.
+            return True  # A valid candidate still needs Bill's game/GUI acceptance.
+        except Exception as exc:  # Keep current edits/source identity on failed preparation or recovered write failures.
+            if isinstance(exc, live_ops.LiveSaveRecoveryError):  # Uncertain disk state cannot be represented as saved/consistent.
+                self._mark_nms_changed("live_save_recovery_failed")  # Preserve edits while requiring manual recovery.
+            self._nms_error("Live Save failed", exc)  # Errors remain visible even when normal tracing is off.
+            return False  # Never report success on an unverified or partially recovered pair.
+        finally:  # No error or cancellation may leave the main window disabled or the load guard stuck.
+            self.setEnabled(was_enabled)  # Respect the original enabled state.
+            self._nms_loading = False  # Resume normal model/dirty observations.
+
+    # confirm_legacy_json_write: Keep legacy JSON saving separate from same-file live NMS saving.
     def confirm_legacy_json_write(self):
         if self.nms_source is not None:  # Loaded NMS sources must not be exported over a live .hg as plaintext.
-            QMessageBox.warning(self, "Live save not implemented", "Saving this loaded NMS context back to disk is deferred to row 50. File Save/Save As are legacy JSON operations, not live NMS saves.")  # Explicit boundary.
+            QMessageBox.warning(self, "Use File Save for NMS", "Use File > Save to write this loaded NMS context to its original live file. Save As is a legacy JSON operation and cannot redirect an NMS save.")  # Keep live targeting fixed.
             self._nms_trace("legacy_save_blocked", slot=self.nms_source["slot"])  # Never falsely clear the LED.
             return False  # No JSON or live data write.
         reply = QMessageBox.warning(self, "Confirm JSON disk write", "About to write a JSON file and update its file-path preference. This is NOT an NMS live save. Continue?", QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Cancel)  # Consent before existing save dialog.

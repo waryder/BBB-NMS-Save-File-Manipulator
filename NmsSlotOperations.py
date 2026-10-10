@@ -3,7 +3,7 @@
 # Purpose: Read-only slot snapshots, memory-only ZIP loading/decoding, and explicitly confirmed backups.
 from __future__ import annotations  # Keep type annotations independent of import order.
 
-import copy  # Isolate the application's editable BaseContext from the full codec tree.
+import copy  # Isolate the application's editable selected context from the full codec tree.
 import datetime  # Name backups using local wall-clock time only.
 import hashlib  # Identify original save and metadata bytes without disclosing contents.
 import io  # Construct and inspect ZIP archives entirely in memory.
@@ -204,21 +204,40 @@ def select_slot_file(snapshot: dict, confirm_manual) -> dict | None:
     return selected  # Return the selected validated record or None without trusting mutable summary records.
 
 
-# Function: _validate_tree; Purpose: Require the data model's BaseContext and essential list sections.
-def _validate_tree(tree) -> dict:
-    if not isinstance(tree, dict) or not isinstance(tree.get("BaseContext"), dict):  # Require the decoded full-save wrapper.
-        raise ValueError("decoded save must contain a dictionary BaseContext")  # Do not assume a partial or differently shaped save.
-    base = tree["BaseContext"]  # Locate the application's editing root.
-    if not isinstance(base.get("PlayerStateData"), dict):  # Require the player data container.
-        raise ValueError("BaseContext must contain dictionary PlayerStateData")  # Reject unsupported structure explicitly.
-    player = base["PlayerStateData"]  # Validate the fields consumed by the main application tabs.
-    for key in ("PersistentPlayerBases", "ShipOwnership", "TeleportEndpoints"):  # Inventory remains optional as in the existing app.
-        if not isinstance(player.get(key), list):  # Missing/non-list sections cannot be safely handed to the UI.
-            raise ValueError(f"PlayerStateData.{key} must be a list")  # Identify the missing structural requirement only.
-    return base  # Leave all unknown fields intact in the full decoded tree.
+# Function: _resolve_context_key; Purpose: Resolve the selected save's marker without guessing another branch.
+def _resolve_context_key(tree) -> str:
+    if not isinstance(tree, dict):  # Require the full decoded save wrapper before examining its marker.
+        raise ValueError("decoded save must be a dictionary")  # Reject partial/non-object input clearly.
+    if "ActiveContext" not in tree:  # Only an absent marker permits the legacy Main-only rule.
+        if "ExpeditionContext" in tree:  # Branch presence with no marker is ambiguous, even if malformed.
+            raise ValueError("ActiveContext is missing with ExpeditionContext present; context is ambiguous")  # Never guess Main.
+        key, marker, decision = "BaseContext", "absent", "legacy Main-only"  # Preserve old BaseContext-only saves.
+    else:  # Explicit markers must select exactly one supported branch.
+        marker = tree["ActiveContext"]  # Use selected decoded data, never metadata game mode or archive identity.
+        if type(marker) is not str or marker not in ("Main", "Season"):  # Reject null, empty, compound and unknown markers.
+            raise ValueError("ActiveContext must be exactly Main or Season; explicit context is unsupported or ambiguous")  # Do not log raw malformed data.
+        key = "ExpeditionContext" if marker == "Season" else "BaseContext"  # Main wins even when expedition data remains.
+        decision = "explicit marker"  # Explain the choice without claiming a game selection rule.
+    trace("NmsSlotOperations", "resolve_context", marker=marker, context_key=key, decision=decision)  # Shared switch; no save JSON.
+    return key  # Retain this exact node as part of successful source identity.
 
 
-# Function: decode_record; Purpose: Decode original bytes with canonical live identity and an isolated editable BaseContext.
+# Function: _validate_tree; Purpose: Require the selected whole context and existing essential player lists.
+def _validate_tree(tree, context_key=None) -> dict:
+    key = _resolve_context_key(tree) if context_key is None else context_key  # Preserve the helper's one-argument interface.
+    if not isinstance(tree.get(key), dict):  # Validate the selected branch only; never fall back to the inactive one.
+        raise ValueError(f"decoded save must contain a dictionary {key}")  # Identify the missing/malformed selected branch.
+    context = tree[key]  # Keep the whole context, including GameMode, SpawnStateData and unknown fields.
+    if not isinstance(context.get("PlayerStateData"), dict):  # Require the existing player data container.
+        raise ValueError(f"{key} must contain dictionary PlayerStateData")  # Reject unsupported structure explicitly.
+    player = context["PlayerStateData"]  # Validate unchanged relative tab paths against the selected context.
+    for name in ("PersistentPlayerBases", "ShipOwnership", "TeleportEndpoints"):  # Inventory remains optional as before.
+        if not isinstance(player.get(name), list):  # Missing/non-list sections cannot be safely handed to the UI.
+            raise ValueError(f"{key}.PlayerStateData.{name} must be a list")  # Report structure, never contents.
+    return context  # Leave the entire retained codec tree untouched.
+
+
+# Function: decode_record; Purpose: Decode original bytes with canonical identity and an isolated editable whole context.
 def decode_record(record: dict, live_folder: str) -> dict:
     slot = record["slot"]  # Require filename-derived game-slot identity retained in snapshot records.
     name = record["file_name"]  # Preserve the canonical selected filename.
@@ -230,11 +249,12 @@ def decode_record(record: dict, live_folder: str) -> dict:
     data_path, meta_path = os.path.join(folder, name), os.path.join(folder, "mf_" + name)  # Retain future-save destination identities.
     codec = NmsSaveFile().load_bytes(record["data_bytes"], data_path, record["meta_bytes"])  # Load entirely from bytes with correct path and decrypted metadata.
     tree = codec.decode()  # Deobfuscate the complete save and preserve every other top-level field.
-    base = _validate_tree(tree)  # Validate all data sections required by the application.
+    context_key = _resolve_context_key(tree)  # Remember the selected decoded marker's exact destination node.
+    base = _validate_tree(tree, context_key)  # Validate required lists in that branch without falling back.
     data_hash = hashlib.sha256(record["data_bytes"]).hexdigest()  # Fingerprint the original selected data bytes.
     meta_hash = hashlib.sha256(record["meta_bytes"]).hexdigest()  # Fingerprint the original encrypted metadata bytes.
-    trace("NmsSlotOperations", "decode_record", slot=slot, file_name=name, unknown_keys=len(codec.unknown_keys), data_hash=data_hash, meta_hash=meta_hash)  # Trace unknown-key count, never key contents.
-    return {"codec": codec, "tree": tree, "base_context": copy.deepcopy(base), "file_name": name, "meta_name": "mf_" + name, "slot": slot, "live_folder": folder, "data_path": data_path, "meta_path": meta_path, "data_hash": data_hash, "meta_hash": meta_hash}  # Return the fixed parent-integration contract.
+    trace("NmsSlotOperations", "decode_record", slot=slot, file_name=name, context_key=context_key, unknown_keys=len(codec.unknown_keys), data_hash=data_hash, meta_hash=meta_hash)  # Trace selected identity and counts, never JSON.
+    return {"codec": codec, "tree": tree, "context_key": context_key, "base_context": copy.deepcopy(base), "file_name": name, "meta_name": "mf_" + name, "slot": slot, "live_folder": folder, "data_path": data_path, "meta_path": meta_path, "data_hash": data_hash, "meta_hash": meta_hash}  # base_context is a compatibility field for the selected whole context, not necessarily Main.
 
 
 # Function: backup_name; Purpose: Suggest a Windows-safe backup name using the longer original summary and local datetime.

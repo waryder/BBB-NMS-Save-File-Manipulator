@@ -145,10 +145,10 @@ class OpenNmsSaveFileDialog(QDialog):
         row = QHBoxLayout()
         row.addStretch()
         # Backup the app's active slot only after consistency checks and explicit disk-write consent.
-        self.backup_button = QPushButton("Backup Slot")
+        self.backup_button = QPushButton("Save Slot Backup")
         self.backup_button.clicked.connect(self._on_slot_backup_clicked)
         # Restore ZIP into app memory only; the ZIP filenames supply its original slot.
-        self.restore_button = QPushButton("Restore Slot")
+        self.restore_button = QPushButton("Load Slot Backup")
         self.restore_button.clicked.connect(self._on_restore_clicked)  # Use the main window's transaction.
         # Live loading is part of row 40, not the later live-save placeholder.
         self.open_button = QPushButton("Load Slot")
