@@ -1,4 +1,5 @@
 from imports import *
+from JsonTextNavigation import JsonNavigationError, TreeJsonNavigation  # Shared read-only structural navigation.
 
 class DeleteTreeNodesSelectedDialog(QDialog):
     def __init__(self, num_nodes = 0):
@@ -44,6 +45,7 @@ class CustomTreeWidget(QTreeWidget):
         
         #we expect parent to be the first tab object here:
         self.parent = parent
+        self.json_navigation = TreeJsonNavigation(self)  # Invalidate structural locations on tree changes.
 
         if (type(parent).__name__ != "ThirdTabContent"):
             self.setDragDropMode(QAbstractItemView.InternalMove)
@@ -365,28 +367,24 @@ class CustomTreeWidget(QTreeWidget):
             
         return count
     
-    def highlight_in_text_box(self, item):
-        logger.verbose("highlight_in_text_box() ENTER") 
-        text_edit = self.parent.text_edit
-        line_num = item.data(0, QT_DATA_LINE_COUNT)
-        logger.verbose(f"line_num: {line_num}")
-        
-        #QMessageBox.information(None, "Title", f"line number {line_num}")
-      
-        cursor = QTextCursor(text_edit.document())
-        
-        # Move cursor to the start of the desired line
-        cursor.movePosition(QTextCursor.Start)
-        cursor.movePosition(QTextCursor.Down, QTextCursor.MoveAnchor, line_num - 1)
+    # record_json_locations: associate a completed tree build with typed JSON paths.
+    def record_json_locations(self, json_data):
+        self.json_navigation.capture(self, json_data)  # Metadata only; no synchronization/model/save write.
 
-        # Select the entire line
-        cursor.select(QTextCursor.LineUnderCursor)
-        
-        # Highlight the found occurrence and update the last cursor position
-        text_edit.setTextCursor(cursor)
-        text_edit.ensureCursorVisible()  # Scroll to make the found text visible
-        
-        logger.verbose("highlight_in_text_box() EXIT")
+    # highlight_in_text_box: navigate only when tree and displayed JSON reliably correspond.
+    def highlight_in_text_box(self, item):
+        text_edit = self.parent.text_edit  # Use the actual current pane, never regenerated text.
+        try:
+            position = self.json_navigation.resolve(self, item, text_edit.toPlainText())  # Exact UTF-16 position.
+        except (JsonNavigationError, RecursionError, RuntimeError) as error:  # Invalid/stale/deleted locations.
+            QMessageBox.information(self, "Highlight unavailable", str(error) + "\nText, tree and save data were left unchanged.")  # Explain without repairing.
+            return False  # Preserve the previous cursor/selection on failure.
+        cursor = QTextCursor(text_edit.document())  # Prepare navigation without modifying the document.
+        cursor.setPosition(position)  # Exact key/value opening position, independent of formatting.
+        cursor.select(QTextCursor.LineUnderCursor)  # Preserve familiar whole-line selection/highlighting.
+        text_edit.setTextCursor(cursor)  # Cursor and selection changes only.
+        text_edit.ensureCursorVisible()  # Scroll to the verified target without stealing focus.
+        return True  # Let offscreen regression tests assert successful navigation.
             
     def delete_node(self, item):
         logger.debug("delete_node() ENTER")

@@ -346,11 +346,9 @@ class ForthTabContent(BaseTabContent):
         logger.debug("4th tab populate_tree_from_json() ENTER")
 
         endpoint_count = 0
-        line_count = 0
         
         def parse_item(json_data, parent_tree_node, level):
             nonlocal endpoint_count
-            nonlocal line_count
             logger.verbose(f"**start level:{level}")
             
             if isinstance(json_data, list):
@@ -364,8 +362,6 @@ class ForthTabContent(BaseTabContent):
                 item.setText(0, f"[ ] ({size})")
 
                 item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, []) #add list as parent json_data at this level
-                line_count += 1
-                item.setData(0, QT_DATA_LINE_COUNT, line_count) #store off the expected line number upon generation of the text from this this tree 
                 
                 parent_tree_node.addChild(item)
 
@@ -386,8 +382,6 @@ class ForthTabContent(BaseTabContent):
 
                             child_item.setText(0, f"{val}")
                             
-                            line_count += 1
-                            child_item.setData(0, QT_DATA_LINE_COUNT, line_count) #store off the expected line number upon generation of the text from this this tree 
                             
                             
                             #child_item.setFlags(item.flags() | Qt.ItemIsEditable)  # Make item editable
@@ -396,9 +390,6 @@ class ForthTabContent(BaseTabContent):
                             #add item for this level in json data to the parent tree node that was passed in:
                             parent_tree_node.addChild(item)
                     
-                    #at the end of processing a list, the text output will have a trailing '],' and
-                    #so we need to adjust the line count for that on the way out: 
-                    line_count += 1 
             
             elif isinstance(json_data, dict):
                 logger.verbose(f"dict='{json_data}'")
@@ -420,8 +411,6 @@ class ForthTabContent(BaseTabContent):
                     item.setText(0, "{ , } " + f"({size})")
 
                 item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, {}) #add dict as parent json_data at this level
-                line_count += 1
-                item.setData(0, QT_DATA_LINE_COUNT, line_count) #store off the expected line number upon generation of the text from this this tree 
                                
                 parent_tree_node.addChild(item)
                                 
@@ -433,9 +422,6 @@ class ForthTabContent(BaseTabContent):
                         logger.verbose(f"dict child tuple['{key}']: {val}")
                         parse_item(data_tuple, item, level + 1)
                         
-                    #at the end of processing a dict, the text output will have a trailing '},' and
-                    #so we need to adjust the line count for that on the way out: 
-                    line_count += 1
             
             elif isinstance(json_data, tuple):
                 logger.verbose(f"tuple='{json_data}'")
@@ -451,29 +437,19 @@ class ForthTabContent(BaseTabContent):
                 item.setText(0, "x:y (2)")
 
                 item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, ()) #add a tuple as parent at this level
-                line_count += 1
                 
-                #if the tuple key is "Message", testing revealed it could be over multiple lines based on '/w's. Account for this:
-                if( key == "Message" ):
-                    line_count += val.count('/w')
                     
                
-                item.setData(0, QT_DATA_LINE_COUNT, line_count) #store off the expected line number upon generation of the text from this this tree
                             
                 #add the key value to the dict child item:
                 key_item = get_new_QTreeWidgetItem()
                 key_item.setText(0, f"{key}")
                 key_item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, key)
 
-                #this data came from the same line in the source text so do not increment line_count here:    
-                key_item.setData(0, QT_DATA_LINE_COUNT, line_count) #store off the expected line number upon generation of the text from this this tree 
                 
                 item.addChild(key_item)
                 
                 if(isinstance(val, dict) or isinstance(val, list)):
-                    #line_count will be incremented at the next stage for the array, when actually because we are processing a tuple right now, the array 
-                    #or list symbol is on the same line as the "tuple", so decrement it here so when bumped back at the next stage, saved off line numbers will be correct:
-                    line_count -= 1    
                     
                     #for each of these child items go parse the next level of children:
                     parse_item(val, item, level + 1)
@@ -483,8 +459,6 @@ class ForthTabContent(BaseTabContent):
                     data_item.setText(0, f"{val}")
                     data_item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, val) 
                     
-                    #this data came from the same line in the source text so do not increment line_count here:    
-                    data_item.setData(0, QT_DATA_LINE_COUNT, line_count) #store off the expected line number upon generation of the text from this this tree 
                     
                     #current data_item to tuple item for this level:
                     item.addChild(data_item)
@@ -498,8 +472,6 @@ class ForthTabContent(BaseTabContent):
                 #item = QTreeWidgetItem([str(json_data)])
                 item.setData(0, QT_DATA_SAVE_NODES_DATA_STRUCT, json_data) 
                 
-                line_count += 1
-                item.setData(0, QT_DATA_LINE_COUNT, line_count) #store off the expected line number upon generation of the text from this this tree 
                 
                 #item.setFlags(item.flags() | Qt.ItemIsEditable)  # Make item editable
                 parent_tree_node.addChild(item)
@@ -510,6 +482,7 @@ class ForthTabContent(BaseTabContent):
         
         parent_tree_node = self.tree_widget.invisibleRootItem()
         parse_item(json_data, parent_tree_node, 0)
+        self.tree_widget.record_json_locations(json_data)  # Shared typed paths for this completed build.
         
         self.tree_widget.expand_tree_to_level(1)
         self.bottom_left_label.setText(f"Number of Teleport Endpoints: {endpoint_count}")
