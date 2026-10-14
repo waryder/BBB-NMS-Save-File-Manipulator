@@ -151,7 +151,7 @@ class StatusTests(unittest.TestCase):  # Cover state distinction and exact displ
     # test_exact_sync_label_and_left_aligned_pane_headings: Every tab must receive both headings above pane controls.
     def test_exact_sync_label_and_left_aligned_pane_headings(self):
         text = (ROOT / "BaseTabContent.py").read_text(encoding="utf-8")  # Shared label construction source.
-        self.assertIn('QLabel("Raw JSON Synched to Node View", self)', text)  # Exact requested wording/spelling.
+        self.assertIn('QLabel("Synched to Node View)", self)', text)  # Exact requested wording/spelling.
         self.assertIn('self.tree_synced_label.sizeHint().width()', text)  # Longer label is not kept in its old narrow width.
         tree = ast.parse(text)  # Extract actual heading helper for isolated execution.
         method = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "make_pane_heading")  # No full tab construction.
@@ -164,14 +164,44 @@ class StatusTests(unittest.TestCase):  # Cover state distinction and exact displ
         for filename in ["FirstTabContent.py", "SecondTabContent.py", "ThirdTabContent.py", "ForthTabContent.py"]:
             pane = (ROOT / filename).read_text(encoding="utf-8")  # Check actual integration in each tab.
             self.assertEqual(pane.count('left_pane_layout.addWidget(self.make_pane_heading("Node View"))'), 1)  # One left heading.
-            self.assertEqual(pane.count('right_pane_layout.addWidget(self.make_pane_heading("Raw JSON"))'), 1)  # One right heading.
+            self.assertEqual(pane.count('right_pane_layout.addLayout(self.make_raw_json_heading())'), 1)  # One right heading.
             self.assertLess(pane.index('left_pane_layout.addWidget(self.make_pane_heading("Node View"))'), pane.index('left_pane_layout.addLayout(left_buttons_lo)'))  # Heading above controls.
-            self.assertLess(pane.index('right_pane_layout.addWidget(self.make_pane_heading("Raw JSON"))'), pane.index('right_pane_layout.addLayout(right_button_layout)'))  # Heading above controls.
+            self.assertLess(pane.index('right_pane_layout.addLayout(self.make_raw_json_heading())'), pane.index('right_pane_layout.addLayout(right_button_layout)'))  # Heading above controls.
+
+    # test_raw_json_heading_reuses_live_indicator: Exercise the actual shared heading without Qt or saves.
+    def test_raw_json_heading_reuses_live_indicator(self):
+        source = (ROOT / "BaseTabContent.py").read_text(encoding="utf-8")  # Actual shared helper source.
+        tree = ast.parse(source)  # Extract presentation helpers only.
+        methods = [node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef) and node.name in ("make_pane_heading", "make_raw_json_heading")]  # No app initialization.
+        items = []  # Observe the real helper's widget order.
+        layout = SimpleNamespace(setAlignment=lambda value: None, setSpacing=lambda value: None, addWidget=items.append)  # Synthetic layout interface.
+        env = {"QLabel": Widget, "QHBoxLayout": lambda: layout, "Qt": SimpleNamespace(AlignLeft="fixture-left")}  # No GUI dependencies.
+        exec(compile(ast.Module(body=methods, type_ignores=[]), "raw-heading-fixture", "exec"), env)  # Execute actual methods.
+        indicator, status = Widget(), Widget("Synched to Node View)")  # Existing tab-owned widget identities.
+        tab = SimpleNamespace(tree_synced_indicator=indicator, tree_synced_label=status)  # Minimal presentation host.
+        tab.make_pane_heading = lambda title: env["make_pane_heading"](tab, title)  # Call the actual bold-title helper.
+        self.assertIs(env["make_raw_json_heading"](tab), layout)  # The real helper returns the inline layout.
+        self.assertEqual([items[0].text, items[1].text, items[3].text], ["Raw JSON", "(", "Synched to Node View)"])  # Exact requested wording.
+        self.assertTrue(items[0].bold)  # Raw JSON remains bold.
+        self.assertFalse(items[1].bold)  # Parenthesis remains normal weight.
+        self.assertIs(items[2], indicator)  # Reuse the live LED rather than create a disconnected copy.
+        self.assertIs(items[3], status)  # Reuse the existing status label.
+        self.assertIn("sync_font.setBold(False)", source)  # Status constructor explicitly uses normal weight.
+        for filename in ("FirstTabContent.py", "SecondTabContent.py", "ThirdTabContent.py", "ForthTabContent.py"):
+            pane = (ROOT / filename).read_text(encoding="utf-8")  # Check each actual integration.
+            self.assertNotIn("tree_synced_indicator_layout", pane)  # No leftover status beside the button.
+            self.assertEqual(pane.count("right_pane_layout.addLayout(self.make_raw_json_heading())"), 1)  # Exactly one inline heading.
+            self.assertNotIn("left_buttons_lo.addWidget(self.sync_tree_from_text_window_button)", pane)  # No sync button remains in Node View.
+            self.assertIn('QPushButton("Sync to Node View")', pane)  # Exact renamed button text.
+            pane_tree = ast.parse(pane)  # Verify actual right-pane addWidget order.
+            calls = sorted((node.lineno, node.args[0].attr) for node in ast.walk(pane_tree) if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name) and node.func.value.id == "right_button_layout" and node.func.attr == "addWidget" and isinstance(node.args[0], ast.Attribute))  # Ignore commented-out controls.
+            self.assertEqual([name for _, name in calls], ["sync_tree_from_text_window_button", "pretty_print_button"])  # Immediately before Pretty Print.
+            self.assertIn("self.sync_tree_from_text_window_button.clicked.connect(self.sync_tree_from_text_window)", pane)  # Original action remains connected.
 
     # test_all_other_leds_precede_labels: Background and four sync status pairs must also use LED-first ordering.
     def test_all_other_leds_precede_labels(self):
         specs = [("BBB_NMS_Save_File_Manipulator.py", "status_layout", ["current_task_label", "current_task_info"])]  # Task text has no LED.
-        specs += [(filename, "tree_synced_indicator_layout", ["tree_synced_indicator", "tree_synced_label"]) for filename in ["FirstTabContent.py", "SecondTabContent.py", "ThirdTabContent.py", "ForthTabContent.py"]]  # Every tab sync pair.
+        specs += [("BaseTabContent.py", "heading", ["tree_synced_indicator", "tree_synced_label"])]  # Shared Raw JSON heading retains LED-first status order.
         for filename, layout_name, expected in specs:  # Inspect actual layout calls rather than reconstructing the UI.
             tree = ast.parse((ROOT / filename).read_text(encoding="utf-8"))  # Scoped source-only read.
             calls = []  # Capture pair members in their actual source order.
@@ -284,6 +314,101 @@ class StatusTests(unittest.TestCase):  # Cover state distinction and exact displ
                 self.assertLess(events.index("tab4"), events.index("final-paint"))  # All panes populated before final refresh.
                 self.assertLess(events.index("final-paint"), events.index("dismiss"))  # Dismissal follows refresh.
             if mode == "cancel": self.assertEqual(events, [])  # No popup, callback or decode on cancel.
+
+    # test_live_save_popup_lifetime: Exercise real controller flow with synthetic services, never real save writes or Qt.
+    def test_live_save_popup_lifetime(self):
+        for mode in ("success", "disabled_success", "prepare_error", "write_error", "recovery_error", "dialog_error", "show_error", "cancel", "unsynced", "stale", "no_source", "reentrant"):
+            with self.subTest(mode=mode):  # Separate every success, refusal and cleanup path.
+                controller = host()  # Real controller methods with synthetic status widgets.
+                events, dialogs = [], []  # Observe actual operation/notification order.
+                owner = self  # Nested fixtures share assertions.
+                original_source = {"slot": 5, "file_name": "save10.hg", "context_key": "BaseContext", "data_path": "synthetic-data", "meta_path": "synthetic-meta"}  # No real files.
+                controller.nms_source = None if mode == "no_source" else original_source  # Absent-source guard.
+                controller.nms_data_changed = True  # Begin with unsaved model data.
+                controller._nms_loading = mode == "reentrant"  # Preserve existing nested-call refusal.
+                controller.enabled = mode != "disabled_success"  # Respect original enabled state on cleanup.
+                original_enabled = controller.enabled  # Verify exact restoration, not unconditional enabling.
+                controller.isEnabled = lambda: controller.enabled  # Synthetic window interface.
+                controller.setEnabled = lambda value: setattr(controller, "enabled", value)  # Record interaction isolation.
+                controller.repaint = lambda: events.append("final-paint")  # Observe completion refresh.
+                controller.set_current_task_info = lambda text="": events.append("task:" + text)  # Observe task lifecycle.
+                fingerprints = iter(["before", "changed" if mode == "stale" else "before"])  # Modal warning can invalidate model.
+                controller._nms_fingerprint = lambda: next(fingerprints)  # No real model traversal.
+                controller._checked_nms_save_context = lambda: {"synthetic": True}  # No save contents.
+                if mode == "unsynced":
+                    def refuse():  # Refuse pending raw edits before creating progress.
+                        raise ValueError("synthetic unsynced edits")  # Existing warning path.
+                    controller._checked_nms_save_context = refuse  # Inject only the preflight outcome.
+                controller._confirm_nms_live_write = lambda source: events.append("confirm") or mode != "cancel"  # Consent stays before progress.
+
+                class RecoveryError(Exception):  # Synthetic equivalent of the writer's uncertain-state error.
+                    pass  # No disk operation.
+
+                class Dialog:  # Explicitly synthetic modal-dialog interface.
+                    def __init__(self, text, parent):
+                        if mode == "dialog_error": raise ValueError("synthetic dialog setup failure")  # No stranded popup.
+                        owner.assertEqual(text, "Saving data, please wait…")  # Exact save-progress message.
+                        self.visible = False  # Visibility is tracked, not rendered.
+                        dialogs.append(self)  # Retain lifecycle handle.
+                    def setEnabled(self, value): pass  # No parent/Qt inheritance in this fixture.
+                    def show(self):
+                        self.visible = True; events.append("show")  # Starts before preparation.
+                        if mode == "show_error": raise ValueError("synthetic show failure")  # Cleanup partially shown dialog.
+                    def repaint(self): events.append("popup-paint")  # Initial progress painting.
+                    def accept(self): self.visible = False; events.append("dismiss")  # Programmatic completion.
+                    def deleteLater(self): events.append("delete")  # Record QObject cleanup request.
+
+                def assert_busy(event):  # Verify actual guard, interaction and popup state during every operation.
+                    owner.assertTrue(controller._nms_loading)  # Reentrant load/save/backup remains blocked.
+                    owner.assertFalse(controller.enabled)  # User cannot edit during saving.
+                    owner.assertTrue(dialogs[0].visible)  # Progress persists through actual writer boundaries.
+                    events.append(event)  # Preserve operation ordering.
+
+                def prepare(source, edited):  # Synthetic encoding service only.
+                    assert_busy("prepare")  # Popup is already visible.
+                    if mode == "prepare_error": raise ValueError("synthetic encoding failure")  # No live write.
+                    return {"timestamp": 123}  # Minimal verified-candidate interface.
+
+                def write(source, prepared, confirmed):  # Synthetic writer never touches files.
+                    assert_busy("write")  # Popup remains during write and readback verification.
+                    owner.assertTrue(confirmed)  # Writer still requires prior consent.
+                    if mode == "write_error": raise ValueError("synthetic write failure")  # Recovered failure.
+                    if mode == "recovery_error": raise RecoveryError("synthetic recovery failure")  # Uncertain writer outcome.
+                    return dict(source, verified=True)  # Distinct refreshed identity after successful verification.
+
+                def notify(*args):  # Existing saved-notification boundary.
+                    owner.assertFalse(dialogs[0].visible)  # Progress must close before success notification.
+                    owner.assertTrue(controller._nms_loading)  # Guard still blocks nested operations in the notification.
+                    events.append("notification")  # Capture handoff ordering.
+
+                def error(*args):  # Existing error-notification boundary.
+                    owner.assertTrue(all(not dialog.visible for dialog in dialogs))  # Errors cannot appear behind progress.
+                    events.append("error")  # No success notification on failure.
+
+                controller._nms_error = error  # Avoid GUI error windows.
+                controller._update_nms_led = lambda: assert_busy("saved-led")  # Keep progress through saved-state transition.
+                controller._mark_nms_changed = lambda reason: events.append("recovery-dirty")  # Preserve uncertain-state marking.
+                env = controller.save_nms_live_context.__func__.__globals__  # Inject fixtures into the actual method.
+                env.update({"NmsLoadingDialog": Dialog, "QApplication": SimpleNamespace(processEvents=lambda flags: assert_busy("events")), "QEventLoop": SimpleNamespace(ExcludeUserInputEvents="exclude-input"), "QMessageBox": SimpleNamespace(information=notify), "live_ops": SimpleNamespace(prepare_live_save=prepare, write_live_save=write, LiveSaveRecoveryError=RecoveryError)})  # No app/codec/disk execution.
+                result = controller.save_nms_live_context()  # Execute actual production controller method.
+                success = mode in ("success", "disabled_success")  # Only these paths may commit a verified source.
+                self.assertEqual(result, success)  # No false success on refusal or failure.
+                self.assertEqual(controller.enabled, original_enabled)  # Restore prior interaction state.
+                self.assertEqual(controller._nms_loading, mode == "reentrant")  # Existing reentrant guard remains untouched.
+                self.assertTrue(all(not dialog.visible for dialog in dialogs))  # No stranded progress on any path.
+                if success:
+                    self.assertFalse(controller.nms_data_changed)  # Only verified success clears dirty state.
+                    for earlier, later in (("confirm", "show"), ("show", "prepare"), ("prepare", "write"), ("write", "saved-led"), ("saved-led", "final-paint"), ("final-paint", "dismiss"), ("dismiss", "notification")):
+                        self.assertLess(events.index(earlier), events.index(later))  # Verify complete modal handoff sequence.
+                else:
+                    self.assertIs(controller.nms_source, original_source if mode != "no_source" else None)  # Failed saves preserve source identity.
+                    self.assertTrue(controller.nms_data_changed)  # Failed saves never falsely mark saved.
+                    self.assertNotIn("notification", events)  # Existing success popup is not reached.
+                if mode in ("cancel", "unsynced", "stale", "no_source", "reentrant"):
+                    self.assertEqual(dialogs, [])  # No progress until preflight and consent succeed.
+                    self.assertNotIn("write", events)  # No writer invocation on refusal.
+                if mode == "prepare_error": self.assertNotIn("write", events)  # Encoding failures do not write.
+                if mode == "recovery_error": self.assertIn("recovery-dirty", events)  # Retain recovery-failure state behavior.
 
     # test_popup_user_close_is_ignored: Execute actual dialog overrides without importing Qt.
     def test_popup_user_close_is_ignored(self):

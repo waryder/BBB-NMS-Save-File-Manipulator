@@ -22,6 +22,7 @@ a = Analysis(
     ('reference_shuttle.json', '.'),
     ('reference_solar.json', '.'),
     ('starship_upgrade_references', 'starship_upgrade_references'),  # Current approved donors, separate from legacy persistent references.
+    ('starship_delete_templates.json', '.'),  # Verified complete empty ownership/appearance donors for fixed-slot deletion.
     ] + pyqt5_datas,
     hiddenimports=['imports'],  # Ensure 'imports' is a valid module
     hookspath=[],

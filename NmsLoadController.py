@@ -266,15 +266,28 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
             if self.nms_source is not source or self._nms_fingerprint() != baseline:  # Do not save stale app data after modal event processing.
                 raise ValueError("Loaded app data changed during confirmation; review it and retry Save.")  # No disk conflict detector.
             self.setEnabled(False)  # Keep the model stable while actual encoding/staging/writing runs.
-            self.set_current_task_info("Saving and verifying…")  # Only show this after write consent.
-            prepared = live_ops.prepare_live_save(source, edited)  # Round-trip the full merged tree and update timestamp to now in memory.
-            saved_source = live_ops.write_live_save(source, prepared, confirmed=True)  # Verify the actual written data/meta files.
-            self.nms_source = saved_source  # Commit refreshed codec/tree/hashes with unchanged context/file/slot/folder identity.
-            self._nms_baseline = baseline  # Current model is now semantically consistent with the verified live bytes.
-            self.nms_data_changed = False  # Only fully verified writes clear the live-file dirty state.
-            self._update_nms_led()  # Show saved/consistent and allow the existing Backup gate to operate unchanged.
-            self._nms_trace("live_save_complete", slot=source["slot"], file=source["file_name"], context_key=source["context_key"], timestamp=prepared["timestamp"], changed=False)  # No save JSON.
-            self.set_current_task_info()  # The result dialog now reports completion; do not repeat it here.
+            saving_dialog = None  # Track partially constructed progress for safe cleanup.
+            try:  # Own progress from preparation through verified state and final painting.
+                saving_dialog = NmsLoadingDialog("Saving data, please wait…", self)  # Reuse the existing non-cancellable modal progress style.
+                saving_dialog.setEnabled(True)  # Keep progress active even while its parent is disabled.
+                saving_dialog.show()  # Display before encoding or any live write begins.
+                saving_dialog.repaint()  # Paint the message before synchronous work starts.
+                QApplication.processEvents(QEventLoop.ExcludeUserInputEvents)  # Flush painting without permitting nested user edits.
+                self.set_current_task_info("Saving and verifying…")  # Only show this after write consent.
+                prepared = live_ops.prepare_live_save(source, edited)  # Round-trip the full merged tree and update timestamp to now in memory.
+                saved_source = live_ops.write_live_save(source, prepared, confirmed=True)  # Verify the actual written data/meta files.
+                self.nms_source = saved_source  # Commit refreshed codec/tree/hashes with unchanged context/file/slot/folder identity.
+                self._nms_baseline = baseline  # Current model is now semantically consistent with the verified live bytes.
+                self.nms_data_changed = False  # Only fully verified writes clear the live-file dirty state.
+                self._update_nms_led()  # Show saved/consistent and allow the existing Backup gate to operate unchanged.
+                self._nms_trace("live_save_complete", slot=source["slot"], file=source["file_name"], context_key=source["context_key"], timestamp=prepared["timestamp"], changed=False)  # No save JSON.
+                self.repaint()  # Paint the verified saved-state LEDs before handing off to notification.
+                QApplication.processEvents(QEventLoop.ExcludeUserInputEvents)  # Keep progress present through final GUI refresh.
+            finally:  # Dismiss progress before either the existing success or failure notification.
+                if saving_dialog is not None:  # Also handle failures during dialog setup or showing.
+                    saving_dialog.accept()  # Programmatic completion bypasses user-close suppression.
+                    saving_dialog.deleteLater()  # Release the temporary popup after returning to Qt.
+                self.set_current_task_info()  # Restore the loaded-slot default before the result notification.
             QMessageBox.information(self, "Live save written", f"Saved and verified:\n{source['data_path']}\n{source['meta_path']}")  # Report exact live targets.
             return True  # A valid candidate still needs Bill's game/GUI acceptance.
         except Exception as exc:  # Keep current edits/source identity on failed preparation or recovered write failures.

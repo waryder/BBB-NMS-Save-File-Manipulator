@@ -302,7 +302,11 @@ class CustomTreeWidget(QTreeWidget):
         # Optionally, also copy to the selection clipboard (useful on Linux)
         clipboard.setText(node_text, QClipboard.Selection)
 
+    # delete_tree_nodes_selected: Use complete fixed-slot ship deletion on the starship tab; preserve other tabs.
     def delete_tree_nodes_selected(self):
+        if getattr(self.parent, "model_context", None) == "tab2":  # Ship indices must not shift after deletion.
+            from StarshipDeleteController import run_starship_delete  # Load the guarded ship-specific controller only here.
+            return run_starship_delete(self, DeleteTreeNodesSelectedDialog)  # One route for single/multi-node requests.
         logger.debug("delete_tree_nodes_selected() ENTER")
         
         dialog = DeleteTreeNodesSelectedDialog(len(self.right_button_selected_nodes))

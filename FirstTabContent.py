@@ -26,9 +26,10 @@ class FirstTabContent(BaseTabContent):
         self.splitter.addWidget(left_container)
         self.splitter.addWidget(right_container)
 
-        # Set initial splitter size ratios (optional)
-        self.splitter.setStretchFactor(0, 5)
-        self.splitter.setStretchFactor(1, 7)
+        # Give Node View and Raw JSON equal initial widths and resize weights.
+        self.splitter.setStretchFactor(0, 1)  # Let Node View share future resizing equally.
+        self.splitter.setStretchFactor(1, 1)  # Let Raw JSON share future resizing equally.
+        self.splitter.setSizes([1000, 1000])  # Override differing pane size hints; keep the divider draggable.
 
         # Set the splitter as the main layout for the widget
         main_layout = QVBoxLayout()
@@ -56,7 +57,7 @@ class FirstTabContent(BaseTabContent):
 
     def initLeftPane(self):
         # left pane:
-        self.sync_tree_from_text_window_button = QPushButton("Sync from Text Window")
+        self.sync_tree_from_text_window_button = QPushButton("Sync to Node View")
         self.sync_tree_from_text_window_button.setFixedWidth(self.button_width)
 
         # Sort button
@@ -74,14 +75,11 @@ class FirstTabContent(BaseTabContent):
         self.bottom_left_label = QLabel("", self)
 
         # Indicator layout
-        tree_synced_indicator_layout = QHBoxLayout()
-        tree_synced_indicator_layout.addWidget(self.tree_synced_indicator)  # LED precedes its sync label.
-        tree_synced_indicator_layout.addWidget(self.tree_synced_label)
 
         # Create layout for the buttons to be horizontal
         left_buttons_lo = QHBoxLayout()
-        left_buttons_lo.addWidget(self.sync_tree_from_text_window_button)
-        left_buttons_lo.addLayout(tree_synced_indicator_layout)
+        # Sync to Node View now sits beside Pretty Print in the Raw JSON pane.
+        # The existing sync button stays here; its LED is beside Raw JSON.
         left_buttons_lo.addWidget(self.sort_bases_by_gal_sys_name_button)
         left_buttons_lo.addWidget(self.move_freighter_to_top_checkbox)
 
@@ -152,9 +150,10 @@ class FirstTabContent(BaseTabContent):
 
         # right_button_layout.addWidget(self.import_button)
         # right_button_layout.addWidget(self.export_button)
+        right_button_layout.addWidget(self.sync_tree_from_text_window_button)  # Reuse the existing sync action before Pretty Print.
         right_button_layout.addWidget(self.pretty_print_button)
 
-        right_pane_layout.addWidget(self.make_pane_heading("Raw JSON"))  # Left-aligned heading above the existing Raw JSON pane.
+        right_pane_layout.addLayout(self.make_raw_json_heading())  # Inline live sync status beside the bold Raw JSON title.
         right_pane_layout.addLayout(right_button_layout)
         right_pane_layout.addWidget(self.text_edit)
         right_pane_layout.addWidget(self.bottom_right_label)
@@ -359,7 +358,9 @@ class FirstTabContent(BaseTabContent):
 
                     system = get_galaxy_system_planet_from_full_addr(galactic_addr)[SYSTEM_FROM_GALACTIC_ADDR_IDX]
                     
-                    item.setText(0, f"[{base_count - 1}]" + " { , } " + f"({size}) Gal name: {galaxy_name}, Sys: {system}, Base: {base_name}")
+                    # Count the current build-part records in this base's Objects array.
+                    part_count = len(json_data.get('Objects', []))
+                    item.setText(0, f"[{base_count - 1}]" + " { , } " + f"({size}) Gal name: {galaxy_name}, Sys: {system}, Parts: {part_count}, Base: {base_name}")
                 else:
                     #item.setText(0, f"Dict ({size})")
                     item.setText(0, "{ , } " + f"({size})")

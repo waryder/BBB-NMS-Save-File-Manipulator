@@ -18,7 +18,10 @@ class BaseTabContent(QWidget):
 
         ###
         # Create the text label and indicator widget for Tree sync status
-        self.tree_synced_label = QLabel("Raw JSON Synched to Node View", self)  # Rename only the displayed sync label.
+        self.tree_synced_label = QLabel("Synched to Node View)", self)  # The Raw JSON heading now supplies the context.
+        sync_font = self.tree_synced_label.font()  # Keep the status text separate from the bold pane title.
+        sync_font.setBold(False)  # Only Raw JSON remains bold.
+        self.tree_synced_label.setFont(sync_font)  # Apply normal weight to the existing status label.
         self.tree_synced_label.setFixedWidth(self.tree_synced_label.sizeHint().width())  # Fit the full label instead of clipping it.
 
         self.tree_synced = True
@@ -37,6 +40,21 @@ class BaseTabContent(QWidget):
         heading.setFont(font)
         heading.setAlignment(Qt.AlignLeft)  # Align the heading to the pane's left content edge.
         return heading  # The tab places this above its existing pane controls and content.
+
+    # make_raw_json_heading: Place the existing live sync LED beside the bold Raw JSON pane title.
+    def make_raw_json_heading(self):
+        heading = QHBoxLayout()  # Keep title, punctuation, LED and status on one line.
+        heading.setAlignment(Qt.AlignLeft)  # Retain the existing heading position at the pane edge.
+        heading.setSpacing(4)  # Keep the inline status compact without changing the button row.
+        heading.addWidget(self.make_pane_heading("Raw JSON"))  # Only the title uses the bold helper.
+        opening = QLabel("(", self)  # Match the opening parenthesis in the requested display.
+        font = opening.font()  # Preserve the application font for the punctuation.
+        font.setBold(False)  # Parenthesis and sync status are not bold.
+        opening.setFont(font)  # Apply normal-weight punctuation.
+        heading.addWidget(opening)  # Place the parenthesis before the live LED.
+        heading.addWidget(self.tree_synced_indicator)  # Reuse the indicator so its state behavior is unchanged.
+        heading.addWidget(self.tree_synced_label)  # Use the shorter normal-weight status label.
+        return heading  # Each tab installs this above its existing right-pane controls.
 
     def text_changed_signal(self):
         logger.debug("1st Tab text_changed_signal() enter")        

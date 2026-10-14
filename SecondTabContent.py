@@ -24,7 +24,7 @@ class SecondTabContent(BaseTabContent):
         #button_width = 140
                           
 #left pane:
-        self.sync_tree_from_text_window_button = QPushButton("Sync from Text Window")
+        self.sync_tree_from_text_window_button = QPushButton("Sync to Node View")
         self.sync_tree_from_text_window_button.setFixedWidth(self.button_width)
 ###
         # Create the text label and indicator widget for Tree sync status
@@ -49,14 +49,12 @@ class SecondTabContent(BaseTabContent):
         
         self.bottom_left_label = QLabel("", self)
 ###        
-        tree_synced_indicator_layout = QHBoxLayout()
-        tree_synced_indicator_layout.addWidget(self.tree_synced_indicator)  # LED precedes its sync label.
-        tree_synced_indicator_layout.addWidget(self.tree_synced_label)
+        # Sync status is now displayed in the Raw JSON heading.
 ###        
         # Create layout for the buttons to be horizontal
         left_buttons_lo = QHBoxLayout()
-        left_buttons_lo.addWidget(self.sync_tree_from_text_window_button)
-        left_buttons_lo.addLayout(tree_synced_indicator_layout)
+        # Sync to Node View now sits beside Pretty Print in the Raw JSON pane.
+        # The existing sync button stays here; its LED is beside Raw JSON.
         left_buttons_lo.addWidget(self.upgrade_starships_button)
         # Set alignment
         left_buttons_lo.setAlignment(Qt.AlignLeft)
@@ -113,9 +111,10 @@ class SecondTabContent(BaseTabContent):
         
         #right_button_layout.addWidget(self.import_button)
         #right_button_layout.addWidget(self.export_button)
+        right_button_layout.addWidget(self.sync_tree_from_text_window_button)  # Reuse the existing sync action before Pretty Print.
         right_button_layout.addWidget(self.pretty_print_button)
         
-        right_pane_layout.addWidget(self.make_pane_heading("Raw JSON"))  # Left-aligned heading above the existing Raw JSON pane.
+        right_pane_layout.addLayout(self.make_raw_json_heading())  # Inline live sync status beside the bold Raw JSON title.
         right_pane_layout.addLayout(right_button_layout)
         right_pane_layout.addWidget(self.text_edit)
         right_pane_layout.addWidget(self.bottom_right_label)
