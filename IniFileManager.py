@@ -343,6 +343,16 @@ class IniFileManager:
 
         return persistent_file
 
+    # get_starship_upgrade_reference_path: Resolve current donors using the existing source/frozen bundle roots.
+    def get_starship_upgrade_reference_path(self, filename):
+        # Accept only a plain reference filename, never a caller-controlled path.
+        if os.path.basename(filename) != filename or not filename.startswith('reference_') or not filename.endswith('.json'):
+            raise ValueError('Invalid starship upgrade reference filename.')
+        # Reuse the same frozen/source root decision as ensure_persistent_file without copying stale legacy donors.
+        source_root = getattr(sys, '_MEIPASS', os.path.dirname(__file__))
+        # The dedicated bundle contains the current eleven approved references; runtime access is read-only.
+        return os.path.join(source_root, 'starship_upgrade_references', filename)
+
     def get_full_file_path(self, file_name):
         per_path = self.get_persistent_dir()
         full_path = os.path.join(per_path, file_name)

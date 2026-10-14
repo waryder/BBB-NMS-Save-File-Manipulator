@@ -8,6 +8,16 @@ import NmsSlotOperations as slot_ops  # Share one global stdout tracing switch a
 import NmsLiveSaveOperations as live_ops  # Row-50 same-file/context writing; Backup/Restore helpers remain unchanged.
 
 
+class NmsLoadingDialog(TextOnlyLoadingDialog):  # Non-cancellable progress; the transaction owns its lifetime.
+    # reject: Ignore Escape while decoding and GUI population are still running.
+    def reject(self):
+        return  # Do not hide progress before the load completes.
+
+    # closeEvent: Ignore window-manager close requests; cleanup uses accept(), not close().
+    def closeEvent(self, event):
+        event.ignore()  # Prevent Alt-F4 from dismissing progress mid-transaction.
+
+
 class NmsLoadController:  # Mix row-40 operations into the existing main window.
     DEBUG_PREFIX = "[BBB-NMS-SFM/NmsLoadController]"  # Identify this source in diagnostics.
 
@@ -18,9 +28,13 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
         self._nms_loading = False  # Suppress false dirty events during controlled load transactions.
         self._nms_baseline = None  # A successful live load supplies a semantic model fingerprint.
         self._nms_tabs = (self.tab1, self.tab2, self.tab3, self.tab4)  # Include Teleport Endpoints.
-        self.file_changed_indicator = QWidget(self)  # Keep this separate from the background LED.
+        self.live_save_loaded_indicator = QWidget(self)  # Loaded-live-source state is independent of unsaved edits.
+        self.live_save_loaded_indicator.setFixedSize(10, 10)  # Match the existing status LED size.
+        self.live_save_loaded_label = QLabel("Live Save Loaded", self)  # Use Bill's exact requested label.
+        self.file_changed_indicator = QWidget(self)  # Retain the existing saved-data indicator and state wiring.
         self.file_changed_indicator.setFixedSize(10, 10)  # Match the other small indicators.
-        self.file_changed_label = QLabel(self)  # Show source slot/file and consistency in plain text.
+        self.data_has_been_saved_label = QLabel("Modified Data Saved", self)  # Separate saved state from loaded state.
+
         self.model.modelChanged.connect(self._nms_model_changed)  # Observe edits through data views.
         for tab in self._nms_tabs:  # Observe raw unsynced text and direct tree mutations too.
             tab.text_edit.textChanged.connect(self._nms_editor_changed)  # Raw text may be invalid JSON.
@@ -30,6 +44,17 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
         self._nms_observer.start(1000)  # Check consistent data once per second; dirty data needs no hashing.
         self._update_nms_led()  # Show the initial no-live-source state.
         self._nms_trace("init_state", has_source=False, changed=True)  # Reveal invisible startup state.
+
+    # set_current_task_info: Display concise operation progress, or nothing when there is no important task.
+    def set_current_task_info(self, text=""):
+        widget = getattr(self, "current_task_info", None)  # Isolated/legacy controller hosts need not create a GUI.
+        if widget is not None:
+            source = getattr(self, "nms_source", None)  # Retained loaded identity, not the picker selection.
+            if not text and source is not None:
+                title = source.get("slot_title", "").strip()  # Preserve the selected metadata title captured at load.
+                text = f"Save Loaded: Slot {source['slot']}" + (f" - {title}" if title else "")  # No fabricated title.
+            widget.setText(text)  # Explicit task text temporarily overrides the loaded-slot default.
+            widget.repaint()  # Show synchronous progress without processing reentrant input events.
 
     # _nms_trace: Send metadata-only events to stdout using the shared module switch.
     def _nms_trace(self, event, **fields):
@@ -71,14 +96,16 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
 
     # _update_nms_led: Present live consistency without altering the background-processing indicator.
     def _update_nms_led(self):
-        saved = self.nms_source is not None and not self.nms_data_changed  # No source is never green.
-        color = GREEN_LED_COLOR if saved else "red"  # Use the app's existing green palette.
-        self.file_changed_indicator.setStyleSheet(f"background-color: {color}; border-radius: 4px;")  # LED.
-        status = "saved/consistent" if saved else "changed / not saved live"  # Explain the meaning.
-        context = "Expedition" if self.nms_source is not None and self.nms_source["context_key"] == "ExpeditionContext" else "Main"  # Successful source owns the context identity.
-        identity = "no live source" if self.nms_source is None else f"slot {self.nms_source['slot']} / {self.nms_source['file_name']} / {context}"  # Show the loaded branch alongside its target.
-        self.file_changed_label.setText(f"Live file: {status} ({identity})")  # Do not silently hide targeting.
-        self.file_changed_indicator.setToolTip("Green: consistent with loaded live file. Red: unsaved, ZIP, or no live source.")  # Distinct status.
+        has_source = self.nms_source is not None  # Source identity is distinct from whether GUI edits were saved.
+        live_loaded = has_source and self.nms_source["source_kind"] == "live"  # Backup data is not a live-file load until saved live.
+        saved = has_source and not self.nms_data_changed  # Retain existing conservative load/save-baseline semantics.
+        loaded_color = GREEN_LED_COLOR if live_loaded else "red"  # Unsaved edits must not turn the loaded-source LED red.
+        saved_color = GREEN_LED_COLOR if saved else "red"  # Unsaved/no-source/backup state remains red.
+        self.live_save_loaded_indicator.setStyleSheet(f"background-color: {loaded_color}; border-radius: 4px;")  # First LED.
+        self.file_changed_indicator.setStyleSheet(f"background-color: {saved_color}; border-radius: 4px;")  # Second LED.
+
+        self.live_save_loaded_indicator.setToolTip("Green: live save loaded or saved live. Red: no live save loaded, including memory-only backup data.")  # Loaded-source meaning.
+        self.file_changed_indicator.setToolTip("Green: no changes recorded since live load or verified save. Red: unsaved changes, backup data, or no live save loaded. Disk changes are not continuously monitored.")  # Saved-state meaning.
 
     # confirm_nms_replacement: Warn, but never block solely because the current data is unsaved.
     def confirm_nms_replacement(self, kind):
@@ -140,13 +167,32 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
             self._nms_trace("selection_dialog_closed", kind=kind, slot=snapshot["slot"])  # Observe dismissal timing.
         was_enabled = self.isEnabled()  # Preserve the main window's current enabled state.
         self.setEnabled(False)  # Closing the modal picker must not allow edits during population.
+        was_loading = self._nms_loading  # Preserve the guard across popup painting and final UI refresh.
+        self._nms_loading = True  # Event processing must not permit a nested load/save/backup.
+        loading_dialog = None  # Cleanup must also handle a dialog-construction failure.
         try:  # Keep loading isolated while existing tree helpers process Qt events.
+            loading_dialog = NmsLoadingDialog("Loading data, please wait…", self)  # Reuse the existing text-only visual design.
+            loading_dialog.setEnabled(True)  # Keep the progress child paintable while the main window is disabled.
+            loading_dialog.show()  # Do not use exec() or wait a guessed duration.
+            QApplication.processEvents(QEventLoop.ExcludeUserInputEvents)  # Paint before synchronous decoding begins.
+            self.set_current_task_info("Decoding save…")  # The picker is gone; explain the otherwise silent wait.
             source = slot_ops.decode_record(record, live_folder)  # Retain the entire tree and original bytes.
             source["source_kind"] = kind  # ZIP is dirty even when its bytes happen to match live.
+            source["slot_title"] = record.get("meta", {}).get("name", "")  # Retain the selected save title for the idle task display.
             source["archive_path"] = archive_path  # Diagnostic origin only; never derives the target slot.
+            self.set_current_task_info("Loading views…")  # Keep progress visible through all four panes.
             self._commit_nms_source(source)  # Transactional GUI/model replacement.
-        finally:  # Errors must never leave the main window disabled.
-            self.setEnabled(was_enabled)  # Resume interaction only after commit or rollback.
+            self.repaint()  # Finish painting the newly populated panes while progress still remains visible.
+            QApplication.processEvents(QEventLoop.ExcludeUserInputEvents)  # Flush final layout/paint work before dismissal.
+        finally:  # Errors must never leave the main window disabled or progress stranded.
+            try:  # Restore interaction even if a cleanup operation raises.
+                if loading_dialog is not None:
+                    loading_dialog.accept()  # Programmatic completion bypasses user-close suppression.
+                    loading_dialog.deleteLater()  # Release the temporary dialog after returning to Qt.
+                self.set_current_task_info()  # Clear on success or failure, not on a guessed timer.
+            finally:
+                self._nms_loading = was_loading  # End the outer transaction only after final GUI refresh.
+                self.setEnabled(was_enabled)  # Resume interaction only after commit or rollback.
         self._nms_trace("load_complete", kind=kind, slot=source["slot"], file=source["file_name"], meta=source["meta_name"], context_key=source["context_key"], target=source["data_path"], changed=self.nms_data_changed, model_hash=self._nms_baseline)  # Inspect identity, never save JSON.
         return True  # Allow the Open/Restore dialog to dismiss on success.
 
@@ -167,6 +213,7 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
         editors = self._capture_nms_editors()  # Preserve unsynced user input too.
         blocked = [(widget, widget.blockSignals(True)) for tab in self._nms_tabs for widget in (tab.text_edit, tab.tree_widget)]  # Isolate population.
         model_blocked = self.model.blockSignals(True)  # Do not invoke slots that swallow render failures.
+        was_loading = self._nms_loading  # Retain an outer loading guard during popup/final-refresh processing.
         self._nms_loading = True  # Also suppress any incidental row-40 dirty callbacks.
         try:  # The model and all tab views commit as one operation.
             self.model.set_data(copy.deepcopy(source["base_context"]))  # Compatibility field contains the selected whole context; keep the codec tree independent.
@@ -184,7 +231,7 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
             self.model.blockSignals(model_blocked)  # Respect any earlier caller signal suppression.
             for widget, was_blocked in blocked:  # Do not blindly enable previously blocked widgets.
                 widget.blockSignals(was_blocked)  # End transaction isolation.
-            self._nms_loading = False  # Resume editing observations.
+            self._nms_loading = was_loading  # The outer loading transaction owns when editing resumes.
         self.nms_source = source  # Commit context key and file/slot/live-folder identity together after successful rendering.
         self._nms_baseline = baseline  # Retain the semantic data fingerprint for consistency checks.
         self.nms_data_changed = source["source_kind"] != "live"  # ZIP Restore always marks data changed.
@@ -219,6 +266,7 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
             if self.nms_source is not source or self._nms_fingerprint() != baseline:  # Do not save stale app data after modal event processing.
                 raise ValueError("Loaded app data changed during confirmation; review it and retry Save.")  # No disk conflict detector.
             self.setEnabled(False)  # Keep the model stable while actual encoding/staging/writing runs.
+            self.set_current_task_info("Saving and verifying…")  # Only show this after write consent.
             prepared = live_ops.prepare_live_save(source, edited)  # Round-trip the full merged tree and update timestamp to now in memory.
             saved_source = live_ops.write_live_save(source, prepared, confirmed=True)  # Verify the actual written data/meta files.
             self.nms_source = saved_source  # Commit refreshed codec/tree/hashes with unchanged context/file/slot/folder identity.
@@ -226,6 +274,7 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
             self.nms_data_changed = False  # Only fully verified writes clear the live-file dirty state.
             self._update_nms_led()  # Show saved/consistent and allow the existing Backup gate to operate unchanged.
             self._nms_trace("live_save_complete", slot=source["slot"], file=source["file_name"], context_key=source["context_key"], timestamp=prepared["timestamp"], changed=False)  # No save JSON.
+            self.set_current_task_info()  # The result dialog now reports completion; do not repeat it here.
             QMessageBox.information(self, "Live save written", f"Saved and verified:\n{source['data_path']}\n{source['meta_path']}")  # Report exact live targets.
             return True  # A valid candidate still needs Bill's game/GUI acceptance.
         except Exception as exc:  # Keep current edits/source identity on failed preparation or recovered write failures.
@@ -234,6 +283,7 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
             self._nms_error("Live Save failed", exc)  # Errors remain visible even when normal tracing is off.
             return False  # Never report success on an unverified or partially recovered pair.
         finally:  # No error or cancellation may leave the main window disabled or the load guard stuck.
+            self.set_current_task_info()  # Also clear after errors or cancellation.
             self.setEnabled(was_enabled)  # Respect the original enabled state.
             self._nms_loading = False  # Resume normal model/dirty observations.
 

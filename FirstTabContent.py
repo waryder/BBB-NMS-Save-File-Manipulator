@@ -75,8 +75,8 @@ class FirstTabContent(BaseTabContent):
 
         # Indicator layout
         tree_synced_indicator_layout = QHBoxLayout()
+        tree_synced_indicator_layout.addWidget(self.tree_synced_indicator)  # LED precedes its sync label.
         tree_synced_indicator_layout.addWidget(self.tree_synced_label)
-        tree_synced_indicator_layout.addWidget(self.tree_synced_indicator)
 
         # Create layout for the buttons to be horizontal
         left_buttons_lo = QHBoxLayout()
@@ -90,6 +90,7 @@ class FirstTabContent(BaseTabContent):
 
         # Create a vertical layout for the left side and add buttons layout
         left_pane_layout = QVBoxLayout()
+        left_pane_layout.addWidget(self.make_pane_heading("Node View"))  # Left-aligned heading above the existing Node View pane.
         left_pane_layout.addLayout(left_buttons_lo)
         left_pane_layout.addWidget(self.tree_widget)
         left_pane_layout.addWidget(self.bottom_left_label)
@@ -153,6 +154,7 @@ class FirstTabContent(BaseTabContent):
         # right_button_layout.addWidget(self.export_button)
         right_button_layout.addWidget(self.pretty_print_button)
 
+        right_pane_layout.addWidget(self.make_pane_heading("Raw JSON"))  # Left-aligned heading above the existing Raw JSON pane.
         right_pane_layout.addLayout(right_button_layout)
         right_pane_layout.addWidget(self.text_edit)
         right_pane_layout.addWidget(self.bottom_right_label)

@@ -17,7 +17,7 @@ class WhichStarshipsToUpgradeDialog(QDialog):
         # Create layout for checkboxes
         layout = QVBoxLayout()
 
-        label = QLabel("Please do not select any custom built or expedition Starships!!\nThis upgrade method will kill them!\n")
+        label = QLabel("Selected ships receive reference stats and S-class settings.\nNon-Corvette tech items are replaced entirely by the reference.\nExisting extras, trails, figurines and module seeds may be lost.\nCorvettes preserve equipment/build parts and add only missing tech.\nTech capacity targets 60 slots; tech failures skip equipment/capacity only.\nStats/class still apply; ship identity, appearance, builds and cargo remain.\nUnsupported models or invalid stats/class references are rejected.\n")
         # Make the label text bold
         font = QFont()
         font.setBold(True)

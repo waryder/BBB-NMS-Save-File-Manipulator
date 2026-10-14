@@ -100,16 +100,8 @@ class MainWindow(NmsLoadController, QMainWindow):  # Add direct-save loading wit
         self.export_button.setFixedWidth(250)
 
         ###
-        # Create the text label and indicator widget for Background Processing status
-        self.status_label = QLabel("Background Processing:", self)  # Create a text label for "Status"
-        self.status_label.setFixedWidth(self.button_width - 25)
-
-        self.status_indicator = QWidget(self)  # Create a widget to represent the LED
-        self.status_indicator.setFixedSize(10, 10)  # Set size to small (like an LED)
-        self.status_indicator.setToolTip("Heavy Background Processing Occurring? Green=No. Yellow=Yes.")
-
-        # Initially set the indicator to red (off) and make it circular
-        self.status_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
+        self.current_task_label = QLabel("Current Task Info: ", self)  # Always retain Bill's exact prefix.
+        self.current_task_info = QLabel("", self)  # Idle is blank; do not repeat the loaded/saved/sync LEDs.
 
         # Create the tab widget
         self.tabs = QTabWidget()
@@ -119,10 +111,10 @@ class MainWindow(NmsLoadController, QMainWindow):  # Add direct-save loading wit
         self.tab2 = SecondTabContent(self)
         self.tab3 = ThirdTabContent(self)
         self.tab4 = ForthTabContent(self)
-        self.background_processing_signal.connect(self.tab1.set_led_based_on_app_thread_load)
-        self.background_processing_signal.connect(self.tab2.set_led_based_on_app_thread_load)
-        self.background_processing_signal.connect(self.tab3.set_led_based_on_app_thread_load)
-        self.background_processing_signal.connect(self.tab4.set_led_based_on_app_thread_load)
+
+
+
+
         self.text_edit_changed_signal.connect(self.tab1.handle_text_edit_changed_signal)
         self.text_edit_changed_signal.connect(self.tab2.handle_text_edit_changed_signal)
         self.text_edit_changed_signal.connect(self.tab3.handle_text_edit_changed_signal)
@@ -155,17 +147,20 @@ class MainWindow(NmsLoadController, QMainWindow):  # Add direct-save loading wit
         button_layout.addWidget(self.export_button)
         ###
         status_layout = QHBoxLayout()
-        status_layout.addWidget(self.status_label)
-        status_layout.addWidget(self.status_indicator)
+        status_layout.addWidget(self.current_task_label)  # Text replaces the old thread-count LED.
+        status_layout.addWidget(self.current_task_info)  # Only important operation progress belongs here.
 
         button_layout.addLayout(status_layout)
         button_layout.setAlignment(Qt.AlignLeft)
 
         # Add the button layout to the main layout
         main_layout.addLayout(button_layout)
-        file_state_layout = QHBoxLayout()  # Keep live-file consistency distinct from background work.
-        file_state_layout.addWidget(self.file_changed_indicator)  # Green after live load; red after ZIP or editing.
-        file_state_layout.addWidget(self.file_changed_label)  # Display original slot and selected data filename.
+        file_state_layout = QHBoxLayout()  # Keep both independent file-state indicators on the same line.
+        file_state_layout.addWidget(self.live_save_loaded_indicator)  # LED precedes the loaded-source label.
+        file_state_layout.addWidget(self.live_save_loaded_label)  # Keep Bill's exact label.
+        file_state_layout.addSpacing(18)  # Visually separate the two independent questions.
+        file_state_layout.addWidget(self.file_changed_indicator)  # LED precedes the saved-data label.
+        file_state_layout.addWidget(self.data_has_been_saved_label)  # No trailing message or identity text occupies this row.
         file_state_layout.addStretch()  # Left-aligned status.
         main_layout.addLayout(file_state_layout)  # Separate row avoids excessive top-button width.
         main_layout.addWidget(self.tabs)  # Add the tab widget below the buttons

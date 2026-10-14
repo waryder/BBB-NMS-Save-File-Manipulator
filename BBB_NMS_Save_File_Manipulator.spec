@@ -21,6 +21,7 @@ a = Analysis(
     ('reference_sentinel.json', '.'),
     ('reference_shuttle.json', '.'),
     ('reference_solar.json', '.'),
+    ('starship_upgrade_references', 'starship_upgrade_references'),  # Current approved donors, separate from legacy persistent references.
     ] + pyqt5_datas,
     hiddenimports=['imports'],  # Ensure 'imports' is a valid module
     hookspath=[],

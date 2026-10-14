@@ -3,7 +3,7 @@ from DataViews import *
 from init_text import INIT_TEXT
 
 class BaseTabContent(QWidget):
-    timer_running = False
+
 
     def __init__(self, parent, model_context, text_edit):
         super().__init__()
@@ -18,8 +18,8 @@ class BaseTabContent(QWidget):
 
         ###
         # Create the text label and indicator widget for Tree sync status
-        self.tree_synced_label = QLabel("Tree Synced:", self)  # Create a text label for "Status"
-        self.tree_synced_label.setFixedWidth(self.button_width - 75)
+        self.tree_synced_label = QLabel("Raw JSON Synched to Node View", self)  # Rename only the displayed sync label.
+        self.tree_synced_label.setFixedWidth(self.tree_synced_label.sizeHint().width())  # Fit the full label instead of clipping it.
 
         self.tree_synced = True
         self.tree_synced_indicator = QWidget(self)  # Create a widget to represent the LED
@@ -28,6 +28,15 @@ class BaseTabContent(QWidget):
 
         # Initially set the indicator to red (off) and make it circular
         self.tree_synced_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
+
+    # make_pane_heading: Build a small left-aligned visual label without altering either pane's data logic.
+    def make_pane_heading(self, title):
+        heading = QLabel(title, self)  # Each pane receives its own explicitly named label.
+        font = heading.font()  # Preserve the application font while emphasizing both pane headings.
+        font.setBold(True)  # Node View and Raw JSON use the same bold heading helper.
+        heading.setFont(font)
+        heading.setAlignment(Qt.AlignLeft)  # Align the heading to the pane's left content edge.
+        return heading  # The tab places this above its existing pane controls and content.
 
     def text_changed_signal(self):
         logger.debug("1st Tab text_changed_signal() enter")        
@@ -96,62 +105,9 @@ class BaseTabContent(QWidget):
 
         logger.debug("pretty_print_text_widget() EXIT")
 
-    # def is_status_indicator_green(self):
-    #     if self.parent.status_indicator.styleSheet() == f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;":
-    #         return True
-    #     else:
-    #         return False
-
-    # Function to update the indicator color (red or green)
-    def update_status_indicator_to_green(self, green_if_true):
-        logger.debug(f"update_status_indicator_to_green() ENTER, green?: {green_if_true}")
-        palette = self.parent.status_indicator.palette()
-        
-        if green_if_true:
-            logger.verbose("green")
-            self.parent.status_indicator.setStyleSheet(f"background-color: {GREEN_LED_COLOR}; border-radius: 4px;")
-        else:
-            logger.verbose("yellow")
-            self.parent.status_indicator.setStyleSheet(f"background-color: {YELLOW_LED_COLOR}; border-radius: 4px;")
-            
-        self.parent.status_indicator.setPalette(palette)
-        self.parent.status_indicator.update()
-
-        logger.verbose("update_status_indicator_to_green() EXIT")
-
-    def set_led_based_on_app_thread_load(self, max_threads = 3, context="none"):
-        logger.debug(f"set_led_based_on_app_thread_load() ENTER, max_threads: {max_threads}, context: {context}")
-
-        # Check if a timer is already running
-        if BaseTabContent.timer_running:
-            logger.debug("Timer is already running, exiting")
-            return  # Prevent multiple loops from starting
-
-        BaseTabContent.timer_running = True  # Set the flag to indicate the timer is running
-
-        def run():
-            nonlocal max_threads
-            logger.verbose("1st tab set_led_based_on_app_thread_load() ENTER")
-            
-            #4 comes from testing the idle state of the app informally:
-            num_threads = get_num_app_child_threads()
-            logger.verbose(f"max_threads: {max_threads}, num_threads: {num_threads}")
-                
-            if num_threads > max_threads:
-                #set the led yellow:
-                self.update_status_indicator_to_green(False)
-                QTimer.singleShot(2000, run)
-
-                logger.verbose("1st tab set_led_based_on_app_thread_load() EXIT, yellow\n")
-            else:    
-                # Set the LED to green and stop the timer:
-                self.update_status_indicator_to_green(True)
-                BaseTabContent.timer_running = False  # Reset the flag
-                logger.verbose("1st tab set_led_based_on_app_thread_load() EXIT, green\n")
-        
-        #wait 2 seconds on the first run:
-        QTimer.singleShot(2000, run)
-        logger.verbose("set_led_based_on_app_thread_load() EXIT")
+    # set_led_based_on_app_thread_load: Retain legacy callers without inferring user-facing tasks from thread counts.
+    def set_led_based_on_app_thread_load(self, max_threads=3, context="none"):
+        return  # Real operation boundaries now own Current Task Info; no polling or LED remains.
 
     def model_changed(self, tab):
         logger.debug(f"Model Changed.")

@@ -7,6 +7,7 @@ from TextSearchDialog import *
 from IniFileManager import *
 #from DataModels import *
 from DataViews import *
+from StarshipUpgradeController import run_starship_upgrade  # Shared allowlist and rejection report.
 
 class ForthTabContent(BaseTabContent):
     def __init__(self, parent=None):
@@ -71,8 +72,8 @@ class ForthTabContent(BaseTabContent):
         self.bottom_left_label = QLabel("", self)
         ###
         tree_synced_indicator_layout = QHBoxLayout()
+        tree_synced_indicator_layout.addWidget(self.tree_synced_indicator)  # LED precedes its sync label.
         tree_synced_indicator_layout.addWidget(self.tree_synced_label)
-        tree_synced_indicator_layout.addWidget(self.tree_synced_indicator)
         ###
         # Create layout for the buttons to be horizontal
         left_buttons_lo = QHBoxLayout()
@@ -85,6 +86,7 @@ class ForthTabContent(BaseTabContent):
         left_pane_layout = QVBoxLayout()
         # Create layouts for buttons
         left_pane_layout = QVBoxLayout()
+        left_pane_layout.addWidget(self.make_pane_heading("Node View"))  # Left-aligned heading above the existing Node View pane.
         left_pane_layout.addLayout(left_buttons_lo)
         left_pane_layout.addWidget(self.tree_widget)
         left_pane_layout.addWidget(self.bottom_left_label)
@@ -133,6 +135,7 @@ class ForthTabContent(BaseTabContent):
 
         right_button_layout.addWidget(self.pretty_print_button)
 
+        right_pane_layout.addWidget(self.make_pane_heading("Raw JSON"))  # Left-aligned heading above the existing Raw JSON pane.
         right_pane_layout.addLayout(right_button_layout)
         right_pane_layout.addWidget(self.text_edit)
         right_pane_layout.addWidget(self.bottom_right_label)
@@ -171,98 +174,9 @@ class ForthTabContent(BaseTabContent):
         with open(file_path, 'r', encoding='utf-8') as file:
             return json.loads(file.read())
         
+    # upgrade_starships: Use the shared selective upgrade and per-ship result transaction.
     def upgrade_starships(self):
-        logger.debug("4th tab upgrade_starships() ENTER")
-
-        model_json = copy.deepcopy(self.view.get_json())
-        
-        starship_names = []
-        for starship_el in model_json:
-            starship_names.append(starship_el['Name'])
-       
-        selected_checkboxes = []
-        dialog = WhichStarshipsToUpgradeDialog(starship_names)
-        if dialog.exec_() == QDialog.Accepted:
-            selected_checkboxes = dialog.get_selected_items()
-            self.main_window.background_processing_signal.emit(4, "tab2")
-            self.update_tree_synced_indicator(False)
-        else:
-            return
-
-        upgraded_starship_names = ""
-
-        #for starship_el in model_json:
-        if selected_checkboxes:                
-            for checkbox in selected_checkboxes:
-                starship_el = model_json[checkbox.property('starshipListIdx')]            
-                
-                name = copy.deepcopy(starship_el['Name'])
-                upgraded_starship_names += f"\u2713 {name}\n"
-
-                #need the second element of ['Seed'] here:
-                seed = copy.deepcopy(starship_el['Resource']['Seed'][1])
-                resource_filename = starship_el['Resource']['Filename']
-                
-                logger.debug(f"***name before: {name}") 
-                logger.debug(f"   seed before: {seed}") 
-                            
-                reference = ""
-                
-                if "SENTINEL" in resource_filename:
-                    reference = self.return_json_from_file('reference_sentinel.json')
-                    logger.verbose(f"   ship_type: SENTINEL")
-                
-                elif "DROPSHIP" in resource_filename:
-                    reference = self.return_json_from_file('reference_hauler.json')
-                    logger.verbose(f"   ship_type: DROPSHIP")
-                
-                elif "BIOSHIP" in resource_filename: 
-                    reference = self.return_json_from_file('reference_living.json')
-                    logger.verbose(f"   ship_type: LIVING")
-
-                elif "SCIENTIFIC" in resource_filename:
-                    reference = self.return_json_from_file('reference_explorer.json')
-                    logger.verbose(f"   ship_type: EXPLORER")                    
-
-                elif "SHUTTLE" in resource_filename:                          
-                    reference = self.return_json_from_file('reference_shuttle.json')
-                    logger.verbose(f"   ship_type: SHUTTLE")
-                    
-                elif "FIGHTER" in resource_filename:
-                    reference = self.return_json_from_file('reference_fighter.json')
-                    logger.verbose(f"   ship_type: FIGHTER")
-                
-                elif "SAILSHIP" in resource_filename:
-                    reference = self.return_json_from_file('reference_solar.json')
-                    logger.verbose(f"   ship_type: SOLAR")
-
-                elif "S-CLASS" in resource_filename:
-                    reference = self.return_json_from_file('reference_royal.json')
-                    logger.verbose(f"   ship_type: ROYAL")
-                    
-                else:
-                    print ('ERROR')
-                    
-                #assuming we found a valid data for each starship. Shouldn't need to deep copy, really anywhere in here but something was screwing up, so it can't hurt anything either:
-                starship_el = copy.deepcopy(reference)
-                logger.verbose(f"   >>>name (reference ship's) after overwrite: {starship_el['Name']}")
-                logger.verbose(f"   >>>seed (reference ship's) after overwrite: {starship_el['Resource']['Seed']}")
-                
-                starship_el['Name'] = name
-                starship_el['Resource']['Seed'][1] = seed
-                
-                model_json[checkbox.property('starshipListIdx')] = starship_el
-                
-                #logger.verbose(json.dumps(starship_el,indent = 4) + ',')            
-                
-                logger.debug(f"   final name: {starship_el['Name']}")
-                logger.debug(f"   final seed: {starship_el['Resource']['Seed']}")
-            
-            self.view.set_json(model_json)
-
-            QMessageBox.information(None, "Starships Upgraded", "Your selected starships have been Upgraded:\n\n" + upgraded_starship_names)
-
-        logger.debug("4th tab upgrade_starships() EXIT")
+        run_starship_upgrade(self)  # Preserve the active context, existing equipment and separate save action.
         
     def tree_widget_data_to_json(self, node_in = None):
         def parse_item(tree_node, depth):
