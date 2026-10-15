@@ -41,6 +41,23 @@ class IniFileManager:
         # Publish the new in-memory state only after the file replacement succeeds.
         self.config = updated
 
+    # get_inventory_organizer_settings: Read organizer JSON without touching legacy settings.
+    def get_inventory_organizer_settings(self):
+        try:
+            value = self.config.get('InventoryOrganizer', 'settings', fallback='{}', raw=True)
+            return json.loads(value)
+        except (ValueError, TypeError, configparser.Error):
+            return {}  # Individual malformed fields also receive safe dialog defaults.
+
+    # store_inventory_organizer_settings: Atomically stage this dedicated section only.
+    def store_inventory_organizer_settings(self, settings):
+        updated = copy.deepcopy(self.config)  # Preserve the singleton on failed writes.
+        if not updated.has_section('InventoryOrganizer'):
+            updated.add_section('InventoryOrganizer')
+        updated.set('InventoryOrganizer', 'settings', json.dumps(settings, ensure_ascii=True))
+        self._write_nms_preferences(updated)  # Existing atomic sibling replacement.
+        self.config = updated  # Publish only after successful replacement.
+
     # _write_nms_preferences
     # Writes a complete staged config through a temporary sibling, cleaning up on failure.
     def _write_nms_preferences(self, updated):

@@ -24,6 +24,8 @@ class ThirdTabContent(BaseTabContent):
 ###
         self.inventory_sort_button = QPushButton("Inventory Sorter")
         self.inventory_sort_button.setFixedWidth(self.button_width)
+        self.inventory_organizer_button = QPushButton("Inventory Organizer")  # Separate candidate; preserve legacy sorter.
+        self.inventory_organizer_button.setFixedWidth(self.button_width)
 ###        
         # Create tree widget and text edit
         #self.tree_widget = QTreeWidget()
@@ -39,6 +41,7 @@ class ThirdTabContent(BaseTabContent):
         # Sync to Node View now sits beside Pretty Print in the Raw JSON pane.
         # The existing sync button stays here; its LED is beside Raw JSON.
         left_buttons_lo.addWidget(self.inventory_sort_button)
+        left_buttons_lo.addWidget(self.inventory_organizer_button)  # Side-by-side independent organizer entry point.
         # Set alignment
         left_buttons_lo.setAlignment(Qt.AlignLeft)
 ###
@@ -122,6 +125,7 @@ class ThirdTabContent(BaseTabContent):
         # Connect buttons to methods
         self.sync_tree_from_text_window_button.clicked.connect(self.sync_tree_from_text_window)
         self.inventory_sort_button.clicked.connect(self.inventory_sort_button_clicked)
+        self.inventory_organizer_button.clicked.connect(self.inventory_organizer_button_clicked)  # Lazy-load the separate candidate.
         self.import_button.clicked.connect(lambda: self.paste_to_text_window(self))
         self.export_button.clicked.connect(lambda: self.copy_to_clipboard(self))
         self.pretty_print_button.clicked.connect(lambda: self.pretty_print_text_widget(self.model, self))
@@ -160,6 +164,14 @@ class ThirdTabContent(BaseTabContent):
     def repaint_tree(self):
         logger.debug(f"repainting tree...")
         self.tree_widget.repaint()
+
+    # inventory_organizer_button_clicked: Open a separate memory-only organizer; leave the legacy sorter unchanged.
+    def inventory_organizer_button_clicked(self):
+        try:  # Preflight failures must preserve pending raw text and report without opening a dialog.
+            from InventoryOrganizerDialog import InventoryOrganizerDialog  # Keep candidate dependencies lazy.
+            InventoryOrganizerDialog(self).exec_()  # Cancel/Close cannot publish app-data changes.
+        except Exception as error:
+            QMessageBox.warning(self, "Inventory Organizer", str(error))  # Report actual preflight/import failures.
 
     def inventory_sort_button_clicked(self):
         logger.debug("3rd tab inventory_sort_button_clicked() ENTER")
