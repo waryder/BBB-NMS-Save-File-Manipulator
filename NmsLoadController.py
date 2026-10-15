@@ -303,7 +303,7 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
     # confirm_legacy_json_write: Keep legacy JSON saving separate from same-file live NMS saving.
     def confirm_legacy_json_write(self):
         if self.nms_source is not None:  # Loaded NMS sources must not be exported over a live .hg as plaintext.
-            QMessageBox.warning(self, "Use File Save for NMS", "Use File > Save to write this loaded NMS context to its original live file. Save As is a legacy JSON operation and cannot redirect an NMS save.")  # Keep live targeting fixed.
+            QMessageBox.warning(self, "Use File Save for NMS", "Use File > Save NMS Save File to write this loaded NMS context to its original live file. Save As is a legacy JSON operation and cannot redirect an NMS save.")  # Match the renamed menu action; keep live targeting fixed.
             self._nms_trace("legacy_save_blocked", slot=self.nms_source["slot"])  # Never falsely clear the LED.
             return False  # No JSON or live data write.
         reply = QMessageBox.warning(self, "Confirm JSON disk write", "About to write a JSON file and update its file-path preference. This is NOT an NMS live save. Continue?", QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Cancel)  # Consent before existing save dialog.

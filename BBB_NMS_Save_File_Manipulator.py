@@ -88,20 +88,18 @@ class MainWindow(NmsLoadController, QMainWindow):  # Add direct-save loading wit
             QApplication.quit()  # Uncomment to clean up QT
             sys.exit()  # Immediately exit the program
 
-        # Create the new "Open NMS Save File" button; it sits first in the top button row
-        self.open_save_file_button = QPushButton("Open NMS Save File")
-        # Match the fixed width of the other two buttons in the row
-        self.open_save_file_button.setFixedWidth(250)
 
         self.import_button = QPushButton("Import 'BaseContext' Json from Clipboard")
         self.import_button.setFixedWidth(250)
 
-        self.export_button = QPushButton("Export 'BaseContext' Json to Clipboard")
-        self.export_button.setFixedWidth(250)
+
 
         ###
         self.current_task_label = QLabel("Current Task Info: ", self)  # Always retain Bill's exact prefix.
-        self.current_task_info = QLabel("", self)  # Idle is blank; do not repeat the loaded/saved/sync LEDs.
+        task_label_font = self.current_task_label.font()  # Copy only the prefix label's font.
+        task_label_font.setBold(True)  # Bold the prefix, not the separate task text.
+        self.current_task_label.setFont(task_label_font)  # Leave current_task_info unchanged.
+        self.current_task_info = QLabel("Dummy Data Loaded; use File->Open to get started", self)  # Startup guidance only; normal task/load updates still replace this text.
 
         # Create the tab widget
         self.tabs = QTabWidget()
@@ -140,11 +138,10 @@ class MainWindow(NmsLoadController, QMainWindow):  # Add direct-save loading wit
 
         # Create a horizontal layout for the buttons
         button_layout = QHBoxLayout()
-        # New button goes first, to the left of the Import button
-        button_layout.addWidget(self.open_save_file_button)
+
         # Direct NMS slot loading replaces the clipboard-import button in the main workflow.
         # Keep the legacy handler available without exposing it as an independent live-load path.
-        button_layout.addWidget(self.export_button)
+
         ###
         status_layout = QHBoxLayout()
         status_layout.addWidget(self.current_task_label)  # Text replaces the old thread-count LED.
@@ -176,10 +173,9 @@ class MainWindow(NmsLoadController, QMainWindow):  # Add direct-save loading wit
         # Create menu bar
         self.create_menu_bar()
 
-        # Wire the new button to its (stub) popup handler
-        self.open_save_file_button.clicked.connect(self.open_save_file_button_clicked)
+
         self.import_button.clicked.connect(self.import_button_clicked)
-        self.export_button.clicked.connect(self.export_button_clicked)
+
 
         # Emit signal for background processing
         self.background_processing_signal.emit(5, "Main Window")
@@ -202,11 +198,11 @@ class MainWindow(NmsLoadController, QMainWindow):  # Add direct-save loading wit
         loop.exec_()  # This will block until `loop.quit()` is called
 
     # open_save_file_button_clicked
-    # Opens the (not yet designed) "Open NMS Save File" popup. Stub only for now.
+    # Open the existing NMS slot-selection dialog for the File-menu action.
     def open_save_file_button_clicked(self):
-        # Build the stub popup, parented to the main window so it centers over it
+        # Parent the existing dialog to the main window.
         dialog = OpenNmsSaveFileDialog(self)
-        # Show it modally; the return value is ignored until the popup is designed
+        # Run the existing modal load/backup workflow unchanged.
         dialog.exec_()
 
     def import_button_clicked(self):
@@ -266,22 +262,43 @@ class MainWindow(NmsLoadController, QMainWindow):  # Add direct-save loading wit
 
         file_menu = menu_bar.addMenu('File')
 
-        open_action = QAction('Open', self)
-        save_action = QAction('Save', self)
-        save_as_action = QAction('Save As', self)
+        open_action = QAction('Open NMS Save File', self)  # Keep the existing open handler.
+        save_action = QAction('Save NMS Save File', self)  # Keep the existing save handler.
+
         
         open_action.triggered.connect(self.open_file)
         save_action.triggered.connect(self.save_file)
-        save_as_action.triggered.connect(self.save_file_as)
+
         
         file_menu.addAction(open_action)
         file_menu.addAction(save_action)
-        file_menu.addAction(save_as_action)
+        self.create_tools_menu(menu_bar)  # Insert Tools between File and Help.
                 
         self.help_menu = NMSHelpMenu(self)  # Create an instance of the HelpMenu
         self.help_menu.create_help_menu(menu_bar)  # Add the Help menu to the menu bar
                 
-    # open_file: Route File/Open through the same slot-level NMS workflow as the main button.
+    # create_tools_menu: Keep clipboard export live and expose safe folder-operation placeholders.
+    def create_tools_menu(self, menu_bar):
+        tools_menu = menu_bar.addMenu('Tools')  # Created before Help to preserve the requested order.
+        export_action = QAction("Export 'BaseContext' JSON to Clipboard", self)  # Retain the exact export label.
+        backup_action = QAction('Back Up Entire Save Folder', self)  # Folder backup is not implemented yet.
+        restore_action = QAction('Restore/Replace Entire Live Save Folder', self)  # Folder restore is not implemented yet.
+        export_action.triggered.connect(self.export_button_clicked)  # Reuse the unchanged live export handler.
+        backup_action.triggered.connect(self.back_up_save_folder_stub)  # Display a notice only.
+        restore_action.triggered.connect(self.restore_save_folder_stub)  # Display a notice only.
+        tools_menu.addAction(export_action)  # Export stays first under Tools.
+        tools_menu.addAction(backup_action)  # Backup follows export.
+        tools_menu.addAction(restore_action)  # Restore follows backup.
+
+    # back_up_save_folder_stub: Explain the placeholder without reading or writing saves.
+    def back_up_save_folder_stub(self):
+        QMessageBox.information(self, 'Back Up Save Folder', 'Not implemented yet. No files have been changed.')  # Notice only.
+
+    # restore_save_folder_stub: Explain the placeholder without reading or writing saves.
+    def restore_save_folder_stub(self):
+        QMessageBox.information(self, 'Restore Save Folder', 'Not implemented yet. No files have been changed.')  # Notice only.
+
+    # open_file: Keep the File-menu action on the existing slot-level NMS workflow.
     def open_file(self):
         self.open_save_file_button_clicked()  # Never import unrelated JSON over a retained live target.
 
