@@ -1,4 +1,5 @@
 from imports import *
+from NodeViewSyncDialog import node_view_sync_progress  # Show processing before deletion; nested sync calls reuse it.
 from JsonTextNavigation import JsonNavigationError, TreeJsonNavigation  # Shared read-only structural navigation.
 
 class DeleteTreeNodesSelectedDialog(QDialog):
@@ -314,31 +315,33 @@ class CustomTreeWidget(QTreeWidget):
         # Show the dialog and capture the response (OK or Cancel)
         if dialog.exec_() == QDialog.Accepted:
             logger.debug("OK button clicked")
-            self.parent.update_tree_synced_indicator(False)
-            self.parent.set_led_based_on_app_thread_load()
+            with node_view_sync_progress(self.parent.main_window):  # Paint immediately after confirmation, before LED/model/tree work.
+                self.parent.update_tree_synced_indicator(False)
+                self.parent.set_led_based_on_app_thread_load()
+                self.parent.blockSignals()  # Preserve the existing signal isolation.
+                try:
 
-            self.parent.blockSignals()
-            
-            for item in self.right_button_selected_nodes:
-                # Check if the item has a parent
-                parent = item.parent()
+                    for item in self.right_button_selected_nodes:
+                        # Check if the item has a parent
+                        parent = item.parent()
 
-                if parent is not None:
-                    # If the item has a parent, remove it from the parent
-                    
-                    #parent.removeChild(item)
-                    safe_remove_qtreewidget_node(item)
-                else:
-                    # If no parent, the item is a top-level node
-                    index = self.indexOfTopLevelItem(item)
-                    if index != -1:
-                        self.takeTopLevelItem(index)
+                        if parent is not None:
+                            # If the item has a parent, remove it from the parent
 
-            # Clear the selection list after deletion
-            self.right_button_selected_nodes.clear()
+                            #parent.removeChild(item)
+                            safe_remove_qtreewidget_node(item)
+                        else:
+                            # If no parent, the item is a top-level node
+                            index = self.indexOfTopLevelItem(item)
+                            if index != -1:
+                                self.takeTopLevelItem(index)
 
-            self.tree_nodes_changed_emits()
-            self.parent.unblockSignals()
+                    # Clear the selection list after deletion
+                    self.right_button_selected_nodes.clear()
+
+                    self.tree_nodes_changed_emits()
+                finally:
+                    self.parent.unblockSignals()  # Restore signals before the outer popup owner dismisses the notice.
             
         else:
             logger.debug("Cancel button clicked")

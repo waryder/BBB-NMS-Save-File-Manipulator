@@ -1,18 +1,12 @@
 # File: NmsSlotOperations.py
 # Path: C:\MBIN_PROJECTS\Working_Projects\BBB-NMS-Save-File-Manipulator\NmsSlotOperations.py
-# Purpose: Read-only slot snapshots, memory-only ZIP loading/decoding, and explicitly confirmed backups.
+# Purpose: Read-only live-slot snapshots, metadata selection and selected-context decoding.
 from __future__ import annotations  # Keep type annotations independent of import order.
 
 import copy  # Isolate the application's editable selected context from the full codec tree.
-import datetime  # Name backups using local wall-clock time only.
 import hashlib  # Identify original save and metadata bytes without disclosing contents.
-import io  # Construct and inspect ZIP archives entirely in memory.
-import os  # Resolve identity paths and commit explicitly approved backups.
-import re  # Sanitize backup names for Windows.
-import stat  # Reject ZIP members representing directories or symbolic links.
+import os  # Resolve retained live-save identity paths.
 import struct  # Read metadata fields at their established offsets.
-import tempfile  # Stage backups in a unique sibling file.
-import zipfile  # Validate and create exact four-member slot archives.
 from nms_save_codec import meta_info  # Reuse the authoritative metadata offsets.
 from nms_save_codec.constants import KNOWN_META_LENGTHS, META_HEADER, SAVE_STREAMING_HEADER, SAVE_STREAMING_HEADER_LENGTH, SAVE_STREAMING_CHUNK_LENGTH_MAX  # Validate metadata and bounded chunk declarations.
 from nms_save_codec.save_file import NmsSaveFile  # Use the existing save decoding pipeline.
@@ -22,9 +16,8 @@ from nms_save_codec.xxtea import decrypt_meta  # Decrypt supplied metadata bytes
 DEBUG_ENABLED = True  # Global switch for every non-error trace issued by this module/API.
 DEBUG_PREFIX = "[BBB-NMS-SFM/{file_name}]"  # Include project and extension-free source identity in stdout.
 TIE_MESSAGE = 'the auto and manual save files appear to have the same timestamp; Hit Ok to load the manual save or Cancel to abandon this load'  # Preserve the required confirmation text exactly.
-MAX_FILE_BYTES = 64 * 1024 * 1024  # Bound each original archive/live member.
+MAX_FILE_BYTES = 64 * 1024 * 1024  # Bound each original live member.
 MAX_TOTAL_BYTES = 128 * 1024 * 1024  # Bound aggregate uncompressed original bytes.
-MAX_ARCHIVE_BYTES = MAX_TOTAL_BYTES + 1024 * 1024  # Bound archive input including ZIP headers.
 
 
 # Function: trace; Purpose: Print structured non-error events behind the shared switch.
@@ -54,17 +47,6 @@ def slot_filenames(slot: int) -> tuple[str, str]:
 def _member_names(slot: int) -> tuple[str, ...]:
     auto, manual = slot_filenames(slot)  # Validate the game slot and derive data filenames.
     return auto, manual, "mf_" + auto, "mf_" + manual  # Require both data files and both metadata siblings.
-
-
-# Function: _slot_from_names; Purpose: Infer a slot solely from an exact canonical four-member filename set.
-def _slot_from_names(names) -> int:
-    names = list(names)  # Preserve duplicates for rejection rather than silently collapsing them.
-    if len(names) != 4 or len(set(names)) != 4:  # Reject extras, missing members, and duplicate names.
-        raise ValueError("a slot archive must contain exactly four distinct root files")  # Explain the required shape.
-    for slot in range(1, 16):  # Compare against every supported canonical game slot.
-        if set(names) == set(_member_names(slot)):  # Exact matching rejects paths, case variants, aliases, and mixed slots.
-            return slot  # The canonical filenames alone establish identity.
-    raise ValueError("members must be the four canonical root files of one slot")  # Never infer identity from archive titles.
 
 
 # Function: _bounded_read; Purpose: Read at most one accepted file's bytes and reject overflow.
@@ -138,7 +120,7 @@ def _snapshot(slot: int, members: dict[str, bytes], **identity) -> dict:
 # Function: read_live_slot; Purpose: Read only four canonical files into an independent in-memory snapshot.
 def read_live_slot(folder: str, slot: int) -> dict:
     names = _member_names(slot)  # Validate before any file I/O.
-    folder = os.path.abspath(os.fspath(folder))  # Retain an absolute live-folder identity for future decode/backup safety.
+    folder = os.path.abspath(os.fspath(folder))  # Retain an absolute live-folder identity for future decode/save safety.
     members = {}  # Collect all four originals without modifying their sources.
     total = 0  # Track aggregate allocation as each member arrives.
     for name in names:  # Read exactly the four requested slot members.
@@ -153,42 +135,6 @@ def read_live_slot(folder: str, slot: int) -> dict:
                 raise ValueError("live save files changed while being read; retry when the game is not saving")  # Avoid a mixed snapshot.
     trace("NmsSlotOperations", "read_live_slot", slot=slot, folder=folder, bytes=total, stable_double_read=True)  # Report read-only completion.
     return _snapshot(slot, members, live_folder=folder)  # Require both valid metadata timestamps before returning.
-
-
-# Function: _zip_members; Purpose: Validate and read exactly four original ZIP members without extracting them.
-def _zip_members(archive: zipfile.ZipFile) -> tuple[int, dict[str, bytes]]:
-    entries = archive.infolist()  # Preserve duplicate entries and their header sizes.
-    slot = _slot_from_names(entry.filename for entry in entries)  # Reject extras, paths, missing files, and mixed slots.
-    total = 0  # Bound aggregate declared uncompressed size.
-    for entry in entries:  # Validate every header before reading compressed contents.
-        mode = entry.external_attr >> 16  # Inspect Unix file type if it was recorded.
-        if entry.flag_bits & 1 or entry.is_dir() or stat.S_IFMT(mode) not in (0, stat.S_IFREG):  # Reject encryption, directories, and links.
-            raise ValueError("ZIP members must be unencrypted regular root files")  # Refuse unsafe member identities.
-        if not 0 < entry.file_size <= MAX_FILE_BYTES:  # Enforce the per-member declared-size limit.
-            raise ValueError("ZIP member is empty or exceeds the 64 MiB limit")  # Stop decompression before oversized allocations.
-        total += entry.file_size  # Add declared uncompressed bytes.
-    if total > MAX_TOTAL_BYTES:  # Enforce the aggregate declared-size limit before decompression.
-        raise ValueError("ZIP originals exceed the 128 MiB total limit")  # Refuse ZIP bombs by total size.
-    members = {}  # Collect exact decompressed member bytes in memory only.
-    for entry in entries:  # Reading to EOF causes zipfile to validate each member's CRC.
-        with archive.open(entry, "r") as handle:  # Never call extract or create files from archive contents.
-            members[entry.filename] = _bounded_read(handle)  # Independently bound actual decompressed content.
-        if len(members[entry.filename]) != entry.file_size:  # Verify actual bytes agree with the member header.
-            raise ValueError("ZIP member length disagrees with its header")  # Reject corrupt/inconsistent content.
-    return slot, members  # Return canonical identity and originals, never archive-title identity.
-
-
-# Function: read_zip_slot; Purpose: Load a bounded ZIP file into memory and return a strictly validated slot snapshot.
-def read_zip_slot(path: str) -> dict:
-    path = os.path.abspath(os.fspath(path))  # Preserve the archive source for trace and UI identity.
-    with open(path, "rb") as handle:  # Read only the selected archive; never extract to the save folder.
-        blob = handle.read(MAX_ARCHIVE_BYTES + 1)  # Bound the whole archive, including central-directory overhead.
-    if len(blob) > MAX_ARCHIVE_BYTES:  # Refuse oversized compressed/container input.
-        raise ValueError("ZIP archive exceeds the input-size limit")  # Fail before parsing its directory.
-    with zipfile.ZipFile(io.BytesIO(blob), "r") as archive:  # Parse from memory, allowing zipfile corruption errors to propagate.
-        slot, members = _zip_members(archive)  # Derive the slot exclusively from canonical root member names.
-    trace("NmsSlotOperations", "read_zip_slot", slot=slot, path=path, archive_hash=hashlib.sha256(blob).hexdigest())  # Trace archive identity only.
-    return _snapshot(slot, members, zip_path=path)  # Preserve both original data/meta pairs exactly.
 
 
 # Function: select_slot_file; Purpose: Choose the latest embedded metadata time or explicitly confirm Manual on a tie.
@@ -213,7 +159,7 @@ def _resolve_context_key(tree) -> str:
             raise ValueError("ActiveContext is missing with ExpeditionContext present; context is ambiguous")  # Never guess Main.
         key, marker, decision = "BaseContext", "absent", "legacy Main-only"  # Preserve old BaseContext-only saves.
     else:  # Explicit markers must select exactly one supported branch.
-        marker = tree["ActiveContext"]  # Use selected decoded data, never metadata game mode or archive identity.
+        marker = tree["ActiveContext"]  # Use selected decoded data, never metadata game mode.
         if type(marker) is not str or marker not in ("Main", "Season"):  # Reject null, empty, compound and unknown markers.
             raise ValueError("ActiveContext must be exactly Main or Season; explicit context is unsupported or ambiguous")  # Do not log raw malformed data.
         key = "ExpeditionContext" if marker == "Season" else "BaseContext"  # Main wins even when expedition data remains.
@@ -255,98 +201,3 @@ def decode_record(record: dict, live_folder: str) -> dict:
     meta_hash = hashlib.sha256(record["meta_bytes"]).hexdigest()  # Fingerprint the original encrypted metadata bytes.
     trace("NmsSlotOperations", "decode_record", slot=slot, file_name=name, context_key=context_key, unknown_keys=len(codec.unknown_keys), data_hash=data_hash, meta_hash=meta_hash)  # Trace selected identity and counts, never JSON.
     return {"codec": codec, "tree": tree, "context_key": context_key, "base_context": copy.deepcopy(base), "file_name": name, "meta_name": "mf_" + name, "slot": slot, "live_folder": folder, "data_path": data_path, "meta_path": meta_path, "data_hash": data_hash, "meta_hash": meta_hash}  # base_context is a compatibility field for the selected whole context, not necessarily Main.
-
-
-# Function: backup_name; Purpose: Suggest a Windows-safe backup name using the longer original summary and local datetime.
-def backup_name(snapshot: dict) -> str:
-    checked = _snapshot(snapshot["slot"], snapshot["members"])  # Base naming on the original metadata, not arbitrary UI labels.
-    summary = max((record["meta"]["summary"] for record in checked["files"]), key=len)  # Choose the longer of Auto and Manual summaries.
-    fragment = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", summary[:10]).rstrip(" .") or "save"  # Sanitize the first ten summary characters for Windows.
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")  # Use local time for naming, never for file selection.
-    return f"slot{snapshot['slot']}_{fragment}_{timestamp}.zip"  # Do not create a backup or directory merely to suggest a name.
-
-
-# Function: zip_bytes; Purpose: Build an in-memory backup containing only the exact four original encrypted/data members.
-def zip_bytes(snapshot: dict) -> bytes:
-    checked = _snapshot(snapshot["slot"], snapshot["members"])  # Require a complete validated snapshot before archiving it.
-    buffer = io.BytesIO()  # Keep all archive construction in memory.
-    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_STORED) as archive:  # Preserve original content without recompression complexity.
-        for name in _member_names(checked["slot"]):  # Use the canonical four-member order with no extra manifest.
-            archive.writestr(name, checked["members"][name])  # Store byte-identical originals under their exact canonical names.
-    blob = buffer.getvalue()  # Obtain the finished archive without any disk side effects.
-    trace("NmsSlotOperations", "zip_bytes", slot=checked["slot"], bytes=len(blob), archive_hash=hashlib.sha256(blob).hexdigest())  # Trace archive size and identity.
-    return blob  # Caller decides whether and where an explicitly approved backup is written.
-
-
-# Function: _backup_target; Purpose: Reject any destination resolving inside a known live-save directory.
-def _backup_target(path: str, snapshot: dict) -> str:
-    target = os.path.abspath(os.fspath(path))  # Return an absolute identity while checking resolved paths separately.
-    if snapshot.get("live_folder"):  # Live snapshots carry the protected source folder.
-        live = os.path.normcase(os.path.realpath(snapshot["live_folder"]))  # Resolve aliases and Windows case differences.
-        resolved = os.path.normcase(os.path.realpath(target))  # Resolve destination parent links before comparing directories.
-        try:  # Different drives do not have a common path.
-            inside = os.path.commonpath((live, resolved)) == live  # Include the folder itself and every descendant.
-        except ValueError:  # A destination on another drive cannot be inside the live folder.
-            inside = False  # Permit only the genuinely separate destination.
-        if inside:  # Never place backup files, staging files, or directories inside live saves.
-            raise ValueError("backup destination must be outside the live save folder")  # Refuse before creating anything.
-    return target  # Preserve the caller's absolute selected target path.
-
-
-# Function: _verify_backup; Purpose: Read back an on-disk backup and require exact membership and original-byte equality.
-def _verify_backup(path: str, snapshot: dict) -> None:
-    with zipfile.ZipFile(path, "r") as archive:  # Read the exact written file, never extract it.
-        slot, members = _zip_members(archive)  # Validate membership, CRCs, sizes, and regular-file structure.
-    if slot != snapshot["slot"] or members != snapshot["members"]:  # Verify every original byte, not just a digest.
-        raise ValueError("written backup does not match the original slot snapshot")  # Do not report success after a partial/corrupt write.
-
-
-# Function: _commit_backup; Purpose: Atomically replace an approved target or create a new target exclusively.
-def _commit_backup(temporary: str, target: str, blob: bytes, overwrite: bool) -> None:
-    if overwrite:  # Replacement is available only when explicitly requested with confirmation.
-        os.replace(temporary, target)  # Atomically commit the verified sibling archive, including existing targets.
-    else:  # Never silently overwrite a file created since the UI's existence check.
-        created = False  # Distinguish our new output from a preexisting race winner.
-        try:  # Clean up only a target successfully created by this operation.
-            with open(target, "xb") as handle:  # Exclusive creation prevents race overwrites on Windows/network shares.
-                created = True  # Record ownership only after exclusive creation succeeds.
-                handle.write(blob)  # Write the archive already staged and verified in the sibling file.
-                handle.flush()  # Flush Python buffers before validating the output.
-                os.fsync(handle.fileno())  # Ask the filesystem to persist the committed bytes.
-        except BaseException:  # Cleanup also applies to interrupted partial writes.
-            if created:  # Never remove someone else's target on a FileExistsError.
-                os.unlink(target)  # Remove our partial exclusive output.
-            raise  # Preserve the original write failure.
-
-
-# Function: write_backup; Purpose: Write and verify a backup only after explicit confirmation, outside any known live folder.
-def write_backup(path: str, snapshot: dict, confirmed: bool = False, overwrite: bool = False) -> str:
-    if confirmed is not True:  # Require actual True rather than a truthy flag/string.
-        raise PermissionError("backup writing requires confirmed=True")  # Fail before directory creation, staging, or output.
-    target = _backup_target(path, snapshot)  # Apply live-folder protection before any write.
-    blob = zip_bytes(snapshot)  # Construct and validate originals in memory before disk side effects.
-    if not overwrite and os.path.lexists(target):  # Quickly reject an already occupied target without staging.
-        raise FileExistsError(target)  # Existing targets require explicit overwrite=True as well as confirmation.
-    parent = os.path.dirname(target)  # Stage on the same filesystem as the chosen target.
-    os.makedirs(parent, exist_ok=True)  # Create the selected backup directory only after explicit confirmation.
-    temporary = None  # Track the sibling temporary file for guaranteed cleanup.
-    committed = False  # Only remove failed output after this operation actually created/replaced it.
-    try:  # Verify staging and final output before reporting success.
-        with tempfile.NamedTemporaryFile(prefix=".nms-slot-", suffix=".tmp", dir=parent, delete=False) as handle:  # Allocate a unique sibling staging file.
-            temporary = handle.name  # Retain its exact path for cleanup and atomic replacement.
-            handle.write(blob)  # Stage the complete in-memory archive.
-            handle.flush()  # Flush buffered writes before persistence and verification.
-            os.fsync(handle.fileno())  # Persist the staged bytes before committing them.
-        _verify_backup(temporary, snapshot)  # Read back the exact staged member contents.
-        _commit_backup(temporary, target, blob, overwrite)  # Atomically replace or create the target exclusively.
-        committed = True  # Track ownership of the successfully committed output.
-        _verify_backup(target, snapshot)  # Read back the actual final target before claiming success.
-    except BaseException:  # Clean failed staging and any newly committed invalid output.
-        if committed and os.path.isfile(target):  # Do not touch a preexisting target when exclusive creation failed.
-            os.unlink(target)  # Remove a committed archive that failed final verification.
-        raise  # Surface errors rather than disguising failure as a successful backup.
-    finally:  # Staging files never survive success or failure.
-        if temporary is not None and os.path.exists(temporary):  # Atomic replacement may have already consumed staging.
-            os.unlink(temporary)  # Remove the remaining sibling temporary file.
-    trace("NmsSlotOperations", "write_backup_verified", slot=snapshot["slot"], path=target, overwrite=overwrite, archive_hash=hashlib.sha256(blob).hexdigest())  # Trace only fully verified output.
-    return target  # Return the exact absolute final backup path.

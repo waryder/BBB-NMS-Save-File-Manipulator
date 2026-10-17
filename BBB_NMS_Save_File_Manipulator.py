@@ -1,5 +1,6 @@
 from PyQt5.QtWidgets import QApplication, QWidget
 import sys, os
+import signal  # Route catchable Python termination signals through the normal close confirmation.
 
 #Qt debug output:
 #os.environ["QT_DEBUG_PLUGINS"] = "1"  # Enable debug logging for Qt plugins
@@ -19,7 +20,9 @@ from IniFileManager import *
 from LoadDataDialog import LoadDataDialog
 from OpenNmsSaveFileDialog import OpenNmsSaveFileDialog
 from init_text import INIT_TEXT
-from NmsLoadController import NmsLoadController  # Row-40 loading, target tracking and confirmed backup handling.
+from NmsLoadController import NmsLoadController  # Live loading/saving and retained target tracking.
+from FullLiveSaveBackupController import FullLiveSaveBackupController  # Confirmed full-directory backups, independent of editor data.
+from FullLiveSaveRestoreDialog import show_restore_instructions  # Copyable manual guidance; never executes a restore.
 
 # Fallback switch: True restores the original startup LoadDataDialog popup (and its loading popup).
 # False (default) opens the main window directly with the built-in placeholder data.
@@ -152,6 +155,7 @@ class MainWindow(NmsLoadController, QMainWindow):  # Add direct-save loading wit
 
         # Add the button layout to the main layout
         main_layout.addLayout(button_layout)
+        main_layout.addSpacing(self.fontMetrics().lineSpacing())  # One blank text line below Current Task Info.
         file_state_layout = QHBoxLayout()  # Keep both independent file-state indicators on the same line.
         file_state_layout.addWidget(self.live_save_loaded_indicator)  # LED precedes the loaded-source label.
         file_state_layout.addWidget(self.live_save_loaded_label)  # Keep Bill's exact label.
@@ -160,6 +164,7 @@ class MainWindow(NmsLoadController, QMainWindow):  # Add direct-save loading wit
         file_state_layout.addWidget(self.data_has_been_saved_label)  # No trailing message or identity text occupies this row.
         file_state_layout.addStretch()  # Left-aligned status.
         main_layout.addLayout(file_state_layout)  # Separate row avoids excessive top-button width.
+        main_layout.addSpacing(self.fontMetrics().lineSpacing())  # One blank text line below Live Save Loaded.
         main_layout.addWidget(self.tabs)  # Add the tab widget below the buttons
 
         # Set the layout for the central widget and set it as the central widget of the main window
@@ -202,7 +207,7 @@ class MainWindow(NmsLoadController, QMainWindow):  # Add direct-save loading wit
     def open_save_file_button_clicked(self):
         # Parent the existing dialog to the main window.
         dialog = OpenNmsSaveFileDialog(self)
-        # Run the existing modal load/backup workflow unchanged.
+        # Run the existing modal live-slot loading workflow.
         dialog.exec_()
 
     def import_button_clicked(self):
@@ -272,31 +277,36 @@ class MainWindow(NmsLoadController, QMainWindow):  # Add direct-save loading wit
         
         file_menu.addAction(open_action)
         file_menu.addAction(save_action)
+        self.create_full_live_save_actions(file_menu)  # Full backup and the retained restore placeholder belong to File.
         self.create_tools_menu(menu_bar)  # Insert Tools between File and Help.
                 
         self.help_menu = NMSHelpMenu(self)  # Create an instance of the HelpMenu
         self.help_menu.create_help_menu(menu_bar)  # Add the Help menu to the menu bar
                 
-    # create_tools_menu: Keep clipboard export live and expose safe folder-operation placeholders.
+    # create_full_live_save_actions: Connect full backup while leaving full restore as a notice-only stub.
+    def create_full_live_save_actions(self, file_menu):
+        file_menu.addSeparator()  # Separate future full-save operations from current load/save actions.
+        backup_action = QAction('Full Live Save Backup', self)  # Preserve Bill's exact menu label.
+        restore_action = QAction('Full Live Save Restore', self)  # Preserve Bill's exact menu label.
+        backup_action.triggered.connect(self.full_live_save_backup)  # Confirm before any backup output is created.
+        restore_action.triggered.connect(self.full_live_save_restore_stub)  # Notice only; no save access.
+        file_menu.addAction(backup_action)  # Backup appears before Restore.
+        file_menu.addAction(restore_action)  # No picker or disk operation is attached.
+
+    # full_live_save_backup: Back up the full live source tree without saving unsaved editor data.
+    def full_live_save_backup(self):
+        return FullLiveSaveBackupController(self).run()  # Save/Cancel and output verification belong to the controller.
+
+    # full_live_save_restore_stub: Show manual instructions only; retain existing menu callback compatibility.
+    def full_live_save_restore_stub(self):
+        return show_restore_instructions(self)  # Select/copy/close only; no deletion or copy is executed.
+
+    # create_tools_menu: Keep clipboard export under Tools; full live backup/restore belong under File.
     def create_tools_menu(self, menu_bar):
         tools_menu = menu_bar.addMenu('Tools')  # Created before Help to preserve the requested order.
         export_action = QAction("Export 'BaseContext' JSON to Clipboard", self)  # Retain the exact export label.
-        backup_action = QAction('Back Up Entire Save Folder', self)  # Folder backup is not implemented yet.
-        restore_action = QAction('Restore/Replace Entire Live Save Folder', self)  # Folder restore is not implemented yet.
         export_action.triggered.connect(self.export_button_clicked)  # Reuse the unchanged live export handler.
-        backup_action.triggered.connect(self.back_up_save_folder_stub)  # Display a notice only.
-        restore_action.triggered.connect(self.restore_save_folder_stub)  # Display a notice only.
-        tools_menu.addAction(export_action)  # Export stays first under Tools.
-        tools_menu.addAction(backup_action)  # Backup follows export.
-        tools_menu.addAction(restore_action)  # Restore follows backup.
-
-    # back_up_save_folder_stub: Explain the placeholder without reading or writing saves.
-    def back_up_save_folder_stub(self):
-        QMessageBox.information(self, 'Back Up Save Folder', 'Not implemented yet. No files have been changed.')  # Notice only.
-
-    # restore_save_folder_stub: Explain the placeholder without reading or writing saves.
-    def restore_save_folder_stub(self):
-        QMessageBox.information(self, 'Restore Save Folder', 'Not implemented yet. No files have been changed.')  # Notice only.
+        tools_menu.addAction(export_action)  # Retain clipboard export without duplicate save-folder placeholders.
 
     # open_file: Keep the File-menu action on the existing slot-level NMS workflow.
     def open_file(self):
@@ -338,6 +348,48 @@ class MainWindow(NmsLoadController, QMainWindow):  # Add direct-save loading wit
 
         logger.debug("after_tab_changed() exit")        
         
+    # _confirm_app_close: Ask only when the authoritative state behind the saved-data LED is red.
+    def _confirm_app_close(self):
+        if not getattr(self, 'nms_data_changed', False):  # Same state used by the unsaved-data indicator.
+            return True  # A green indicator requires no confirmation.
+        if getattr(self, '_close_confirmation_active', False):  # A modal popup processes events; prevent duplicate prompts.
+            return False  # Keep the app open until the original question is answered.
+        self._close_confirmation_active = True  # Own the one active Close/Cancel question.
+        try:
+            reply = QMessageBox.warning(self, 'Unsaved Data',
+                'You have unsaved app data. This data will be lost if you close the app now. Close anyway?',
+                QMessageBox.Close | QMessageBox.Cancel, QMessageBox.Cancel)  # Cancel is the default.
+            return reply == QMessageBox.Close  # Dismissal and Escape also keep the app open.
+        finally:
+            self._close_confirmation_active = False  # Allow another genuine close request after Cancel.
+
+    # closeEvent: Cover the title-bar X, Alt-F4 and cooperative window-close requests.
+    def closeEvent(self, event):
+        if self._confirm_app_close():  # No automatic saving or state changes.
+            event.accept()  # Let Qt perform normal window shutdown.
+        else:
+            event.ignore()  # Preserve all data and leave the app running.
+
+    # eventFilter: Route cooperative application quit events through the same window-close confirmation.
+    def eventFilter(self, watched, event):
+        if watched is QApplication.instance() and event.type() == QEvent.Quit and self.isVisible():
+            self.close()  # closeEvent decides whether to accept the user's request.
+            return True  # Consume this quit request; accepted last-window closure triggers normal Qt shutdown.
+        return super().eventFilter(watched, event)  # Do not alter unrelated events.
+
+    # confirm_session_shutdown: Handle an interactive OS logout/shutdown request before data is discarded.
+    def confirm_session_shutdown(self, manager):
+        if not getattr(self, 'nms_data_changed', False):  # Green saved-data indicator needs no question.
+            return  # Permit cooperative session shutdown.
+        if not manager.allowsInteraction():  # An OS request may prohibit user interaction.
+            manager.cancel()  # Request cancellation rather than silently discarding unsaved data.
+            return  # No popup can be shown without OS interaction permission.
+        try:
+            if not self._confirm_app_close():  # Share the same exact message and Close/Cancel buttons.
+                manager.cancel()  # Ask the OS to cancel its session shutdown.
+        finally:
+            manager.release()  # Release session-manager interaction even after an error.
+
     def update_tabs_from_model(self):
         self.tab1.update_text_widget_from_model()
         self.tab2.update_text_widget_from_model()
@@ -347,6 +399,11 @@ def main():
     app = QApplication(sys.argv)
     logger.debug("main enter")
     main_window = MainWindow()
+    app.installEventFilter(main_window)  # Route cooperative Qt quit requests through closeEvent.
+    app.setFallbackSessionManagementEnabled(False)  # Our explicit session handler owns the shutdown question.
+    app.commitDataRequest.connect(main_window.confirm_session_shutdown)  # Allow Cancel for cooperative OS logout/shutdown.
+    for shutdown_signal in (signal.SIGINT, signal.SIGTERM, getattr(signal, 'SIGBREAK', signal.SIGINT)):
+        signal.signal(shutdown_signal, lambda signum, frame: QTimer.singleShot(0, main_window.close))  # Queue catchable signals through the UI close path.
     main_window.show()
 
     QApplication.processEvents()

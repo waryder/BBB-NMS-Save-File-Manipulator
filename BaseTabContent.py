@@ -1,6 +1,7 @@
 from imports import *
 from DataViews import *
 from init_text import INIT_TEXT
+from NodeViewSyncDialog import node_view_sync_progress  # Outermost operation owns the shared processing notice.
 
 class BaseTabContent(QWidget):
 
@@ -149,13 +150,21 @@ class BaseTabContent(QWidget):
 
         logger.verbose(f"Now: {self.view.get_text()}")
 
+    # sync_tree_from_text_window: Reuse an outer delete popup or own one for a standalone sync request.
     def sync_tree_from_text_window(self):
-        self.main_window.background_processing_signal.emit(4, self.model_context)
-        self.update_tree_synced_indicator(False)
-        self.update_model_from_text_edit()
-        self.update_tree_from_model()
-        self.tree_widget.expand_tree_to_level(1)
-        self.update_tree_synced_indicator(True)
+        if getattr(self, '_node_sync_active', False):  # Existing helpers dispatch Qt events; refuse a nested sync on this tab.
+            return  # Do not restart an already running sync.
+        self._node_sync_active = True  # Set before the shared popup helper dispatches events.
+        try:
+            with node_view_sync_progress(self.main_window):  # Only the outermost operation owns popup dismissal.
+                self.main_window.background_processing_signal.emit(4, self.model_context)  # Preserve task reporting.
+                self.update_tree_synced_indicator(False)  # Preserve the existing processing order.
+                self.update_model_from_text_edit()  # Includes synchronous modelChanged handlers.
+                self.update_tree_from_model()  # Preserve the final tree rebuild.
+                self.tree_widget.expand_tree_to_level(1)  # Preserve final node expansion.
+                self.update_tree_synced_indicator(True)  # Finish status updates before releasing the popup scope.
+        finally:
+            self._node_sync_active = False  # Permit another sync even after an exception.
 
     def sync_text_from_tree_window(self):
         logger.debug("sync from Tree Window ENTER")

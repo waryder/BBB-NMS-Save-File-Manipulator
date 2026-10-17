@@ -1,8 +1,6 @@
 # File: OpenNmsSaveFileDialog.py
 # Path: C:\MBIN_PROJECTS\Working_Projects\BBB-NMS-Save-File-Manipulator\OpenNmsSaveFileDialog.py
-# Purpose: Popup launched by the main window's "Open NMS Save File" button (project row 10, "bones").
-#          Shows the save path, a Game Slot dropdown and a Save File dropdown populated READ-ONLY from
-#          the save folder's mf_ meta files. Pick Folder persists preferences; row 40 loads/restores/backs up slots.
+# Purpose: File-menu live-slot picker with read-only metadata and remembered save-folder selection.
 
 # Pull in the shared PyQt5 widgets, Qt namespace and logger used across the app
 from imports import *
@@ -20,8 +18,6 @@ DEBUG_PREFIX = "[BBB-NMS-SFM/OpenNmsSaveFileDialog]"
 
 # Root that holds the Steam st_<id> save folders
 NMS_SAVE_ROOT = os.path.join(os.environ.get("APPDATA", ""), "HelloGames", "NMS")
-# Shown in every not-yet-built action
-NOT_IMPLEMENTED_TEXT = "is not implemented yet."
 
 
 # find_default_save_folder
@@ -50,6 +46,22 @@ def format_timestamp(timestamp):
     return datetime.datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
 
 
+# get_initial_save_folder: Share the Open dialog's source policy without constructing or scanning a dialog.
+def get_initial_save_folder(manager, parent=None):
+    try:  # A malformed preference must not block default discovery.
+        remembered = manager.get_nms_save_folder()  # Read the existing preference only.
+        if remembered and os.path.isdir(remembered):
+            return remembered  # Preserve the user's usable remembered path.
+    except Exception as exc:
+        logger.error(f"{DEBUG_PREFIX} get_initial_save_folder: {exc}")  # Always expose preference failures.
+        QMessageBox.warning(parent, "Open NMS Save File", f"Could not read saved folder preference:\n{exc}")
+    try:
+        return find_default_save_folder()  # Same first-st_* discovery as the existing Open dialog.
+    except OSError as exc:
+        logger.error(f"{DEBUG_PREFIX} get_initial_save_folder: discovery failed: {exc}")  # No silent success.
+        return ""  # Let the caller report the unavailable source without changing preferences.
+
+
 class OpenNmsSaveFileDialog(QDialog):
     # __init__
     # Builds the popup, then fills it from the remembered or default save folder.
@@ -71,27 +83,9 @@ class OpenNmsSaveFileDialog(QDialog):
         # Populate dropdowns from the folder
         self._populate_slots()
 
-    # _get_initial_save_folder
-    # Restores an existing remembered directory without overwriting an unavailable saved path.
+    # _get_initial_save_folder: Use the shared remembered/default folder policy.
     def _get_initial_save_folder(self):
-        # A malformed preference should not prevent the dialog from opening.
-        try:
-            # Read the folder from the application's persistent preferences.
-            remembered = self.ini_file_manager.get_nms_save_folder()
-            # A disconnected or deleted folder falls back to normal discovery.
-            if remembered and os.path.isdir(remembered):
-                return remembered
-        except Exception as exc:
-            # Report preference read errors without suppressing them behind the debug gate.
-            logger.error(f"{DEBUG_PREFIX} _get_initial_save_folder: {exc}")
-            QMessageBox.warning(self, "Open NMS Save File", f"Could not read saved folder preference:\n{exc}")
-        # Discovery itself may fail on an inaccessible NMS root.
-        try:
-            return find_default_save_folder()
-        except OSError as exc:
-            # Let the user recover with Pick Folder rather than failing construction.
-            logger.error(f"{DEBUG_PREFIX} _get_initial_save_folder: discovery failed: {exc}")
-            return ""
+        return get_initial_save_folder(self.ini_file_manager, self)  # No competing backup source preference.
 
     # _build_ui
     # Creates the File Details grid and the button row, then applies the layout.
@@ -100,7 +94,7 @@ class OpenNmsSaveFileDialog(QDialog):
         layout = QVBoxLayout()
         # Grid of label/value rows like goatfungus's Main tab
         layout.addLayout(self._build_details_grid())
-        # Action buttons (stubs for now)
+        # Live loading and Close actions
         layout.addLayout(self._build_button_row())
         # Apply to the dialog
         self.setLayout(layout)
@@ -138,33 +132,18 @@ class OpenNmsSaveFileDialog(QDialog):
         self.file_combo.currentIndexChanged.connect(self._on_file_changed)
         return grid
 
-    # _build_button_row
-    # Builds the Slot Backup / Open / Close buttons.
+    # _build_button_row: Provide only live loading and dismissal, aligned at the lower right.
     def _build_button_row(self):
-        # Horizontal row, right-aligned via a leading stretch
-        row = QHBoxLayout()
-        row.addStretch()
-        # Backup the app's active slot only after consistency checks and explicit disk-write consent.
-        self.backup_button = QPushButton("Save Slot Backup")
-        self.backup_button.clicked.connect(self._on_slot_backup_clicked)
-        # Restore ZIP into app memory only; the ZIP filenames supply its original slot.
-        self.restore_button = QPushButton("Load Slot Backup")
-        self.restore_button.clicked.connect(self._on_restore_clicked)  # Use the main window's transaction.
-        # Live loading is part of row 40, not the later live-save placeholder.
-        self.open_button = QPushButton("Load Slot")
-        self.open_button.clicked.connect(self._on_open_clicked)
-        # Close dismisses the dialog as rejected
-        self.close_button = QPushButton("Close")
-        self.close_button.clicked.connect(self.reject)
-        grid = QGridLayout()  # A right-aligned 2x2 block, with Backup/Restore on its second row.
-        grid.addWidget(self.open_button, 0, 0)  # Load Slot at the upper left.
-        grid.addWidget(self.close_button, 0, 1)  # Close at the upper right.
-        grid.addWidget(self.backup_button, 1, 0)  # Backup Slot at the lower left.
-        grid.addWidget(self.restore_button, 1, 1)  # Restore Slot at the lower right.
-        for button in (self.open_button, self.close_button, self.backup_button, self.restore_button):  # Match all block widths.
-            button.setFixedWidth(130)  # Equal sizes keep both columns aligned.
-        row.addLayout(grid)  # Leading stretch keeps the block in the lower right.
-        return row
+        row = QHBoxLayout()  # Keep the remaining actions on one horizontal row.
+        row.addStretch()  # Align the controls to the right.
+        self.open_button = QPushButton("Load Slot")  # Preserve the existing live-load action.
+        self.open_button.clicked.connect(self._on_open_clicked)  # Retain metadata-based selection.
+        self.close_button = QPushButton("Close")  # Dismiss without loading.
+        self.close_button.clicked.connect(self.reject)  # Preserve cancellation behavior.
+        for button in (self.open_button, self.close_button):  # Keep matching action widths.
+            button.setFixedWidth(130)  # Retain the established control size.
+            row.addWidget(button)  # Load Slot precedes Close.
+        return row  # No slot archive controls or callbacks remain.
 
     # _populate_slots
     # Reads the save folder (read-only) and fills the Game Slot dropdown.
@@ -239,12 +218,6 @@ class OpenNmsSaveFileDialog(QDialog):
         self.save_name_label.setText(record["meta"]["name"])
         self.description_label.setText(record["meta"]["summary"])
 
-    # _show_not_implemented
-    # Common message for every stubbed action.
-    def _show_not_implemented(self, feature):
-        # Plain info box; nothing is changed anywhere
-        QMessageBox.information(self, "Open NMS Save File", f"{feature} {NOT_IMPLEMENTED_TEXT}")
-
     # _on_pick_folder_clicked
     # Selects a save directory; cancellation leaves the current path and preferences unchanged.
     def _on_pick_folder_clicked(self):
@@ -286,18 +259,6 @@ class OpenNmsSaveFileDialog(QDialog):
         self.save_path_label.setText(folder)
         # Existing read-only scanning refreshes slots, files and metadata labels.
         self._populate_slots()
-
-    # _on_slot_backup_clicked
-    # Backup the active app slot, not a different slot being browsed in this popup.
-    def _on_slot_backup_clicked(self):
-        slot_ops.trace("OpenNmsSaveFileDialog", "backup_requested", browsing_slot=self.slot_combo.currentIndex())  # Inspect action origin.
-        self.parent().backup_nms_slot()  # Main window applies consistency and disk-warning gates.
-
-    # _on_restore_clicked
-    # Restore a validated ZIP into app memory while retaining the selected live-folder context.
-    def _on_restore_clicked(self):
-        if self.parent().restore_nms_slot(self.save_folder):  # No extraction, live writes or automatic backup.
-            self.accept()  # Dismiss only after a fully committed load.
 
     # _on_open_clicked
     # Load the selected slot using metadata-only selection, ignoring the display-only file dropdown.

@@ -1,11 +1,11 @@
 # File: NmsLoadController.py
 # Path: C:\MBIN_PROJECTS\Working_Projects\BBB-NMS-Save-File-Manipulator\NmsLoadController.py
-# Purpose: Row-40 GUI load/restore transactions, live target identity, dirty LED and confirmed backups.
+# Purpose: Live-slot load/save transactions, retained target identity and dirty-state LEDs.
 from imports import *  # Use the application's existing Qt widgets and helpers.
 import copy  # Preserve previous model state for rollback and independent editing.
 import hashlib  # Compare model and live-source bytes without logging save contents.
 import NmsSlotOperations as slot_ops  # Share one global stdout tracing switch and selector.
-import NmsLiveSaveOperations as live_ops  # Row-50 same-file/context writing; Backup/Restore helpers remain unchanged.
+import NmsLiveSaveOperations as live_ops  # Same-file/context writing remains separate from live loading.
 
 
 class NmsLoadingDialog(TextOnlyLoadingDialog):  # Non-cancellable progress; the transaction owns its lifetime.
@@ -84,12 +84,12 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
     def _observe_nms_model(self):
         if not self._nms_loading and self.nms_source is not None and not self.nms_data_changed:  # Only consistent live state needs polling.
             if self._nms_fingerprint() != self._nms_baseline:  # Compare semantic data rather than widget activity.
-                self._mark_nms_changed("silent_model_mutation")  # Backup also performs this check synchronously.
+                self._mark_nms_changed("silent_model_mutation")  # Detect unsignaled edits.
 
     # _mark_nms_changed: Set the live-file state red and log transitions rather than every keystroke.
     def _mark_nms_changed(self, reason):
         was_changed = self.nms_data_changed  # Avoid enormous duplicate traces during typing.
-        self.nms_data_changed = True  # Unsaved edits and ZIP divergence cannot permit Backup.
+        self.nms_data_changed = True  # Retain conservative unsaved-edit tracking.
         self._update_nms_led()  # Keep the visible status and authoritative flag aligned.
         if not was_changed:  # Only a real transition needs a debug event.
             self._nms_trace("dirty_transition", reason=reason, changed=True)  # Record why green became red.
@@ -109,7 +109,7 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
 
     # confirm_nms_replacement: Warn, but never block solely because the current data is unsaved.
     def confirm_nms_replacement(self, kind):
-        text = f"{kind} will OVERWRITE all currently loaded data, including unsaved edits.\nContinue?\n(No live save files will be written.)"  # Scope warning.
+        text = f"{kind} will overwrite all currently loaded data, including unsaved edits.\nContinue?"  # Scope warning.
         reply = QMessageBox.warning(self, kind, text, QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Cancel)  # Explicit consent.
         accepted = reply == QMessageBox.Ok  # A close/cancel declines the request.
         self._nms_trace("replacement_confirmation", kind=kind, accepted=accepted, changed=self.nms_data_changed)  # State before commit.
@@ -120,11 +120,11 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
         reply = QMessageBox.warning(self, "Equal save timestamps", message, QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Cancel)  # Exact body.
         accepted = reply == QMessageBox.Ok  # Never silently fall back to Auto.
         self._nms_trace("tie_confirmation", manual_accepted=accepted)  # Expose the otherwise hidden branch.
-        return accepted  # Selection helper handles the decision identically for live and ZIP.
+        return accepted  # Shared selector applies the metadata-only policy.
 
     # load_nms_live_slot: Read and decode the pair before committing the selected file into the app.
     def load_nms_live_slot(self, folder, slot, on_load_confirmed=None):
-        if self._nms_loading:  # Existing render helpers process Qt events; prevent a nested load/backup transaction.
+        if self._nms_loading:  # Existing render helpers process Qt events; prevent a nested load transaction.
             self._nms_trace("request_ignored_during_load", action="load_nms_live_slot")  # Keep the current commit isolated.
             return False  # No second warning, picker, read or write.
         if not self.confirm_nms_replacement("Load Slot"):  # Cancellation is a complete no-op.
@@ -136,28 +136,10 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
             self._nms_error("Load Slot failed", exc)  # Errors always reach stdout.
             return False  # No successful load was committed.
 
-    # restore_nms_slot: Choose a ZIP, warn, then decode entirely in memory with the current live-folder context.
-    def restore_nms_slot(self, live_folder):
-        if self._nms_loading:  # Existing render helpers process Qt events; prevent a nested load/backup transaction.
-            self._nms_trace("request_ignored_during_load", action="restore_nms_slot")  # Keep the current commit isolated.
-            return False  # No second warning, picker, read or write.
-        path, unused = QFileDialog.getOpenFileName(self, "Restore Slot", self._nms_backup_directory(), "Slot backups (*.zip)")  # Same start directory.
-        if not path:  # File picker cancellation leaves every state intact.
-            self._nms_trace("restore_picker_cancel")  # Record a user cancellation without treating it as error.
-            return False  # No reads/extraction/writes are needed.
-        if not self.confirm_nms_replacement("Restore Slot"):  # Unsaved data is allowed after warning.
-            return False  # Do not touch source or LED on decline.
-        try:  # ZIP integrity and filename validation happen before UI commit.
-            snapshot = slot_ops.read_zip_slot(path)  # No extraction and no automatic safety backup.
-            return self._load_nms_snapshot(snapshot, live_folder, "zip", path)  # Slot comes from internal names.
-        except Exception as exc:  # Reject mixed slots, duplicates, malformed metadata and corrupt JSON.
-            self._nms_error("Restore Slot failed", exc)  # Explain why the old data remains.
-            return False  # Signal the popup to stay open.
-
     # _load_nms_snapshot: Stage full-save identity and selected whole context independently of live state.
-    def _load_nms_snapshot(self, snapshot, live_folder, kind, archive_path=None, on_load_confirmed=None):
+    def _load_nms_snapshot(self, snapshot, live_folder, kind, on_load_confirmed=None):
         if not live_folder or not os.path.isdir(live_folder):  # Never invent a future write target.
-            raise ValueError("Pick a valid live save folder before loading or restoring a slot.")  # Recovery instructions.
+            raise ValueError("Pick a valid live save folder before loading a slot.")  # Recovery instructions.
         record = slot_ops.select_slot_file(snapshot, self._confirm_manual_tie)  # Only metadata timestamps count.
         if record is None:  # Equal-time Cancel is a no-op, not an Auto fallback.
             self._nms_trace("load_abandoned", kind=kind, slot=snapshot["slot"])  # Confirm unchanged state.
@@ -168,7 +150,7 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
         was_enabled = self.isEnabled()  # Preserve the main window's current enabled state.
         self.setEnabled(False)  # Closing the modal picker must not allow edits during population.
         was_loading = self._nms_loading  # Preserve the guard across popup painting and final UI refresh.
-        self._nms_loading = True  # Event processing must not permit a nested load/save/backup.
+        self._nms_loading = True  # Event processing must not permit a nested load/save.
         loading_dialog = None  # Cleanup must also handle a dialog-construction failure.
         try:  # Keep loading isolated while existing tree helpers process Qt events.
             loading_dialog = NmsLoadingDialog("Loading data, please wait…", self)  # Reuse the existing text-only visual design.
@@ -177,9 +159,8 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
             QApplication.processEvents(QEventLoop.ExcludeUserInputEvents)  # Paint before synchronous decoding begins.
             self.set_current_task_info("Decoding save…")  # The picker is gone; explain the otherwise silent wait.
             source = slot_ops.decode_record(record, live_folder)  # Retain the entire tree and original bytes.
-            source["source_kind"] = kind  # ZIP is dirty even when its bytes happen to match live.
+            source["source_kind"] = kind  # Retain the successful live-load source identity.
             source["slot_title"] = record.get("meta", {}).get("name", "")  # Retain the selected save title for the idle task display.
-            source["archive_path"] = archive_path  # Diagnostic origin only; never derives the target slot.
             self.set_current_task_info("Loading views…")  # Keep progress visible through all four panes.
             self._commit_nms_source(source)  # Transactional GUI/model replacement.
             self.repaint()  # Finish painting the newly populated panes while progress still remains visible.
@@ -194,7 +175,7 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
                 self._nms_loading = was_loading  # End the outer transaction only after final GUI refresh.
                 self.setEnabled(was_enabled)  # Resume interaction only after commit or rollback.
         self._nms_trace("load_complete", kind=kind, slot=source["slot"], file=source["file_name"], meta=source["meta_name"], context_key=source["context_key"], target=source["data_path"], changed=self.nms_data_changed, model_hash=self._nms_baseline)  # Inspect identity, never save JSON.
-        return True  # Allow the Open/Restore dialog to dismiss on success.
+        return True  # Report a successfully committed live load.
 
     # _capture_nms_editors: Capture raw text and tree-sync status for rollback, including unsynced edits.
     def _capture_nms_editors(self):
@@ -234,8 +215,8 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
             self._nms_loading = was_loading  # The outer loading transaction owns when editing resumes.
         self.nms_source = source  # Commit context key and file/slot/live-folder identity together after successful rendering.
         self._nms_baseline = baseline  # Retain the semantic data fingerprint for consistency checks.
-        self.nms_data_changed = source["source_kind"] != "live"  # ZIP Restore always marks data changed.
-        self._update_nms_led()  # Live starts green; ZIP starts red.
+        self.nms_data_changed = source["source_kind"] != "live"  # A successful live load starts at its saved baseline.
+        self._update_nms_led()  # Present the successfully loaded baseline.
 
     # _checked_nms_save_context: Capture only synchronized shared model data for a live-save attempt.
     def _checked_nms_save_context(self):
@@ -247,8 +228,8 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
     def _confirm_nms_live_write(self, source):
         data_path, meta_path = live_ops.retained_live_paths(source)  # Confirm loaded identity rather than a browsing selection.
         context = "Expedition" if source["context_key"] == "ExpeditionContext" else "Main"  # Explain the remembered destination branch.
-        text = f"OVERWRITE the loaded live save pair for slot {source['slot']} ({context}):\n{data_path}\n{meta_path}\n\nNMS must be CLOSED. Keep an independent copy of your save folder before testing.\nThe other Auto/Manual file and inactive context will not be changed.\nContinue?"  # Explicit live-write warning.
-        accepted = QMessageBox.warning(self, "Confirm live save write", text, QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Cancel) == QMessageBox.Ok  # Cancel by default.
+        text = f"This Save action will overwrite your live game save file data for slot {source['slot']} ({context}).\n\nBe sure No Man's Sky is closed. Continue with the Save?"  # Bill's exact wording with runtime slot and context.
+        accepted = QMessageBox.warning(self, "Confirm Live Save Write", text, QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Cancel) == QMessageBox.Ok  # Cancel by default.
         self._nms_trace("live_write_confirmation", accepted=accepted, slot=source["slot"], file=source["file_name"], context_key=source["context_key"])  # Shared trace switch.
         return accepted  # Cancellation changes neither data, source identity nor LED.
 
@@ -257,7 +238,7 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
         if self._nms_loading or self.nms_source is None:  # Reject reentrant requests and absent live identity.
             return False  # MainWindow retains separate legacy JSON behavior when no NMS source is loaded.
         source, was_enabled = self.nms_source, self.isEnabled()  # Retain exact source identity and previous interaction state.
-        self._nms_loading = True  # Block nested load/save/backup actions while modal dialogs process events.
+        self._nms_loading = True  # Block nested load/save actions while modal dialogs process events.
         try:  # Failures must not commit a new source or falsely turn the LED green.
             edited = self._checked_nms_save_context()  # Refuse unsynchronized text before asking to write.
             baseline = self._nms_fingerprint()  # Detect app-model changes during warning dialogs, not external disk changes.
@@ -279,7 +260,7 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
                 self.nms_source = saved_source  # Commit refreshed codec/tree/hashes with unchanged context/file/slot/folder identity.
                 self._nms_baseline = baseline  # Current model is now semantically consistent with the verified live bytes.
                 self.nms_data_changed = False  # Only fully verified writes clear the live-file dirty state.
-                self._update_nms_led()  # Show saved/consistent and allow the existing Backup gate to operate unchanged.
+                self._update_nms_led()  # Present the verified saved baseline.
                 self._nms_trace("live_save_complete", slot=source["slot"], file=source["file_name"], context_key=source["context_key"], timestamp=prepared["timestamp"], changed=False)  # No save JSON.
                 self.repaint()  # Paint the verified saved-state LEDs before handing off to notification.
                 QApplication.processEvents(QEventLoop.ExcludeUserInputEvents)  # Keep progress present through final GUI refresh.
@@ -308,53 +289,3 @@ class NmsLoadController:  # Mix row-40 operations into the existing main window.
             return False  # No JSON or live data write.
         reply = QMessageBox.warning(self, "Confirm JSON disk write", "About to write a JSON file and update its file-path preference. This is NOT an NMS live save. Continue?", QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Cancel)  # Consent before existing save dialog.
         return reply == QMessageBox.Ok  # Retain legacy placeholder/clipboard behavior after warning.
-
-    # _nms_backup_directory: Use the same persistent directory every time without creating it here.
-    def _nms_backup_directory(self):
-        return os.path.join(os.environ.get("APPDATA", ""), "BBB NMS Save File Manipulator")  # No picker-time writes.
-
-    # _checked_backup_snapshot: Gate Backup on current app/source consistency, not the popup's slot selection.
-    def _checked_backup_snapshot(self):
-        if self.nms_source is None or self.nms_data_changed:  # Startup, ZIP and raw unsaved text all fail.
-            raise ValueError("Current app data must first be saved to its live save file before Backup Slot. Live saving is deferred to row 50.")  # Clear failure reason.
-        if self._nms_fingerprint() != self._nms_baseline:  # Catch in-place mutations without signals.
-            self._mark_nms_changed("backup_model_mismatch")  # Align authoritative state and visible LED.
-            raise ValueError("Current app data has unsaved changes; save it live before backing up.")  # No ZIP creation.
-        source = self.nms_source  # The active app slot is authoritative, not a browsing selection.
-        snapshot = slot_ops.read_live_slot(source["live_folder"], source["slot"])  # Fresh read-only bytes.
-        record = next(item for item in snapshot["files"] if item["file_name"] == source["file_name"])  # Same loaded file, no extra selection rule.
-        hashes = (hashlib.sha256(record["data_bytes"]).hexdigest(), hashlib.sha256(record["meta_bytes"]).hexdigest())  # Detect game/external changes.
-        if hashes != (source["data_hash"], source["meta_hash"]):  # A stale app cannot be called consistent.
-            self._mark_nms_changed("live_source_changed")  # Require reload rather than archive unexpected data.
-            raise ValueError("The loaded live file changed outside the app. Reload it before backing up.")  # No active-at-backup guarantee imposed.
-        self._nms_trace("backup_gate_pass", slot=source["slot"], file=source["file_name"], model_hash=self._nms_baseline)  # Inspect consistent state.
-        return snapshot  # Backup preserves these four original files, without re-encoding.
-
-    # backup_nms_slot: Ask for a filename and a separate disk-write warning before any ZIP/directory creation.
-    def backup_nms_slot(self):
-        if self._nms_loading:  # Existing render helpers process Qt events; prevent a nested load/backup transaction.
-            self._nms_trace("request_ignored_during_load", action="backup_nms_slot")  # Keep the current commit isolated.
-            return False  # No second warning, picker, read or write.
-        try:  # Every failure produces an explanation and no successful-backup report.
-            snapshot = self._checked_backup_snapshot()  # Fail before opening Save As if unsaved.
-            suggested = os.path.join(self._nms_backup_directory(), slot_ops.backup_name(snapshot))  # Required initial directory/name.
-            path, unused = QFileDialog.getSaveFileName(self, "Backup Slot", suggested, "Slot backups (*.zip)", options=QFileDialog.DontConfirmOverwrite)  # Separate warning below.
-            if not path:  # Selecting a path is not disk-write consent.
-                self._nms_trace("backup_picker_cancel")  # No output file or mkdir occurs.
-                return False  # Complete no-op.
-            path = os.path.abspath(path if path.lower().endswith(".zip") else path + ".zip")  # Preserve explicit ZIP extension.
-            overwrite = os.path.exists(path)  # Consent must mention replacing an existing ZIP.
-            action = "OVERWRITE the existing ZIP" if overwrite else "CREATE a backup ZIP"  # Plain-language effect.
-            message = f"About to {action}:\n{path}\nAny missing destination directories will be created.\nNo live saves will be written. Continue?"  # Explicit disk warning.
-            reply = QMessageBox.warning(self, "Confirm backup disk write", message, QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Cancel)  # Separate from Save As.
-            self._nms_trace("backup_write_confirmation", accepted=reply == QMessageBox.Ok, path=path, overwrite=overwrite)  # Audit consent.
-            if reply != QMessageBox.Ok:  # Decline cannot cause mkdir, temporary output or ZIP writes.
-                return False  # Preserve app data and source.
-            snapshot = self._checked_backup_snapshot()  # Recheck after dialogs so unsaved/external changes fail.
-            result = slot_ops.write_backup(path, snapshot, confirmed=True, overwrite=overwrite)  # Helper verifies exact members and bytes.
-            QMessageBox.information(self, "Slot backed up", f"Backup complete:\n{result}")  # Required full output path.
-            return True  # A backup does not clear/change any dirty state.
-        except Exception as exc:  # Never silently suppress a failed gate or failed filesystem write.
-            self._nms_error("Backup Slot failed", exc)  # Always visible and logged.
-            self._nms_trace("backup_failed", reason=str(exc), changed=self.nms_data_changed)  # Under-the-hood context.
-            return False  # No claim that an archive was created successfully.
