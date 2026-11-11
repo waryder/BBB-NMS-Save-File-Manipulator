@@ -1,6 +1,5 @@
 from imports import *
 from IniFileManager import *
-from pympler import asizeof
 from RawJsonChecks import first_entry_problem  # App-integrity checks run before Raw JSON is applied.
 
 REJECTED_TEXT_TITLE = 'Raw JSON Not Applied'  # Shared title for every refused Raw JSON sync.

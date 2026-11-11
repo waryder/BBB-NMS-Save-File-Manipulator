@@ -1,6 +1,5 @@
 from imports import *
 from IniFileManager import *
-from pympler import asizeof
 
 global INIT_BASE_TEXT
 global INIT_STARSHIP_TEXT

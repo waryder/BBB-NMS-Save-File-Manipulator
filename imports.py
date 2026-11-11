@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QApplication
 import sys, os, pdb, logging, json, traceback, configparser, copy, builtins, shutil, re, math
-import pyautogui, yappi, psutil, threading, traceback, concurrent.futures
+import threading, traceback, concurrent.futures  # Row 550: unused pyautogui, yappi and psutil imports removed.
 from PyQt5.QtCore import pyqtSignal, QObject, Qt, QMimeData, QTimer, QEvent
 from PyQt5.QtWidgets import (QMainWindow, QSplitter, QTabWidget,
                              QVBoxLayout, QHBoxLayout, QWidget, QLabel, QAction,
@@ -59,13 +59,6 @@ def get_new_QTreeWidgetItem():
     widget.setFlags(widget.flags() | Qt.ItemIsDragEnabled | Qt.ItemIsDropEnabled)  # Make item drag and droppable Qt.ItemIsEditable
     return widget
     
-def get_num_app_child_threads():
-    logger.verbose("get_num_app_child_threads() ENTER")
-    # Get the current process (your application)
-    current_process = psutil.Process(os.getpid())
-    num_threads = len(current_process.threads())
-    logger.verbose("get_num_app_child_threads() EXIT, num threads: {num_threads}")
-    return num_threads
 
 #some values are preceeded by '0x' and some are not:    
 def get_galaxy_system_planet_from_full_addr(galactic_addr_in):
