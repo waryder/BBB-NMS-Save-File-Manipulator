@@ -1,8 +1,20 @@
 from setuptools import setup, find_packages
+import os
+
+
+# read_version: Read APP_VERSION from version.py beside setup.py or inside the packaged app folder (row 520).
+def read_version():
+    here = os.path.dirname(os.path.abspath(__file__))  # setup.py location.
+    for path in (os.path.join(here, 'version.py'), os.path.join(here, 'BBB_NMS_Save_File_Manipulator', 'version.py')):
+        if os.path.exists(path):  # Source tree or release zip layout.
+            namespace = {}  # Isolated namespace for the version file.
+            exec(open(path, encoding='utf-8').read(), namespace)  # version.py only assigns constants.
+            return namespace['APP_VERSION']
+    raise RuntimeError('version.py not found')  # Never build with a guessed version.
 
 setup(
     name='BBB-NMS-SAVE-FILE-MANIPULATOR',
-    version='0.3.0-alpha',
+    version=read_version(),  # Row 520: from version.py.
     description='Save file manipulator for No Man\'s Sky',
     author='Bill Ryder (BigBuffaloBill)',
     url='https://github.com/waryder/BBB-NMS-Save-File-Manipulator',

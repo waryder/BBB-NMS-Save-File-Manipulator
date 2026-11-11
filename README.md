@@ -1,54 +1,57 @@
 # BBB NMS Save File Manipulator
 
-## Overview
-BBB NMS Save File Manipulator is a tool designed to help users manipulate No Man's Sky save files. This tool is intended to fill holes in, and not duplicate, features in the other well-known editors. Primary value adds at this point are:
+A Windows editor for **No Man's Sky** save files that opens your live Steam or GOG saves directly and adds bulk tools the other editors don't have: base sorting and reordering, fleet-wide starship upgrades, category-based inventory sorting, and teleport-endpoint relocation.
 
-1) One click sort of bases by Galaxy, System, and then Name.
-2) Drag and drop reordering of Bases.
-3) One click upgrade of all Starships to Max stats and tech installed. A one click comprehensive starship upgrades to your whole fleet! 
-4) Drag and drop reordering of Starships
-5) Inventory sort (really moving items). This is the least "finished/polished". I will be adding more categories to the possible sorting criteria. Also I do no checking to save users from moving items to the wrong inventories. For example right now it's on you to make sure you don't put non fish bait in the fish bait inventory. But basically you have a dialog box where you click a bunch of checkboxes to setup your sort...and then click a button to get your inventory items moved around as you want.
-6) Saving off an inventory and restore it to any other inventory. The way this works is you save an inventory. On reimport, the items in that save overwrite the the target inventories items. This allows you to save off desired inventory items to refresh any inventory later with a known loadout.
-7) Relocate your player to locations stored in the save file "Teleport Endpoints" list. This is a list kept by the game of the last (potentially hundreds) of locations where you teleported to. You can use this to get back to places you visited in the past but never threw a base down. I've found that if you try to go to old bases that are no longer there, the game throws you into the system's space station. I would advise expecting it to put you back "in the area" of the location rather than smack dab on it.
-8) Aside from those, you can pretty much modify any data in the save file at all, and general features provided as in any text editor and Json editor (with a tree view) that you may find out there.
+> **Alpha software (v0.5.0-alpha).** No warranty. Always back up your live saves before editing — the app's **File → Full Live Save Backup** does this for you. Feedback is welcome: **BigBuffaloBill** on Discord.
 
-At this point this is a raw version maybe worthy of evaluation but I do not claim this is production ready. I am releasing and promoting only for the purpose of solciting testing and and review of the current state. I do provide screenshots and help files as a seperate zip file if that's all you would like to look at at first.
+## What it does
 
-DISCLAIMERS: I cannot be held liable for any damage this app causes. Period. I have been a software engineer for over 20 years and while I have a confidence in my work, 
-				I also know end users will find every flaw in even the best engineered applications, whereas I am a one man show over here. :) I recommend that you save off back up copies 
-				of your save files before you use any editor at all, and be aware that BBB NMS Save File Manipulator must really be used by technical experts only. If you are not super 
-				comfortable with JSON files, file manipulation, and all aspects of what you see in the app, just stop and do not use it! If you do find any errors I need to know about, 
-				I am BigBuffaloBill over on Discord. But please DO NOT write and tell me I wrecked your game! My answer will be "no problem; just use the backup file I told you to make
-				and go restore yourself." :) I do use this application regularly myself at this point, but I make backups just in case!!
-				
+- **Open saves directly.** File → Open NMS Save File lists your save slots (Steam `st_*` or GOG `DefaultUser`), picks the newer of each slot's Auto/Manual save, and loads the active context (main game or expedition).
+- **Save back safely.** File → Save NMS Save File writes the same slot and context you loaded, after a confirmation. Close the game first.
+- **Full live save backup.** File → Full Live Save Backup copies your whole NMS save folder to a timestamped, verified backup. Full Live Save Restore shows step-by-step manual restore instructions.
+- **Bases.** Sort by galaxy, system and name; move the freighter base to the top; drag and drop to reorder; back up a single base to a file and restore it; delete bases.
+- **Starships.** Upgrade selected ships to their reference stats, class and technology; delete ships safely while keeping the game's fixed ship slots.
+- **Inventories.** Inventory Sorter moves whole items by category into the containers you choose, with a review step before anything changes; back up an inventory and replace one from a backup.
+- **Teleport endpoints.** Move your saved player location to any endpoint in the game's teleport history.
+- **Node View and Raw JSON.** Every tab shows a tree and the raw JSON side by side. Edits are checked before they are applied, and unsynced edits are never silently discarded.
 
-## Note on Usage
+All edits change the app's copy of the data only. Nothing is written to your game files until you choose Save.
 
-Many questions will be answered by using the in app help, but before you even get to the in app help, please know that you need to grab the entire "BaseContext" json from the raw json editor in a tool like Goatfungus, for import into this application. This is the whole of the data this application works on and imports and exports in and out.
+## Install
 
-## Installation Instructions - Zip file (for use with an existing Python installation)
+### Windows executable (recommended)
+1. Download the latest `.exe` from the [Releases page](https://github.com/waryder/BBB-NMS-Save-File-Manipulator/releases).
+2. Put it in a folder you can write to (for example a folder in Documents) and run it. There is no installer.
+3. On first start, choose where the app keeps its own data (a folder named `BBB NMS SFM Data`). Your game saves are never moved there.
 
-All of the following assume a stable python environment. I purposely do not go into the details of setting this up too deeply because in honesty my app is intended for techie geeks and if you think python is a snake in the Amazon I'm not sure you are going to want to use this app. :)
+If Windows reports missing MSVC runtime libraries, install the [Microsoft Visual C++ Redistributable](https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist).
 
-1. Go to the Releases page: https://github.com/your_username/BBB-NMS-SFM/releases](https://github.com/waryder/BBB-NMS-Save-File-Manipulator/releases. 
-2. Download the latest release zip file.
-3. Extract the zip file to a folder on your computer.
-4. Open a terminal in the folder where you extracted the files (the same folder where `setup.py` is located).
-5. Run the following command to install the application:
-```bash
->pip install .
+### From source
+Requires Python 3.8 or later (developed on Python 3.12).
+
 ```
-6. To run the application, use:
-```bash
->bbb_nms_sfm
+pip install -r requirements.txt
+python BBB_NMS_Save_File_Manipulator.py
 ```
 
-## Installation Instructions - Exe file (single file install for Windows machines)
+## Using it
 
-Important Note: 99% of the time this won't be an issue but if you do see any messages about "No MSVC Runtime" or "No MSVC libs" found you may need to intall https://www.microsoft.com/en-us/download/details.aspx?id=53840. This issue is common to many if not most Windows apps so again, 99% of the time you have this on your system already and will not run into this issue.
+1. Close No Man's Sky.
+2. File → Full Live Save Backup.
+3. File → Open NMS Save File, pick your slot, Load Slot.
+4. Make your changes on the Bases, Starships, Inventory and Teleport Endpoints tabs.
+5. File → Save NMS Save File, check the slot and context, confirm.
 
-1. Go to the Releases page: https://github.com/your_username/BBB-NMS-SFM/releases](https://github.com/waryder/BBB-NMS-Save-File-Manipulator/releases.
-2. Download the latest release exe file.
-3. The exe provided in the release is a standalone application file. You simply drop it in a non-system folder with run permissions and double-click it or otherwise start it as you will. It is not an installation file. It will just run.
+Help → Open Help opens the full help, bundled with the app (it also works offline). An online copy is at <https://bigbuffalobill-web.pages.dev/nms-help/>.
 
+## Supported platforms
 
+Windows with the Steam or GOG version of No Man's Sky. Microsoft Store / Game Pass, consoles, macOS and Linux saves are not supported.
+
+## Licence
+
+GNU General Public License v3.0 or later — see [LICENSE](LICENSE).
+
+The save-file codec (`nms_save_codec/`) is a Python port of [libNOM.io](https://github.com/zencq/libNOM.io) (GPLv3). Save-key mapping data comes from [MBINCompiler](https://github.com/monkeyman192/MBINCompiler).
+
+Copyright (C) 2024-2026 BigBuffaloBill - Bill Ryder.
