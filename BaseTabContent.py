@@ -116,7 +116,8 @@ class BaseTabContent(QWidget):
         logger.debug("pretty_print_text_widget() ENTER")
 
         #grab the current data from the text window in case any changes were made:
-        parentWindow.update_model_from_text_edit()
+        if not parentWindow.update_model_from_text_edit():  # Invalid or refused text: keep it and the red light.
+            return  # Do not overwrite the user's text with older app data.
         #reload the text window from the model, which will result in the pretty print reformatting:
         parentWindow.update_text_widget_from_model()
         #now update the tree window to make sure allviews are consistent:
@@ -139,10 +140,12 @@ class BaseTabContent(QWidget):
         # Set tree from text
         try:
             self.blockSignals()
-            self.update_text_widget_from_model()
-            self.update_tree_from_model()
-            self.tree_widget.expand_tree_to_level(1)
-            self.unblockSignals()
+            try:
+                self.update_text_widget_from_model()
+                self.update_tree_from_model()
+                self.tree_widget.expand_tree_to_level(1)
+            finally:
+                self.unblockSignals()  # Never leave this tab's signals blocked after an unexpected error.
             self.update_tree_synced_indicator(True)
 
         except json.JSONDecodeError as e:
@@ -153,16 +156,18 @@ class BaseTabContent(QWidget):
     # sync_tree_from_text_window: Reuse an outer delete popup or own one for a standalone sync request.
     def sync_tree_from_text_window(self):
         if getattr(self, '_node_sync_active', False):  # Existing helpers dispatch Qt events; refuse a nested sync on this tab.
-            return  # Do not restart an already running sync.
+            return False  # Do not restart an already running sync; this call did not sync.
         self._node_sync_active = True  # Set before the shared popup helper dispatches events.
         try:
             with node_view_sync_progress(self.main_window):  # Only the outermost operation owns popup dismissal.
                 self.main_window.background_processing_signal.emit(4, self.model_context)  # Preserve task reporting.
                 self.update_tree_synced_indicator(False)  # Preserve the existing processing order.
-                self.update_model_from_text_edit()  # Includes synchronous modelChanged handlers.
+                if not self.update_model_from_text_edit():  # Row 450: a failed parse or refusal stops the sync.
+                    return False  # Keep the text and the red light; Node View still shows the app data.
                 self.update_tree_from_model()  # Preserve the final tree rebuild.
                 self.tree_widget.expand_tree_to_level(1)  # Preserve final node expansion.
                 self.update_tree_synced_indicator(True)  # Finish status updates before releasing the popup scope.
+                return True  # The edited text reached the app data.
         finally:
             self._node_sync_active = False  # Permit another sync even after an exception.
 
@@ -176,8 +181,9 @@ class BaseTabContent(QWidget):
         logger.debug("update_model_from_text_edit() enter")
         self.update_tree_synced_indicator(False)
         new_text = self.text_edit.toPlainText()
-        self.view.set_text(new_text)
+        applied = self.view.set_text(new_text)  # False when the text was invalid or refused; data unchanged.
         logger.debug("update_model_from_text_edit() exit")
+        return applied  # Callers stop on False so the text and red light are kept.
 
     def clear_tree_view(self):
         logger.debug("1st tab clear_tree_view() Called.")

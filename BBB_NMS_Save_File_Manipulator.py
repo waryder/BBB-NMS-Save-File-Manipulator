@@ -24,6 +24,7 @@ from NmsLoadController import NmsLoadController  # Live loading/saving and retai
 from FullLiveSaveBackupController import FullLiveSaveBackupController  # Confirmed full-directory backups, independent of editor data.
 from FullLiveSaveRestoreDialog import show_restore_instructions  # Copyable manual guidance; never executes a restore.
 from StartupDisclaimerDialog import show_startup_disclaimer  # Startup warning with a persistent opt-out.
+from TabLeaveGuard import install_tab_leave_guard  # Row 450: Sync/Abandon/Cancel when leaving unsynced Raw JSON.
 
 # Fallback switch: True restores the original startup LoadDataDialog popup (and its loading popup).
 # False (default) opens the main window directly with the built-in placeholder data.
@@ -135,6 +136,7 @@ class MainWindow(NmsLoadController, QMainWindow):  # Add direct-save loading wit
 
         self.tabs.tabBarClicked.connect(self.before_tab_change)
         self.tabs.currentChanged.connect(self.after_tab_change)
+        install_tab_leave_guard(self)  # Connected after after_tab_change so tab signals are unblocked first.
 
         # Create a main layout and central widget
         main_layout = QVBoxLayout()

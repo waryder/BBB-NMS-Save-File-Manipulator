@@ -1,6 +1,7 @@
 from imports import *
 from NodeViewSyncDialog import node_view_sync_progress  # Show processing before deletion; nested sync calls reuse it.
 from JsonTextNavigation import JsonNavigationError, TreeJsonNavigation  # Shared read-only structural navigation.
+from RawJsonChecks import teleport_location_problem  # Check an endpoint before Set Player Location writes anything.
 
 class DeleteTreeNodesSelectedDialog(QDialog):
     def __init__(self, num_nodes = 0):
@@ -254,7 +255,10 @@ class CustomTreeWidget(QTreeWidget):
 
         model_data = self.parent.model.get_data()
         endpoint_universal_address = self.parent.tree_widget_data_to_json(item)
-
+        problem = teleport_location_problem(endpoint_universal_address)  # Validate before the first write.
+        if problem:  # A partial player-location update must never happen.
+            QMessageBox.warning(self, "Set Player Location", problem + " Nothing was changed.")
+            return  # Player location is untouched.
 
         self.parent.main_window.background_processing_signal.emit(4, "tab1")
         tab.update_tree_synced_indicator(False)

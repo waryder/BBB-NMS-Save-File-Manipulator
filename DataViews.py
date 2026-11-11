@@ -1,6 +1,9 @@
 from imports import *
 from IniFileManager import *
 from pympler import asizeof
+from RawJsonChecks import first_entry_problem  # App-integrity checks run before Raw JSON is applied.
+
+REJECTED_TEXT_TITLE = 'Raw JSON Not Applied'  # Shared title for every refused Raw JSON sync.
 
 class JsonArrayView(QObject):
     def __init__(self, owner, model, model_context = 'main'):
@@ -15,13 +18,30 @@ class JsonArrayView(QObject):
     def get_text(self):
         return json.dumps(self.get_json(), indent=4)
 
+    # set_text: Parse Raw JSON text and apply it; return False, with the data unchanged, when it cannot be applied.
     def set_text(self, text):
-        json_array = self.model.json_loads_with_exception_check(text)
+        if self.model_context == 'main':  # Keep the legacy whole-context import path exactly as before.
+            json_array = self.model.json_loads_with_exception_check(text)  # Legacy wrapper shows its own popup.
+            return self.set_json(json_array) if json_array else False  # Original rule for 'main'.
+        try:
+            json_array = json.loads(text)  # JSONDecodeError is the only parse-failure signal.
+        except json.JSONDecodeError as error:
+            QMessageBox.critical(self.owner, 'Error', 'Text Input was not valid JSON data. Nothing was changed. '
+                                 f'Check your data format and try again! ({error})')  # Same wording as before.
+            return False  # Leave the model untouched so the caller keeps the text and the red light.
+        if not isinstance(json_array, list):  # Every tab's Raw JSON is a JSON array.
+            self.warn_rejected_text('The Raw JSON on this tab must be a JSON array ([ ... ]). Nothing was changed.')
+            return False  # Refuse non-array input explicitly.
+        problem = first_entry_problem(self.model_context, json_array)  # Protects this app's processing, not game rules.
+        if problem:  # Something the labels, sorting or lookups could not process.
+            self.warn_rejected_text(problem + ' Nothing was changed.')
+            return False  # Refuse before anything is applied.
+        return self.set_json(json_array)  # Apply; Inventory also checks its count and order there.
 
-        if json_array:
-            return self.set_json(json_array)
-        else:
-            return False
+    # warn_rejected_text: Tell the user why their Raw JSON was not applied.
+    def warn_rejected_text(self, message):
+        QMessageBox.warning(self.owner, REJECTED_TEXT_TITLE, message)  # Modal to the owning tab.
+
 
     def get_json(self):
         data = self.model.get_data()
@@ -129,11 +149,8 @@ class JsonArrayView(QObject):
             data["PlayerStateData"]["ShipOwnership"] = json_array
 
         elif (self.model_context == 'tab3'):
-            # data was provided as a reference here so it's modifying the original structure:
-            #data = self.model.get_data()
-
-            for i, data in enumerate(self.get_inventory_sources()):
-                data[i] = json_array[i]
+            if not self.replace_inventory_sources(json_array):  # Row 460: validate everything before any change.
+                return False  # Nothing changed, so no modelChanged notification.
 
         elif (self.model_context == 'tab4'):
             data = self.model.get_data()
@@ -141,6 +158,23 @@ class JsonArrayView(QObject):
 
         self.model.modelChanged.emit(None)
         return True
+
+    # replace_inventory_sources: Replace each inventory's contents in place, keeping identity and order; refuse mismatches unchanged.
+    def replace_inventory_sources(self, json_array):
+        sources = self.get_inventory_sources()  # Same ordered inventories that this tab displays.
+        if not isinstance(json_array, list) or len(json_array) != len(sources):  # The count must match exactly.
+            self.warn_rejected_text(f'The Inventory Raw JSON must contain exactly {len(sources)} inventories, '
+                                    'in their original order. Nothing was changed.')
+            return False  # Refuse before touching any inventory.
+        if not all(isinstance(entry, dict) and entry for entry in json_array):  # Each entry must be a non-empty object.
+            self.warn_rejected_text('Every Inventory Raw JSON entry must be a non-empty JSON object ({ ... }). '
+                                    'Nothing was changed.')
+            return False  # Refuse before touching any inventory.
+        for source, entry in zip(sources, json_array):  # Validation passed; update every inventory.
+            if source is not entry:  # Clearing a shared object would also erase the entry itself.
+                source.clear()  # Drop old keys so removed keys do not linger.
+                source.update(entry)  # Same dict object stays referenced by the save tree.
+        return True  # All inventories now hold the edited contents.
 
     def getTabObj(self):
         return self.owner
