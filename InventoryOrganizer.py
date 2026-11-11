@@ -199,5 +199,5 @@ class InventoryPlanner:
         if expand:
             self._expand_assigned(result, assigned)
         self._route_sources(result, sources, routes, assigned, overflow, expand)
-        result.changed = not same_context(result.candidate, self.original)
+        result.changed = True  # Every successful review permits Apply, even when its data is unchanged.
         return result

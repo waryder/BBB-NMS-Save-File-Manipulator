@@ -4,7 +4,7 @@ from CustomTextEdit import *
 from TextSearchDialog import *
 from IniFileManager import *
 #from DataModels import *
-from InventoryDialog import InventoryDialog
+
 from DataViews import *
 
 class ThirdTabContent(BaseTabContent):
@@ -19,12 +19,10 @@ class ThirdTabContent(BaseTabContent):
         self.search_dialog = None
 
 #left pane:
-        self.sync_tree_from_text_window_button = QPushButton("Sync to Node View")
+        self.sync_tree_from_text_window_button = QPushButton("Sync To Node View")
         self.sync_tree_from_text_window_button.setFixedWidth(self.button_width)
 ###
-        self.inventory_sort_button = QPushButton("Inventory Sorter")
-        self.inventory_sort_button.setFixedWidth(self.button_width)
-        self.inventory_organizer_button = QPushButton("Inventory Organizer")  # Separate candidate; preserve legacy sorter.
+        self.inventory_organizer_button = QPushButton("Inventory Sorter")  # The reviewed organizer replaces the legacy sorter.
         self.inventory_organizer_button.setFixedWidth(self.button_width)
 ###        
         # Create tree widget and text edit
@@ -40,8 +38,7 @@ class ThirdTabContent(BaseTabContent):
         left_buttons_lo = QHBoxLayout()
         # Sync to Node View now sits beside Pretty Print in the Raw JSON pane.
         # The existing sync button stays here; its LED is beside Raw JSON.
-        left_buttons_lo.addWidget(self.inventory_sort_button)
-        left_buttons_lo.addWidget(self.inventory_organizer_button)  # Side-by-side independent organizer entry point.
+        left_buttons_lo.addWidget(self.inventory_organizer_button)  # One entry point to the reviewed sorter.
         # Set alignment
         left_buttons_lo.setAlignment(Qt.AlignLeft)
 ###
@@ -58,13 +55,13 @@ class ThirdTabContent(BaseTabContent):
         left_container.setLayout(left_pane_layout)
         
 #right pane: 
-        self.right_button = QPushButton("Synch from Tree Window")
+        self.right_button = QPushButton("Synch From Tree Window")
         self.right_button.setFixedWidth(self.button_width)
 ###        
-        self.export_button = QPushButton("Export to Clipboard")
+        self.export_button = QPushButton("Export To Clipboard")
         self.export_button.setFixedWidth(self.button_width)
 ###
-        self.import_button = QPushButton("Import from Clipboard")
+        self.import_button = QPushButton("Import From Clipboard")
         self.import_button.setFixedWidth(self.button_width)
 ###
         self.pretty_print_button = QPushButton("Pretty Print")
@@ -124,8 +121,7 @@ class ThirdTabContent(BaseTabContent):
 
         # Connect buttons to methods
         self.sync_tree_from_text_window_button.clicked.connect(self.sync_tree_from_text_window)
-        self.inventory_sort_button.clicked.connect(self.inventory_sort_button_clicked)
-        self.inventory_organizer_button.clicked.connect(self.inventory_organizer_button_clicked)  # Lazy-load the separate candidate.
+        self.inventory_organizer_button.clicked.connect(self.inventory_organizer_button_clicked)  # Lazy-load the reviewed sorter.
         self.import_button.clicked.connect(lambda: self.paste_to_text_window(self))
         self.export_button.clicked.connect(lambda: self.copy_to_clipboard(self))
         self.pretty_print_button.clicked.connect(lambda: self.pretty_print_text_widget(self.model, self))
@@ -165,24 +161,15 @@ class ThirdTabContent(BaseTabContent):
         logger.debug(f"repainting tree...")
         self.tree_widget.repaint()
 
-    # inventory_organizer_button_clicked: Open a separate memory-only organizer; leave the legacy sorter unchanged.
+    # inventory_organizer_button_clicked: Open the reviewed, memory-only sorter under its new button label.
     def inventory_organizer_button_clicked(self):
         try:  # Preflight failures must preserve pending raw text and report without opening a dialog.
-            from InventoryOrganizerDialog import InventoryOrganizerDialog  # Keep candidate dependencies lazy.
+            from InventoryOrganizerDialog import InventoryOrganizerDialog  # Preserve existing organizer settings and implementation.
             InventoryOrganizerDialog(self).exec_()  # Cancel/Close cannot publish app-data changes.
         except Exception as error:
             QMessageBox.warning(self, "Inventory Organizer", str(error))  # Report actual preflight/import failures.
 
-    def inventory_sort_button_clicked(self):
-        logger.debug("3rd tab inventory_sort_button_clicked() ENTER")
 
-        dialog = InventoryDialog(self)
-        dialog.exec_()
-
-        #QMessageBox.information(None, "Starships Upgraded", "Your selected starships have been Upgraded:\n\n" + upgraded_starship_names)
-
-        logger.debug("3rd tab inventory_sort_button_clicked() EXIT")
-        
     def tree_widget_data_to_json(self, node_in = None):
         def parse_item(tree_node, depth):
             #we do not expect this here but were seeing it for some reason. We have deleted nodes

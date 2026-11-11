@@ -1,2 +1,6 @@
 # Python bytecode caches (repo root and nms_save_codec/)
 __pycache__/
+
+# Per-install storage locator and optional executable-adjacent user data.
+/BBB NMS SFM Data.path
+/BBB NMS SFM Data/

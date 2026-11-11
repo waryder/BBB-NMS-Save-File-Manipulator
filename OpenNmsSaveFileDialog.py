@@ -16,24 +16,46 @@ import NmsSlotOperations as slot_ops  # One globally switched stdout trace for r
 DEBUG_PREFIX = "[BBB-NMS-SFM/OpenNmsSaveFileDialog]"
 # Non-error row-40 traces use NmsSlotOperations.DEBUG_ENABLED, the single shared stdout switch.
 
-# Root that holds the Steam st_<id> save folders
+# Shared Windows root for Steam st_<id> and GOG DefaultUser account folders.
 NMS_SAVE_ROOT = os.path.join(os.environ.get("APPDATA", ""), "HelloGames", "NMS")
 
 
-# find_default_save_folder
-# Returns the first st_* folder under %APPDATA%\HelloGames\NMS, or "" when none exists.
+# latest_save_timestamp: Read embedded metadata only; unreadable or empty folders cannot win discovery.
+def latest_save_timestamp(folder):
+    try:  # Isolate one unavailable account so the remaining accounts can still be discovered.
+        slots = list_save_slots(folder)  # Existing read-only scanner; never decode or change game data.
+        stamps = [record["meta"]["timestamp"] for slot in slots for record in slot["files"]
+                  if record["meta"] and os.path.isfile(record["data_path"])]  # Require a real save beside readable metadata.
+        return max((stamp for stamp in stamps if stamp > 0), default=0)  # Ignore missing/legacy zero timestamps.
+    except Exception as exc:  # Permission failures or malformed account contents are not valid candidates.
+        logger.error(f"{DEBUG_PREFIX} latest_save_timestamp: {folder}: {exc}")  # Errors are always visible.
+        return 0  # Keep searching other ordinary account directories.
+
+
+# find_default_save_folder: Suggest the Steam/GOG folder with the newest embedded save timestamp.
 def find_default_save_folder():
-    # No NMS root means no Steam saves on this machine
-    if not os.path.isdir(NMS_SAVE_ROOT):
-        return ""
-    # Steam save folders are named st_<steamid64>
-    for entry in sorted(os.listdir(NMS_SAVE_ROOT)):
-        # Take the first matching directory
-        full_path = os.path.join(NMS_SAVE_ROOT, entry)
-        if entry.lower().startswith("st_") and os.path.isdir(full_path):
-            return full_path
-    # Nothing matched
-    return ""
+    if not os.environ.get("APPDATA") or not os.path.isdir(NMS_SAVE_ROOT):  # Never search relative to the app directory.
+        return ""  # Leave the ordinary manual folder picker available.
+    best_folder, best_time = "", 0  # No directory wins without readable positive save metadata.
+    for entry in os.listdir(NMS_SAVE_ROOT):  # Preserve encountered order; no special sorting for ties.
+        if not (entry.lower().startswith("st_") or entry.lower() == "defaultuser"):  # Steam/GOG only.
+            continue  # Do not recursively search backups, other platforms or arbitrary directories.
+        folder = os.path.join(NMS_SAVE_ROOT, entry)  # Evaluate each account independently.
+        if os.path.isdir(folder):  # Files with account-like names are not save directories.
+            timestamp = latest_save_timestamp(folder)  # Rank by embedded time, never filesystem Date modified.
+            if timestamp > best_time:  # Strictly newer wins; equal times retain the first encountered account.
+                best_folder, best_time = folder, timestamp  # Suggest a path only; never load or persist it here.
+    return best_folder  # Empty means no readable candidate; manual selection remains possible.
+
+
+# storage_label: Identify conventional account names without claiming copied folders belong to one platform.
+def storage_label(folder):
+    name = os.path.basename(os.path.normpath(folder)).lower() if folder else ""  # Inspect only the selected folder name.
+    if name == "defaultuser":  # GOG's conventional account directory.
+        return "GOG"  # Same codec format, different platform label and account name.
+    if name.startswith("st_"):  # Steam's conventional account directory.
+        return "Steam"  # No hardcoded Steam label for every possible selection.
+    return "Steam/GOG" if folder else ""  # Manual copies remain usable without guessing their provenance.
 
 
 # format_timestamp
@@ -46,7 +68,7 @@ def format_timestamp(timestamp):
     return datetime.datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
 
 
-# get_initial_save_folder: Share the Open dialog's source policy without constructing or scanning a dialog.
+# get_initial_save_folder: Reuse only an existing remembered directory; discovery belongs to Pick Folder.
 def get_initial_save_folder(manager, parent=None):
     try:  # A malformed preference must not block default discovery.
         remembered = manager.get_nms_save_folder()  # Read the existing preference only.
@@ -55,11 +77,7 @@ def get_initial_save_folder(manager, parent=None):
     except Exception as exc:
         logger.error(f"{DEBUG_PREFIX} get_initial_save_folder: {exc}")  # Always expose preference failures.
         QMessageBox.warning(parent, "Open NMS Save File", f"Could not read saved folder preference:\n{exc}")
-    try:
-        return find_default_save_folder()  # Same first-st_* discovery as the existing Open dialog.
-    except OSError as exc:
-        logger.error(f"{DEBUG_PREFIX} get_initial_save_folder: discovery failed: {exc}")  # No silent success.
-        return ""  # Let the caller report the unavailable source without changing preferences.
+    return ""  # First use or a missing path clears Save Path without silently choosing or persisting another account.
 
 
 class OpenNmsSaveFileDialog(QDialog):
@@ -76,7 +94,7 @@ class OpenNmsSaveFileDialog(QDialog):
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         # Prefer the main window's shared manager when the dialog has a parent.
         self.ini_file_manager = getattr(parent, 'ini_file_manager', ini_file_manager)
-        # Restore a usable remembered folder, otherwise discover the Steam default.
+        # Restore an existing remembered folder; first use or a missing path starts blank.
         self.save_folder = self._get_initial_save_folder()
         # Build all widgets and layouts
         self._build_ui()
@@ -105,7 +123,8 @@ class OpenNmsSaveFileDialog(QDialog):
         # Two-column grid plus a third column for the Pick Folder button
         grid = QGridLayout()
         # Value labels that get updated later
-        self.save_path_label = QLabel(self.save_folder or "(no NMS save folder found)")
+        self.save_path_label = QLabel(self.save_folder)  # Leave a missing/unselected Save Path genuinely blank.
+        self.storage_label = QLabel(storage_label(self.save_folder))  # Follow the selected Steam/GOG account.
         self.modified_label = QLabel("(no file selected)")
         self.save_name_label = QLabel("(no file selected)")
         self.description_label = QLabel("(no file selected)")
@@ -118,7 +137,7 @@ class OpenNmsSaveFileDialog(QDialog):
         self.pick_folder_button = QPushButton("Pick Folder...")
         self.pick_folder_button.clicked.connect(self._on_pick_folder_clicked)
         # Lay out each labeled row
-        rows = [("Storage:", QLabel("Steam")), ("Save Path:", self.save_path_label),
+        rows = [("Storage:", self.storage_label), ("Save Path:", self.save_path_label),
                 ("Game Slot:", self.slot_combo), ("Save File:", self.file_combo),
                 ("Modified:", self.modified_label), ("Save Name:", self.save_name_label),
                 ("Description:", self.description_label)]
@@ -148,6 +167,7 @@ class OpenNmsSaveFileDialog(QDialog):
     # _populate_slots
     # Reads the save folder (read-only) and fills the Game Slot dropdown.
     def _populate_slots(self):
+        self.storage_label.setText(storage_label(self.save_folder))  # Also refresh platform after manual folder changes.
         # Start empty every time
         self.slot_combo.clear()
         # Explicitly clear dependent fields even when the slot combo was already empty.
@@ -218,12 +238,22 @@ class OpenNmsSaveFileDialog(QDialog):
         self.save_name_label.setText(record["meta"]["name"])
         self.description_label.setText(record["meta"]["summary"])
 
+    # _picker_start_folder: Keep the selected path or suggest the latest Steam/GOG account without side effects.
+    def _picker_start_folder(self):
+        if self.save_folder and os.path.isdir(self.save_folder):  # Do not chase newer accounts after a user selection.
+            return self.save_folder  # Preserve the last accepted existing folder.
+        try:  # The ordinary picker must still open when discovery is unavailable.
+            return find_default_save_folder() or (NMS_SAVE_ROOT if os.path.isdir(NMS_SAVE_ROOT) else "")  # Native default if none exists.
+        except OSError as exc:  # Permissions or a disappearing NMS root must not strand the user.
+            logger.error(f"{DEBUG_PREFIX} _picker_start_folder: {exc}")  # Report errors without claiming a discovered path.
+            return ""  # Manual browsing remains available.
+
     # _on_pick_folder_clicked
     # Selects a save directory; cancellation leaves the current path and preferences unchanged.
     def _on_pick_folder_clicked(self):
-        # Start in the current folder, or the NMS root when no folder was discovered.
+        # Suggest a path inside the existing picker only; the user still confirms or browses elsewhere.
         folder = QFileDialog.getExistingDirectory(self, "Pick NMS Save Folder",
-                self.save_folder or NMS_SAVE_ROOT, QFileDialog.ShowDirsOnly)
+                self._picker_start_folder(), QFileDialog.ShowDirsOnly)
         # Cancel is a no-op, including no preference writes or dropdown resets.
         if not folder:
             return
@@ -240,7 +270,7 @@ class OpenNmsSaveFileDialog(QDialog):
     # Persists the selection before changing the displayed folder and repopulating dropdowns.
     def _apply_save_folder(self, folder):
         # Remembering a folder writes preferences, so choosing the directory alone is not consent.
-        reply = QMessageBox.warning(self, "Confirm preference disk write",
+        reply = QMessageBox.warning(self, "Confirm Preference Disk Write",
                 f"About to write the remembered NMS save-folder preference:\n{folder}\nContinue?",
                 QMessageBox.Ok | QMessageBox.Cancel, QMessageBox.Cancel)  # Explicit warning before persistence.
         slot_ops.trace("OpenNmsSaveFileDialog", "folder_write_confirmation", accepted=reply == QMessageBox.Ok, folder=folder)  # Audit consent.

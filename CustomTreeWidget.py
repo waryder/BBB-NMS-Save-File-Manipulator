@@ -443,7 +443,8 @@ class CustomTreeWidget(QTreeWidget):
         if not base_name:
             base_name = 'default'
 
-        file_path_string = QApplication.instance().activeWindow().ini_file_manager.get_full_file_path(f"{base_name.strip()}")
+        from AppPersistentStorage import suggested_backup_path  # Game labels are names, never directory paths.
+        file_path_string = str(suggested_backup_path('Bases', base_name))
 
         dialog_file_path, _ = QFileDialog.getSaveFileName(
             None, "Save File", 
@@ -468,7 +469,8 @@ class CustomTreeWidget(QTreeWidget):
         options = QFileDialog.Options()
         options |= QFileDialog.ReadOnly
 
-        path_string = QApplication.instance().activeWindow().ini_file_manager.get_persistent_dir()
+        from AppPersistentStorage import data_path  # Restore starts beside the matching base backups.
+        path_string = str(data_path('Backups', 'Bases'))
 
         file_path, _ = QFileDialog.getOpenFileName(
             None,
@@ -521,7 +523,8 @@ class CustomTreeWidget(QTreeWidget):
         if not inventory_name:
             inventory_name = 'default'
 
-        file_path_string = QApplication.instance().activeWindow().ini_file_manager.get_full_file_path(f"{inventory_name.strip()}")
+        from AppPersistentStorage import suggested_backup_path  # Prevent labels from changing the suggested category.
+        file_path_string = str(suggested_backup_path('Inventories', inventory_name))
 
         print (file_path_string)
 
@@ -548,7 +551,8 @@ class CustomTreeWidget(QTreeWidget):
         options = QFileDialog.Options()
         options |= QFileDialog.ReadOnly
 
-        path_string = QApplication.instance().activeWindow().ini_file_manager.get_persistent_dir()
+        from AppPersistentStorage import data_path  # Restore starts beside the matching inventory backups.
+        path_string = str(data_path('Backups', 'Inventories'))
 
         file_path, _ = QFileDialog.getOpenFileName(
             None,

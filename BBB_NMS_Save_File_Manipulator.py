@@ -23,6 +23,7 @@ from init_text import INIT_TEXT
 from NmsLoadController import NmsLoadController  # Live loading/saving and retained target tracking.
 from FullLiveSaveBackupController import FullLiveSaveBackupController  # Confirmed full-directory backups, independent of editor data.
 from FullLiveSaveRestoreDialog import show_restore_instructions  # Copyable manual guidance; never executes a restore.
+from StartupDisclaimerDialog import show_startup_disclaimer  # Startup warning with a persistent opt-out.
 
 # Fallback switch: True restores the original startup LoadDataDialog popup (and its loading popup).
 # False (default) opens the main window directly with the built-in placeholder data.
@@ -397,6 +398,15 @@ class MainWindow(NmsLoadController, QMainWindow):  # Add direct-save loading wit
 
 def main():
     app = QApplication(sys.argv)
+    import AppPersistentStorage as storage  # The picker requires QApplication to exist first.
+    if not storage.initialize_storage():  # Cancel or a locator write failure closes startup.
+        return 0
+    try:
+        ini_file_manager.initialize()  # All importers retain the same deferred singleton object.
+    except Exception as error:
+        QMessageBox.critical(None, 'Cannot Initialize App Settings',
+                             str(error) + '\n\nCheck the selected storage directory and try again.\n\nHit OK to Close the App...')
+        return 1  # Do not start the editor with unavailable settings.
     logger.debug("main enter")
     main_window = MainWindow()
     app.installEventFilter(main_window)  # Route cooperative Qt quit requests through closeEvent.
@@ -405,6 +415,7 @@ def main():
     for shutdown_signal in (signal.SIGINT, signal.SIGTERM, getattr(signal, 'SIGBREAK', signal.SIGINT)):
         signal.signal(shutdown_signal, lambda signum, frame: QTimer.singleShot(0, main_window.close))  # Queue catchable signals through the UI close path.
     main_window.show()
+    QTimer.singleShot(0, lambda: show_startup_disclaimer(main_window))  # Show after the main window is ready.
 
     QApplication.processEvents()
     logger.debug("main exit")

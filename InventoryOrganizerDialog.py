@@ -58,7 +58,7 @@ class InventoryOrganizerDialog(QDialog):
         group = QGroupBox('Gather from these sources')
         layout = QVBoxLayout(group)
         tools = QHBoxLayout()
-        for label, selection in (('Select all', 'all'), ('Mobile Storages', 'carried'),
+        for label, selection in (('Select All', 'all'), ('Mobile Storages', 'carried'),
                                  ('Stationary Storages', 'stationary'), ('Clear', 'clear')):
             button = QPushButton(label)
             button.clicked.connect(lambda checked=False, choice=selection: self._select_group(choice))
@@ -116,7 +116,7 @@ class InventoryOrganizerDialog(QDialog):
         layout = QHBoxLayout()
         layout.addStretch()
         self.preview_button = QPushButton('Review Moves')
-        self.apply_button = QPushButton('Apply to app data')
+        self.apply_button = QPushButton('Apply To App Data')
         self.close_button = QPushButton('Close')
         for button in (self.preview_button, self.apply_button, self.close_button):
             button.setAutoDefault(False)

@@ -1,6 +1,7 @@
 from imports import *
 # Temporary sibling files allow atomic preference updates without truncating the original.
 import tempfile
+import AppPersistentStorage as storage  # Share the startup-selected application data tree.
 
 class IniFileManager:
     def __init__(self, ini_file=None):
@@ -8,17 +9,20 @@ class IniFileManager:
         Initializes the IniFileManager class.
         :param ini_file: The path to the .ini file.
         """
-        INI_FILE_NAME = "app_preferences.ini"
-        self.ensure_persistent_file(INI_FILE_NAME)
-        self.ini_file = self.get_full_file_path(INI_FILE_NAME)
+        self.ini_file = None  # Delay filesystem access until Qt and persistent storage are ready.
 
         self.config = configparser.ConfigParser(delimiters='=')
-        self.config.read(self.ini_file, encoding='utf-8')
+
 
         # Initialize the working file path from the ini file if it exists
         # self.tab1_working_file_path = self.config.get('Preferences', 'tab1_working_file_path', fallback='')
         # self.tab2_working_file_path = self.config.get('Preferences', 'tab2_working_file_path', fallback='')
         self.last_file_path = False
+
+    # initialize: Load the selected-tree preferences, seeding only a missing file.
+    def initialize(self):
+        self.ini_file = self.ensure_persistent_file('app_preferences.ini')  # Preserve migrated settings.
+        self.config.read(self.ini_file, encoding='utf-8')  # Never fall back to an old data root.
 
     # get_nms_save_folder
     # Returns the remembered NMS folder, with an empty fallback for older preferences.
@@ -61,6 +65,8 @@ class IniFileManager:
     # _write_nms_preferences
     # Writes a complete staged config through a temporary sibling, cleaning up on failure.
     def _write_nms_preferences(self, updated):
+        if self.ini_file is None:  # Refuse preferences writes before startup selected and initialized storage.
+            raise RuntimeError('Application preferences have not been initialized.')
         # Track the temporary filename for cleanup even if writing fails.
         temporary_path = None
         # Keep the existing preference file intact until the replacement is ready.
@@ -122,91 +128,21 @@ class IniFileManager:
     #     """
     #     return self.tab2_working_file_path
 
-    def init_configfile_inventory_sorter_defaults(
-            self,
-            source_checkboxes,
-            target_checkboxes,
-            target_combo_boxes):
+    # get_hide_startup_disclaimer: Show the warning by default, including malformed preferences.
+    def get_hide_startup_disclaimer(self):
+        try:  # Invalid stored booleans must not silently suppress the warning.
+            return self.config.getboolean('Preferences', 'hide_startup_disclaimer', fallback=False)
+        except (ValueError, configparser.Error):
+            return False  # Recover with a visible disclaimer instead of failing startup.
 
-        for key, checkbox in source_checkboxes.items():
-            # Check if the key is already stored in the INI
-            if f"{key}_source_checkbox" not in self.config['Preferences'].keys():
-                # Save the current state (checked/unchecked) of the checkbox
-                #if "Exosuit" in f"{key}_source_checkbox":
-                    # print(f"AAAAA {key}_source_checkbox")
-                
-                self.config['Preferences'][f"{key}_source_checkbox"] = str(checkbox.isChecked())
-
-        for key, checkbox in target_checkboxes.items():
-            # Check if the key is already stored in the INI
-            if f"{key}_target_checkbox" not in self.config['Preferences']:
-                # Save the current state (checked/unchecked) of the checkbox
-                self.config['Preferences'][f"{key}_target_checkbox"] = str(checkbox.isChecked())
-
-        for key, combobox in target_combo_boxes.items():
-            #Check if the key is already stored in the INI
-            if f"{key}_target_combobox" not in self.config['Preferences']:
-                # Save the current state (checked/unchecked) of the checkbox
-                self.config['Preferences'][f"{key}_target_combobox"] = combobox.lineEdit().text()
-
-        with open(self.ini_file, 'w', encoding='utf-8') as configfile:
-            self.config.write(configfile)
-
-    def store_configfile_inventory_sorter_defaults(
-        self,
-        source_checkboxes,
-        target_checkboxes,
-        target_combo_boxes):
-
-        #make sure all values have been initialized:
-        self.init_configfile_inventory_sorter_defaults(
-            source_checkboxes,
-            target_checkboxes,
-            target_combo_boxes)
-
-        for key, checkbox in source_checkboxes.items():
-            if "exosuit" in f"{key}_source_checkbox":
-                print(f"BBBBB {key}_source_checkbox")
-
-
-            self.config['Preferences'][f"{key}_source_checkbox"] = str(checkbox.isChecked())
-
-        for key, checkbox in target_checkboxes.items():
-            self.config['Preferences'][f"{key}_target_checkbox"] = str(checkbox.isChecked())
-
-        for key, combobox in target_combo_boxes.items():
-            self.config['Preferences'][f"{key}_target_combobox"] = combobox.lineEdit().text()
-
-        print("store_configfile_inventory_sorter_defaults(): writing to config file")
-        with open(self.ini_file, 'w', encoding='utf-8') as configfile:
-            self.config.write(configfile)
-
-    def apply_inventory_sorter_defaults_to_checkboxes(
-            self,
-            source_checkboxes,
-            target_checkboxes,
-            target_combo_boxes):
-
-        #make sure all values have been initialized
-        #we don't really need this here since we have fallbacks, but I just
-        #want to make sure at every opportunity the ini file has what
-        #it should in it in case an end user has messed with it:
-        self.init_configfile_inventory_sorter_defaults(
-            source_checkboxes,
-            target_checkboxes,
-            target_combo_boxes)
-
-        for key, checkbox in source_checkboxes.items():
-            checkbox.setChecked(self.config.getboolean('Preferences', f"{key}_source_checkbox", fallback='False'))
-
-        for key, checkbox in target_checkboxes.items():
-            checkbox.setChecked(self.config.getboolean('Preferences', f"{key}_target_checkbox", fallback='False'))
-
-        for key, combobox in target_combo_boxes.items():
-            combobox.setCheckedItemsFromText(self.config.get('Preferences', f"{key}_target_combobox", fallback='Product (Crafted or Special Items)'))
-
-        # with open(self.ini_file, 'w') as configfile:
-        #     self.config.write(configfile)
+    # store_hide_startup_disclaimer: Persist only the disclaimer choice through atomic replacement.
+    def store_hide_startup_disclaimer(self, hidden):
+        updated = copy.deepcopy(self.config)  # Preserve unrelated preferences and failed-write state.
+        if not updated.has_section('Preferences'):  # Support older or manually edited preference files.
+            updated.add_section('Preferences')
+        updated.set('Preferences', 'hide_startup_disclaimer', str(bool(hidden)))  # Store a valid boolean.
+        self._write_nms_preferences(updated)  # Reuse the existing atomic sibling-file writer.
+        self.config = updated  # Publish only after successful persistence.
 
     # def get_last_tab1_working_file_directory(self):
     #     """
@@ -246,7 +182,7 @@ class IniFileManager:
 
     def open_file(self):
         options = QFileDialog.Options()
-        initial_directory = self.get_persistent_dir()
+        initial_directory = str(storage.data_path('Backups', 'Contexts'))
 
         # Open file dialog starting from the last working directory
         file_name, _ = QFileDialog.getOpenFileName(
@@ -324,41 +260,17 @@ class IniFileManager:
                 QMessageBox.critical(QApplication.instance().activeWindow(), "Error", f"Failed to save file: {e}")
 
     def get_persistent_dir(self):
-        """Get the persistent directory based on the OS."""
-        if sys.platform == "win32":
-            path =  os.path.join(os.getenv("APPDATA"), APP_NAME)
-        elif sys.platform == "darwin":
-            path = os.path.join(os.path.expanduser("~"), "Library", "Application Support", APP_NAME)
-        else:
-            path = os.path.join(os.path.expanduser("~"), f".{APP_NAME}")
-
-        return path
+        return str(storage.data_path())  # No environment-based guessing after startup selection.
 
     def ensure_persistent_file(self, filename):
-        try:
-
-            """Ensure the data file is copied to a persistent directory."""
-            persistent_dir = self.get_persistent_dir()
-            if not os.path.exists(persistent_dir):
-                os.makedirs(persistent_dir)
-
-            persistent_file = os.path.join(persistent_dir, filename)
-
-            # Determine source file
-            if hasattr(sys, "_MEIPASS"):
-                source_file = os.path.join(sys._MEIPASS, filename)
-            else:
-                source_file = os.path.join(os.path.dirname(__file__), filename)
-
-            # Copy file if it doesn't exist
-            if not os.path.exists(persistent_file):
-                shutil.copy(source_file, persistent_file)
-
-        except Exception as e:
-            # Show a pop-up dialog with the error
-            QMessageBox.critical(None, "Error", f"File Paths: persistent_file: {persistent_file}, source_file: {source_file}, error: {str(e)}")
-
-        return persistent_file
+        if os.path.basename(filename) != filename:  # Reject resource path traversal.
+            raise ValueError('Expected a plain persistent resource filename.')
+        category = 'Settings' if filename == 'app_preferences.ini' else 'Reference Data'
+        persistent_file = storage.data_path(category, filename)  # Resource copies are not user backups.
+        source_root = getattr(sys, '_MEIPASS', os.path.dirname(__file__))  # Bundled resources remain read-only.
+        if not persistent_file.exists():  # Never overwrite migrated preferences or copied references.
+            shutil.copy(os.path.join(source_root, filename), persistent_file)
+        return str(persistent_file)  # Let startup report failures rather than silently continue.
 
     # get_starship_upgrade_reference_path: Resolve current donors using the existing source/frozen bundle roots.
     def get_starship_upgrade_reference_path(self, filename):
@@ -371,10 +283,8 @@ class IniFileManager:
         return os.path.join(source_root, 'starship_upgrade_references', filename)
 
     def get_full_file_path(self, file_name):
-        per_path = self.get_persistent_dir()
-        full_path = os.path.join(per_path, file_name)
-
-        return full_path
+        category = ('Settings',) if file_name == 'app_preferences.ini' else ('Backups', 'Contexts')
+        return str(storage.data_path(*category, file_name))  # Legacy JSON output defaults to Contexts.
 
 ini_file_manager = IniFileManager('app_preferences.ini')                
 

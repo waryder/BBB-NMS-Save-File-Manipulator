@@ -71,7 +71,7 @@ def show_restore_instructions(window):
     try:  # Missing source configuration must not produce guessed destructive commands.
         selected = get_initial_save_folder(window.ini_file_manager, window)  # Shared remembered/default source policy.
         source = backup_ops.source_root(selected)  # Resolve the actual live NMS directory using the same policy as Backup.
-        root = backup_ops.application_root() / 'Full NMS Save Backups'  # Actual application backup directory.
+        root = backup_ops.backup_root()  # Exactly the same selected-tree destination used by Backup.
         text = restore_instructions(source, root)  # Populate the three-line example with real runtime paths.
     except Exception as exc:  # Keep errors copyable, but do not offer a command with an unknown target.
         text = ('Manual restore instructions cannot determine the live save folder. Use File > Open NMS Save File to select it first. '

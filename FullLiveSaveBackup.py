@@ -44,11 +44,17 @@ def _io_path(path):
     return Path('\\\\?\\' + text)  # Request extended-length handling for an absolute drive path.
 
 
-# application_root: Keep persistent backups beside the source app or packaged executable.
+# application_root: Locate the path locator beside the source app or packaged executable.
 def application_root():
     if getattr(sys, 'frozen', False):  # Never write into PyInstaller's extraction directory.
         return Path(sys.executable).resolve().parent  # Packaged application root.
     return Path(__file__).resolve().parent  # Source application root, independent of working directory.
+
+
+# backup_root: Share the selected-tree backup destination with manual restore guidance.
+def backup_root():
+    from AppPersistentStorage import data_path  # No Qt or storage-selection side effects during import.
+    return data_path('Backups', 'Full NMS Save Backups')  # Only the locator lives beside the executable.
 
 
 # source_root: Expand the Open dialog's account folder to its containing live NMS root.
@@ -56,10 +62,13 @@ def source_root(selected_folder):
     if not selected_folder:  # Never interpret an empty selection as the current directory.
         raise ValueError('No NMS save folder is available. Use File > Open NMS Save File to select it.')
     selected = Path(selected_folder).absolute()  # Keep the full native path in confirmation.
-    source = selected.parent if selected.name.lower().startswith('st_') else selected  # Include every account.
+    if not _io_path(selected).is_dir():  # Do not expand an unavailable remembered account into a seemingly valid parent.
+        raise ValueError('The selected NMS save folder is unavailable. Use File > Open NMS Save File to select it again.')
+    account = selected.name.lower().startswith('st_') or selected.name.lower() == 'defaultuser'  # Steam and GOG account names.
+    source = selected.parent if account else selected  # Include every account in the same complete NMS-root backup.
     if source.name.lower() != 'nms' or not _io_path(source).is_dir():  # Do not unexpectedly copy an arbitrary parent.
-        raise ValueError('Select the live st_* folder inside HelloGames\\NMS in File > Open NMS Save File.')
-    return source  # The copied contents include st_* directories and any root files.
+        raise ValueError('Select the live Steam st_* or GOG DefaultUser folder inside HelloGames\\NMS in File > Open NMS Save File.')
+    return source  # Shared by Backup and manual Restore; preserve all account directories and root files.
 
 
 # _checked_stat: Refuse reparse points/links instead of following them outside the chosen source.
@@ -122,9 +131,9 @@ def _backup_prefix(source):
 # plan_backup: Calculate the exact proposed paths and estimated disk usage without writes.
 def plan_backup(selected_folder, app_root=None, now=None):
     source = source_root(selected_folder)  # The same chosen account expands to the full NMS tree.
-    root = Path(app_root) if app_root is not None else application_root()  # Test injection never changes production roots.
+    root = Path(app_root) / 'Full NMS Save Backups' if app_root is not None else backup_root()  # Preserve fixture injection.
     stamp = (now or datetime.datetime.now()).strftime('%Y_%m_%d_%H_%M_%S')  # Match the BAT timestamp.
-    destination = root.absolute() / 'Full NMS Save Backups' / f'{_backup_prefix(source)}_{stamp}'  # Fresh sibling backups.
+    destination = root.absolute() / f'{_backup_prefix(source)}_{stamp}'  # Fresh siblings within the selected data tree.
     _separate_paths(source, destination)  # Refuse output within the source before scanning it.
     if os.path.lexists(_io_path(destination)):  # Never merge into an existing backup or follow an existing link.
         raise FileExistsError(f'Backup destination already exists; retry in a moment: {destination}')
