@@ -30,15 +30,37 @@ from TabLeaveGuard import install_tab_leave_guard  # Row 450: Sync/Abandon/Cance
 # False (default) opens the main window directly with the built-in placeholder data.
 SHOW_STARTUP_LOAD_DIALOG = False
 
+_unexpected_error_popup_open = False  # Row 620: at most one unexpected-error popup at a time.
+
+# global_exception_handler: Log every unhandled error and also show it to the user, so failures are never silent.
 def global_exception_handler(exc_type, exc_value, exc_traceback):
     if issubclass(exc_type, KeyboardInterrupt):
         # Let KeyboardInterrupt exceptions pass through without logging
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         return
 
-        # Print the error and traceback
+    # Print the error and traceback
     logger.error(f"Unhandled exception: {exc_value}")
     traceback.print_exception(exc_type, exc_value, exc_traceback)
+    show_unexpected_error(exc_type, exc_value, exc_traceback)  # Row 620: tell the user what failed.
+
+# show_unexpected_error: Show one modal alert with the reported error; never raises and never stacks popups.
+def show_unexpected_error(exc_type, exc_value, exc_traceback):
+    global _unexpected_error_popup_open
+    app = QApplication.instance()  # No popup is possible before the application exists.
+    if _unexpected_error_popup_open or app is None or QThread.currentThread() != app.thread():  # GUI thread only.
+        return  # The console log above still records the error.
+    _unexpected_error_popup_open = True  # Further errors while the popup is open are logged only.
+    try:
+        box = QMessageBox(QMessageBox.Critical, 'Unexpected Error', f'Something went wrong: {exc_type.__name__}: {exc_value}')
+        box.setInformativeText('The app data may not be complete. Check your recent edits before saving, '
+                               'or reload the save to go back to the last saved state.')  # How to recover.
+        box.setDetailedText(''.join(traceback.format_exception(exc_type, exc_value, exc_traceback)))  # Full report on request.
+        box.exec_()  # Wait for the user to acknowledge.
+    except Exception:  # The alert itself must never raise back into Qt.
+        pass
+    finally:
+        _unexpected_error_popup_open = False  # Allow the next error to be shown.
 
 # Set the global exception handler
 sys.excepthook = global_exception_handler
