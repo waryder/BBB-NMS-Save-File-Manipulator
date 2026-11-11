@@ -4,6 +4,7 @@ from pympler import asizeof
 from RawJsonChecks import first_entry_problem  # App-integrity checks run before Raw JSON is applied.
 
 REJECTED_TEXT_TITLE = 'Raw JSON Not Applied'  # Shared title for every refused Raw JSON sync.
+NODE_VIEW_REJECTED_TITLE = 'Node View Change Not Applied'  # Row 510: refused Node View rebuilds.
 
 class JsonArrayView(QObject):
     def __init__(self, owner, model, model_context = 'main'):
@@ -38,9 +39,17 @@ class JsonArrayView(QObject):
             return False  # Refuse before anything is applied.
         return self.set_json(json_array)  # Apply; Inventory also checks its count and order there.
 
-    # warn_rejected_text: Tell the user why their Raw JSON was not applied.
-    def warn_rejected_text(self, message):
-        QMessageBox.warning(self.owner, REJECTED_TEXT_TITLE, message)  # Modal to the owning tab.
+    # warn_rejected_text: Tell the user why their change was not applied (Raw JSON title unless another is given).
+    def warn_rejected_text(self, message, title=REJECTED_TEXT_TITLE):
+        QMessageBox.warning(self.owner, title, message)  # Modal to the owning tab.
+
+    # tree_data_problem: Row 510 - check data rebuilt from Node View with the Raw JSON rules; None when usable.
+    def tree_data_problem(self, tree_data):
+        if self.model_context == 'main':  # The legacy whole-context view has no Node View list.
+            return None
+        if not isinstance(tree_data, list):  # For example the top list row was removed, leaving no list at all.
+            return 'Node View no longer holds a list of records.'
+        return first_entry_problem(self.model_context, tree_data)  # Same per-tab rules as Raw JSON.
 
 
     def get_json(self):
@@ -163,11 +172,11 @@ class JsonArrayView(QObject):
     def replace_inventory_sources(self, json_array):
         sources = self.get_inventory_sources()  # Same ordered inventories that this tab displays.
         if not isinstance(json_array, list) or len(json_array) != len(sources):  # The count must match exactly.
-            self.warn_rejected_text(f'The Inventory Raw JSON must contain exactly {len(sources)} inventories, '
+            self.warn_rejected_text(f'Inventory Processing must keep exactly {len(sources)} inventories, '
                                     'in their original order. Nothing was changed.')
             return False  # Refuse before touching any inventory.
         if not all(isinstance(entry, dict) and entry for entry in json_array):  # Each entry must be a non-empty object.
-            self.warn_rejected_text('Every Inventory Raw JSON entry must be a non-empty JSON object ({ ... }). '
+            self.warn_rejected_text('Every inventory entry must be a non-empty JSON object ({ ... }). '
                                     'Nothing was changed.')
             return False  # Refuse before touching any inventory.
         for source, entry in zip(sources, json_array):  # Validation passed; update every inventory.

@@ -244,14 +244,23 @@ class BaseTabContent(QWidget):
         self.text_edit.setPlainText(self.view.get_text())
         logger.debug("update_text_widget_from_model() exit")
 
+    # update_model_from_tree: Apply Node View's structure to the app data; refuse and restore Node View if unusable.
     def update_model_from_tree(self):
         logger.debug("update_model_from_tree() ENTER")
         self.main_window.background_processing_signal.emit(4, self.model_context)
 
         tree_data = self.tree_widget_data_to_json()
         logger.verbose(f"tree string: {tree_data}")
-        self.view.set_json(tree_data)
+        problem = self.view.tree_data_problem(tree_data)  # Row 510: same app-integrity rules as Raw JSON.
+        if problem:  # Unusable result: refuse before anything is applied.
+            self.view.warn_rejected_text(problem + ' Nothing was changed; Node View has been restored.',
+                                         NODE_VIEW_REJECTED_TITLE)
+        applied = not problem and self.view.set_json(tree_data)  # Inventory also applies its count/order rule there.
+        if not applied:  # Refused here or by set_json: show the unchanged app data again.
+            self.update_tree_from_model()  # Rebuild Node View from the unchanged data.
+            self.tree_widget.expand_tree_to_level(1)  # Same expansion as a normal rebuild.
         logger.debug("update_model_from_tree() EXIT")
+        return applied  # True only when Node View's structure reached the app data.
 
 
 

@@ -120,18 +120,24 @@ class CustomTreeWidget(QTreeWidget):
         # Initialize an empty list for the selected nodes
         self.right_button_selected_nodes = []
         self.clearSelection()
-        
+
         item = self.itemFromIndex(start_nonvisual_idx)
-        self.right_button_selected_nodes.append(item)
-        item.setSelected(True)
-                        
-        #step through visually from the top most node, over the selected visual nodes range...        
+        self.add_right_button_selection(item)  # Row 510: the top list row is never selected for deletion.
+
+        #step through visually from the top most node, over the selected visual nodes range...
         for idx in range(top_visual_idx, bottom_visual_idx):
-            
-            item = self.itemBelow(item) 
-            self.right_button_selected_nodes.append(item)
-            item.setSelected(True)
-            
+            item = self.itemBelow(item)  # Next visible row.
+            if item is None:  # Stop at the end of the visible tree.
+                break
+            self.add_right_button_selection(item)  # Skips the top list row.
+
+    # add_right_button_selection: Add one row to the right-drag selection unless it is the top-level list row.
+    def add_right_button_selection(self, item):
+        if item is None or item.parent() is None:  # The top [ ] (N) row is the whole list; deleting it would null the tab.
+            return  # Leave it unselected.
+        self.right_button_selected_nodes.append(item)  # Eligible for Delete N Nodes.
+        item.setSelected(True)  # Show it as selected.
+
     def get_visual_position_from_index(self, nonvisual_target_idx):
         current_item = self.topLevelItem(0)  # Start from the topmost visible item
         visual_position = 0  # Initialize the visual position counter
@@ -313,6 +319,11 @@ class CustomTreeWidget(QTreeWidget):
             from StarshipDeleteController import run_starship_delete  # Load the guarded ship-specific controller only here.
             return run_starship_delete(self, DeleteTreeNodesSelectedDialog)  # One route for single/multi-node requests.
         logger.debug("delete_tree_nodes_selected() ENTER")
+        self.right_button_selected_nodes = [node for node in self.right_button_selected_nodes
+                                            if node is not None and node.parent() is not None]  # Row 510: never the top list row.
+        if not self.right_button_selected_nodes:  # Only the top list row was chosen (e.g. single Delete Node on it).
+            QMessageBox.information(self, "Delete Nodes", "The top list row cannot be deleted. Select individual records instead.")
+            return  # Nothing is changed.
         
         dialog = DeleteTreeNodesSelectedDialog(len(self.right_button_selected_nodes))
 
